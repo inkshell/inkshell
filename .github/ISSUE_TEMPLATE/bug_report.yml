@@ -1,0 +1,54 @@
+name: 🐛 Bug report
+description: Report something that isn't working as expected
+labels: ['bug', 'needs triage']
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to file a bug! Please fill out the details below.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, and what you expected instead.
+      placeholder: When I click "New Chat", …
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open VibeBox
+        2. Select a project
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: vibebox-version
+    attributes:
+      label: VibeBox version
+      placeholder: 0.1.0 (or commit SHA)
+    validations:
+      required: true
+  - type: input
+    id: claude-version
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Any relevant console output (View → Toggle Developer Tools) or screenshots.

@@ -1,0 +1,1223 @@
+/* =========================================================================
+   VibeBox design system — "Midnight Ink"
+   Cool graphite chrome that stays out of the way; the active session's model
+   colour (--session) tints the UI so you always know which Claude you're
+   talking to. Brand moments use a fixed iris→cyan spectrum. Everything reads
+   off these variables, so re-theming is a one-file edit.
+   ========================================================================= */
+
+:root {
+  /* Brand accent — fixed iris. Used for the wordmark, primary action, focus. */
+  --accent: #7c8cff;
+  --accent-soft: #a2acff;
+  --accent-deep: #5b63e6;
+  --accent-ink: #0b0d13; /* text that sits on a bright accent fill */
+  --spectrum: linear-gradient(135deg, #8f8bff 0%, #6f9dff 46%, #4fd8e2 100%);
+
+  /* Surfaces — near-black with a blue-slate undertone (deliberately not warm) */
+  --bg-app: #0c0e13;
+  --bg-sidebar: #0f1117;
+  --bg-card: #161a23;
+  --bg-card-hover: #1d222e;
+  --bg-extreme: #080a0e;
+  --bg-terminal: #090b10;
+  --bg-glass: rgba(22, 26, 35, 0.72);
+
+  /* Text */
+  --text-primary: #e8ebf4;
+  --text-muted: #8a93a8;
+  --text-faint: #565f73;
+
+  /* Lines & status */
+  --border: #232a37;
+  --border-soft: #191e28;
+  --error: #ff6b81;
+  --warn: #f5c366;
+  --ok: #5fd8a4;
+
+  /* Model hues (defaults; per-model config colour overrides these) */
+  --hue-fable: #f5c366;
+  --hue-opus: #b98bff;
+  --hue-sonnet: #6f9dff;
+  --hue-haiku: #5fd8a4;
+
+  /* Shape & motion */
+  --radius-sm: 8px;
+  --radius: 13px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur: 0.16s;
+
+  --font-ui:
+    -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  color: var(--text-primary);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #313a4a;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* =========================================================================
+   App shell — the --session tint threads through the whole subtree
+   ========================================================================= */
+
+/* `.app` is the horizontal resizable Group root; the library forces its
+   display/flex, so this rule only sets size, ground colour, and the tint
+   tokens the whole subtree reads. */
+.app {
+  height: 100%;
+  width: 100%;
+  background: var(--bg-app);
+
+  /* The active model's colour. Overridden inline per active tab; falls back to
+     the iris brand accent. Soft/tint/line/glow are derived once here so every
+     rule just reads a token. */
+  --session: var(--accent);
+  --session-tint: color-mix(in srgb, var(--session) 15%, var(--bg-card));
+  --session-line: color-mix(in srgb, var(--session) 52%, var(--border));
+  --session-glow: color-mix(in srgb, var(--session) 40%, transparent);
+  --session-dim: color-mix(in srgb, var(--session) 22%, transparent);
+}
+
+/* Content wrapper the resizable panels apply their className to — fills the
+   panel so the app chrome (sidebar / main) can lay itself out inside. */
+.pane {
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  /* A whisper of the session colour bleeding from the top-left corner. */
+  background:
+    radial-gradient(900px 380px at 0% -8%, var(--session-dim), transparent 60%), var(--bg-app);
+}
+
+/* =========================================================================
+   Resize handles (Separator) — the draggable seams between panels
+   ========================================================================= */
+
+.sep {
+  position: relative;
+  background: transparent;
+}
+.sep::after {
+  content: '';
+  position: absolute;
+  background: var(--border-soft);
+  transition: background var(--dur) var(--ease);
+}
+.sep-h {
+  width: 9px;
+}
+.sep-h::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+}
+.sep-v {
+  height: 9px;
+}
+.sep-v::after {
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+[data-separator]:hover::after,
+[data-separator]:active::after {
+  background: var(--session);
+  box-shadow: 0 0 8px var(--session-glow);
+}
+.sep-h:hover::after,
+.sep-h:active::after {
+  width: 2px;
+}
+.sep-v:hover::after,
+.sep-v:active::after {
+  height: 2px;
+}
+
+/* Region the frameless window can be dragged by. Interactive children opt back
+   out with `.no-drag`. */
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* =========================================================================
+   Title bar (Windows / Linux only — mac uses native traffic lights)
+   ========================================================================= */
+
+.titlebar {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+.titlebar.mac {
+  justify-content: center;
+}
+
+.win-controls {
+  display: flex;
+  gap: 4px;
+}
+.win-btn {
+  width: 30px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  transition: background var(--dur) var(--ease);
+}
+.win-btn:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+.win-btn.close:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+/* =========================================================================
+   Sidebar
+   ========================================================================= */
+
+.sidebar {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  background: var(--bg-sidebar);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 12px 10px;
+  overflow: hidden;
+}
+
+/* Vertical resizable Group holding the projects / history split. */
+.sidebar-groups {
+  flex: 1;
+  min-height: 0;
+}
+.sb-pane {
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sb-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 6px;
+  flex-shrink: 0;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.sb-head .caret {
+  color: var(--text-faint);
+  display: grid;
+  place-items: center;
+  transition:
+    transform var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.sb-head:hover .caret {
+  color: var(--text-muted);
+}
+.sb-head.open .caret {
+  transform: rotate(90deg);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 6px 6px 4px;
+}
+.brand-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  color: var(--accent-ink);
+  background: var(--spectrum);
+  box-shadow:
+    0 6px 18px rgba(111, 130, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.brand-name {
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  background: var(--spectrum);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.brand-tag {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  margin-top: 1px;
+}
+
+.sidebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 2px 10px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+.btn:hover {
+  border-color: var(--session-line);
+  background: var(--bg-card-hover);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+/* Primary "open project" fills the row; the gear sits beside it. */
+.btn.grow {
+  flex: 1;
+}
+.btn.square {
+  width: 36px;
+  padding: 0;
+  color: var(--text-muted);
+}
+.btn.square:hover {
+  color: var(--text-primary);
+}
+
+/* Section header (a static label + count above each sidebar pane) */
+.section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  flex: 1;
+}
+.section-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-faint);
+  background: var(--bg-card);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.project-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 0 2px;
+  padding-right: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 31px;
+  flex-shrink: 0;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  width: 100%;
+  text-align: left;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+  position: relative;
+}
+.project-row::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex-shrink: 0;
+  transition:
+    background var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+.project-row:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+.project-row.active {
+  background: var(--session-tint);
+  color: var(--text-primary);
+}
+.project-row.active::before {
+  background: var(--session);
+  box-shadow: 0 0 8px var(--session-glow);
+}
+.project-row .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-right: 2px;
+  flex: 1;
+  min-height: 0;
+}
+.history-card {
+  border: 1px solid transparent;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  text-align: left;
+  width: 100%;
+  flex-shrink: 0;
+  transition:
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+  position: relative;
+}
+.history-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background var(--dur) var(--ease);
+}
+.history-card:hover {
+  border-color: var(--session-line);
+  background: var(--bg-card-hover);
+  transform: translateX(2px);
+}
+.history-card:hover::before {
+  background: var(--session);
+}
+.history-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.history-time {
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.empty-note {
+  color: var(--text-faint);
+  font-size: 12px;
+  padding: 14px 10px;
+  line-height: 1.5;
+}
+
+/* =========================================================================
+   Tab bar (top) — clean editor tabs
+   ========================================================================= */
+
+.tabbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.sidebar-toggle {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+  flex-shrink: 0;
+}
+.sidebar-toggle:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.new-chat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 15px 0 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--spectrum);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+  box-shadow: 0 4px 14px rgba(111, 130, 255, 0.32);
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    filter var(--dur) var(--ease);
+  flex-shrink: 0;
+}
+.new-chat:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 7px 20px rgba(111, 130, 255, 0.42);
+}
+.new-chat:active {
+  transform: translateY(0);
+}
+
+/* The scrollable rail: strip + a nudge chevron on each overflowing side. */
+.tab-rail {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+}
+.tab-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding-top: 8px;
+}
+.tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* With more tabs than fit, the overflowing edge dissolves into the chrome —
+   a soft "there's more this way" cue that also frames the nudge chevrons. */
+.tab-rail.ovl-l .tab-strip {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 40px);
+  mask-image: linear-gradient(90deg, transparent 0, #000 40px);
+}
+.tab-rail.ovl-r .tab-strip {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent 100%);
+}
+.tab-rail.ovl-l.ovl-r .tab-strip {
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 40px,
+    #000 calc(100% - 40px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 40px,
+    #000 calc(100% - 40px),
+    transparent 100%
+  );
+}
+
+.rail-nudge {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: none;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--session-line);
+  background: var(--bg-glass);
+  backdrop-filter: blur(8px);
+  color: var(--text-muted);
+  z-index: 2;
+  transition:
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+.rail-nudge svg {
+  display: block;
+}
+.rail-nudge.left {
+  left: 0;
+}
+.rail-nudge.left svg {
+  transform: rotate(180deg);
+}
+.rail-nudge.right {
+  right: 0;
+}
+.rail-nudge:hover {
+  color: var(--text-primary);
+  border-color: var(--session);
+  background: var(--bg-card-hover);
+  box-shadow: 0 0 12px var(--session-glow);
+}
+.tab-rail.ovl-l .rail-nudge.left,
+.tab-rail.ovl-r .rail-nudge.right {
+  display: grid;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 34px;
+  padding: 0 6px 0 12px;
+  border-radius: 10px 10px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  max-width: 210px;
+  position: relative;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+.tab:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+.tab.active {
+  background: var(--session-tint);
+  color: var(--text-primary);
+}
+/* The session-coloured seam that ties the active tab to the terminal below. */
+.tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--session);
+  box-shadow: 0 0 10px var(--session-glow);
+}
+.tab .title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+.tab .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--session);
+  box-shadow: 0 0 8px var(--session-glow);
+  flex-shrink: 0;
+}
+.tab-close {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.tab-close:hover {
+  background: rgba(255, 107, 129, 0.16);
+  color: var(--error);
+}
+
+/* =========================================================================
+   Terminal area — the hero
+   ========================================================================= */
+
+.stage {
+  flex: 1;
+  min-height: 0;
+  padding: 12px 14px;
+  position: relative;
+}
+.terminals {
+  position: relative;
+  height: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-terminal);
+  box-shadow:
+    0 1px 0 0 var(--session-dim) inset,
+    0 18px 50px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+/* A session-coloured hairline crowning the terminal card. */
+.terminals::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--session), transparent 55%);
+  opacity: 0.7;
+  z-index: 1;
+}
+.term-host {
+  position: absolute;
+  inset: 0;
+  padding: 10px 12px;
+}
+.term-host[hidden] {
+  display: none;
+}
+.term-host .xterm {
+  height: 100%;
+}
+
+/* Empty state — a quiet hero */
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  padding: 24px;
+}
+.empty-logo {
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  color: var(--accent-ink);
+  border-radius: 24px;
+  background: var(--spectrum);
+  box-shadow:
+    0 14px 44px rgba(111, 130, 255, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  margin-bottom: 8px;
+}
+.empty-title {
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.empty-sub {
+  color: var(--text-muted);
+  font-size: 13px;
+  max-width: 320px;
+  line-height: 1.5;
+}
+.empty-keys {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+.kbd {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* =========================================================================
+   Toolbar — sits between the tabs and the terminal; belongs to the active
+   tab's content. Model switcher + context + tools.
+   ========================================================================= */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 36px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-sidebar);
+  font-size: 12px;
+}
+.status-project {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+.status-project .glyph {
+  color: var(--session);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.status-project .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.status-project .none {
+  color: var(--text-faint);
+}
+.status-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.status-spacer {
+  margin-left: auto;
+}
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.status-hint {
+  color: var(--text-faint);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Model switcher */
+.swap-hint {
+  color: var(--text-faint);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.model-pills {
+  display: flex;
+  gap: 5px;
+}
+.model-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  transition:
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+.model-pill .pdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pill, var(--accent));
+  transition: transform var(--dur) var(--ease);
+}
+.model-pill:hover {
+  color: var(--text-primary);
+  border-color: var(--pill, var(--accent));
+  background: color-mix(in srgb, var(--pill, var(--accent)) 16%, var(--bg-card));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--pill, var(--accent)) 36%, transparent);
+}
+.model-pill:hover .pdot {
+  transform: scale(1.25);
+  box-shadow: 0 0 8px var(--pill, var(--accent));
+}
+
+.icon-btn {
+  width: 30px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  transition:
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+.icon-btn:hover {
+  border-color: var(--session-line);
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+/* Context meter — a fuel gauge with ticks */
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-size: 11px;
+}
+.meter-track {
+  position: relative;
+  width: 54px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-extreme);
+  overflow: hidden;
+}
+/* Subtle fuel-gauge tick marks over the track. */
+.meter-track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent 8px,
+    rgba(255, 255, 255, 0.08) 8px,
+    rgba(255, 255, 255, 0.08) 9px
+  );
+  pointer-events: none;
+}
+.meter-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition:
+    width 0.35s var(--ease),
+    background 0.35s var(--ease),
+    box-shadow 0.35s var(--ease);
+}
+.meter-label {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.meter-label.warn {
+  color: var(--warn);
+}
+.meter-label.danger {
+  color: var(--error);
+}
+
+/* =========================================================================
+   Banners (error / notice)
+   ========================================================================= */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  margin: 0 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+.banner.error {
+  background: color-mix(in srgb, var(--error) 16%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
+  color: var(--text-primary);
+}
+.banner.notice {
+  background: var(--session-tint);
+  border: 1px solid var(--session-line);
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+.banner .glyph {
+  display: grid;
+  place-items: center;
+  color: var(--session);
+}
+.banner.error .glyph {
+  color: var(--error);
+}
+.banner .spacer {
+  margin-left: auto;
+}
+.banner-close {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border-radius: 5px;
+}
+.banner-close:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* =========================================================================
+   Settings modal
+   ========================================================================= */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 12, 0.66);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+.modal {
+  width: min(660px, 92vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.modal-body {
+  padding: 18px 20px;
+  overflow-y: auto;
+}
+.modal-desc {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  margin: 0 0 16px;
+  line-height: 1.55;
+}
+
+.model-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.model-row {
+  display: grid;
+  grid-template-columns: 30px 1.4fr 1fr 1.6fr 30px;
+  gap: 9px;
+  align-items: center;
+}
+.model-row .col-head {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.field {
+  height: 34px;
+  padding: 0 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-extreme);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  width: 100%;
+  user-select: text;
+  transition: border-color var(--dur) var(--ease);
+}
+.field:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.color-input {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+.del-btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  transition:
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.del-btn:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+.add-model {
+  margin-top: 14px;
+  align-self: flex-start;
+}
+.settings-divider {
+  height: 1px;
+  background: var(--border-soft);
+  margin: 18px 0;
+}
+.default-model {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.select {
+  height: 34px;
+  padding: 0 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-extreme);
+  color: var(--text-primary);
+  font-size: 12.5px;
+}
+.select:focus {
+  outline: none;
+  border-color: var(--accent);
+}

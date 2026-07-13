@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <radialGradient id="glow" cx="0.3" cy="0.25" r="0.9">
+        <stop offset="0" stop-color="#2a201b" />
+        <stop offset="1" stop-color="#120e0c" />
+      </radialGradient>
+    </linearGradient>
+    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f2a380" />
+      <stop offset="1" stop-color="#c9633b" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#glow)" />
+  <rect width="512" height="512" rx="112" fill="none" stroke="#382c25" stroke-width="2" />
+  <!-- The VibeBox diamond mark -->
+  <g transform="translate(256 256)">
+    <path d="M0 -120 L120 0 L0 120 L-120 0 Z" fill="url(#coral)" opacity="0.14" />
+    <path d="M0 -86 L86 0 L0 86 L-86 0 Z" fill="url(#coral)" opacity="0.28" />
+    <path d="M0 -52 L52 0 L0 52 L-52 0 Z" fill="url(#coral)" />
+  </g>
+</svg>

@@ -1,0 +1,29 @@
+name: 💡 Feature request
+description: Suggest an idea or improvement
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or pain point. "I'm always frustrated when…"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like to see happen?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches you've thought about.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Fit with VibeBox
+      options:
+        - label: This keeps VibeBox a thin shell around Claude Code (it doesn't reimplement the CLI).
