@@ -84,9 +84,9 @@ export function TabBar({
       </button>
 
       <div
-        className={`tab-rail no-drag ${overflow.left ? 'ovl-l' : ''} ${overflow.right ? 'ovl-r' : ''}`}
+        className={`tab-rail ${overflow.left ? 'ovl-l' : ''} ${overflow.right ? 'ovl-r' : ''}`}
       >
-        <button className="rail-nudge left" title="Abas anteriores" onClick={() => nudge(-1)}>
+        <button className="rail-nudge left no-drag" title="Abas anteriores" onClick={() => nudge(-1)}>
           <DoubleChevronIcon size={15} />
         </button>
 
@@ -97,7 +97,7 @@ export function TabBar({
               <div
                 key={tab.id}
                 data-tab-id={tab.id}
-                className={`tab ${isActive ? 'active' : ''}`}
+                className={`tab no-drag ${isActive ? 'active' : ''}`}
                 onClick={() => onSelectTab(tab.id)}
                 onMouseDown={(e) => {
                   // Middle-click closes the tab; preventDefault stops the
@@ -125,7 +125,7 @@ export function TabBar({
           })}
         </div>
 
-        <button className="rail-nudge right" title="Próximas abas" onClick={() => nudge(1)}>
+        <button className="rail-nudge right no-drag" title="Próximas abas" onClick={() => nudge(1)}>
           <DoubleChevronIcon size={15} />
         </button>
       </div>

@@ -79,7 +79,8 @@ export function Sidebar({
   const layout = useDefaultLayout({ id: 'vibebox:sidebar-sections' })
 
   return (
-    <aside className="sidebar" style={isMac ? { paddingTop: 44 } : undefined}>
+    <aside className="sidebar">
+      {isMac && <div className="mac-drag-inset drag" />}
       <div className="brand drag">
         <div className="brand-badge">◈</div>
         <div>

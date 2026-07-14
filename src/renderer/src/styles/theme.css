@@ -207,6 +207,17 @@ button {
   -webkit-app-region: no-drag;
 }
 
+/* macOS-only: a full-bleed drag handle filling the title-bar inset above the
+   sidebar brand (where the traffic lights float). Negative margins cancel the
+   sidebar's own padding so it reaches every edge. Its subtree never changes, so
+   its draggable region never goes stale (see electron/electron#17972). */
+.mac-drag-inset {
+  height: 44px;
+  margin: -12px -12px 0;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
 /* =========================================================================
    Title bar (Windows / Linux only — mac uses native traffic lights)
    ========================================================================= */
