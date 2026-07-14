@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { IpcChannel } from '@shared/ipc'
 import type { AppConfig, PtyCreateOptions } from '@shared/types'
 import { addRecentProject, loadConfig, saveConfig } from './config'
-import { contextTokens, discoverKnownProjects, listSessions } from './claude-history'
+import { discoverKnownProjects, listSessions, sessionContext } from './claude-history'
 import { PtyManager } from './pty-manager'
 
 /**
@@ -37,9 +37,9 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
   )
   ipcMain.handle(IpcChannel.HistoryDiscoverProjects, () => discoverKnownProjects())
   ipcMain.handle(
-    IpcChannel.HistoryContextTokens,
+    IpcChannel.HistorySessionContext,
     (_e, projectPath: string, sessionId: string, claudeConfigDir?: string) =>
-      contextTokens(projectPath, sessionId, claudeConfigDir)
+      sessionContext(projectPath, sessionId, claudeConfigDir)
   )
 
   // --- Pseudo-terminal ----------------------------------------------------

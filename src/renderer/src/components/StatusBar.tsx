@@ -1,6 +1,7 @@
-import type { ModelConfig } from '@shared/types'
+import type { CSSProperties } from 'react'
+import { EFFORT_LEVELS, type ModelConfig } from '@shared/types'
 import { ContextMeter } from './ContextMeter'
-import { BarsIcon, BookmarkIcon, FolderIcon, SwapIcon } from './Icons'
+import { BarsIcon, BookmarkIcon, FolderIcon, GaugeIcon, SwapIcon } from './Icons'
 
 interface Props {
   /** Basename of the selected project, or null when none is chosen. */
@@ -8,8 +9,15 @@ interface Props {
   /** Whether a chat tab is currently active (drives the model + context row). */
   active: boolean
   models: ModelConfig[]
+  /** Alias of the model actually backing the session, read off its transcript. */
+  currentModel: string | null
+  /** Effort last requested for this tab — optimistic only, never confirmed. */
+  currentEffort: string | null
   contextTokens: number | null
+  /** The active model's context window — the meter's denominator. */
+  contextWindow: number
   onPickModel: (alias: string) => void
+  onPickEffort: (effort: string) => void
   onViewMemory: () => void
   onAnalytics: () => void
 }
@@ -17,20 +25,27 @@ interface Props {
 /**
  * The bottom status bar — the app's ground line, in the spirit of an editor's
  * status strip. The left side always names the working directory; when a tab is
- * live it also carries the model switcher. Every model pill is an equal action
- * that types `/model <alias>` into the session, so the bar only ever *changes*
- * the model, never claims to know the current one. The right side holds the
- * context meter and secondary tools.
+ * live it also carries the model switcher (a select always showing the model
+ * that's really backing the session, per its transcript) and the effort switcher
+ * (a select that can only ever show its own last-clicked guess — Claude Code
+ * never records effort anywhere, so there's no ground truth to confirm it
+ * against). Picking either types the matching `/model` or `/effort` command
+ * into the session. The right side holds the context meter and secondary tools.
  */
 export function StatusBar({
   project,
   active,
   models,
+  currentModel,
+  currentEffort,
   contextTokens,
+  contextWindow,
   onPickModel,
+  onPickEffort,
   onViewMemory,
   onAnalytics
 }: Props) {
+  const activeColor = models.find((m) => m.alias === currentModel)?.color
   return (
     <div className="statusbar no-drag">
       <div className="status-project" title={project ?? undefined}>
@@ -50,22 +65,52 @@ export function StatusBar({
           <span className="swap-hint" title="Trocar o modelo do Claude Code">
             <SwapIcon size={15} />
           </span>
-          <div className="model-pills">
+          <select
+            className="pill-select"
+            style={
+              activeColor ? ({ ['--pill' as string]: activeColor } as CSSProperties) : undefined
+            }
+            value={currentModel ?? ''}
+            title="Trocar o modelo do Claude Code"
+            onChange={(e) => e.target.value && onPickModel(e.target.value)}
+          >
+            {!currentModel && (
+              <option value="" disabled>
+                Modelo…
+              </option>
+            )}
             {models
               .filter((m) => m.alias)
               .map((m) => (
-                <button
-                  key={m.alias}
-                  className="model-pill"
-                  style={{ ['--pill' as string]: m.color }}
-                  title={`Trocar para ${m.display || m.alias}`}
-                  onClick={() => onPickModel(m.alias)}
-                >
-                  <span className="pdot" />
+                <option key={m.alias} value={m.alias}>
                   {m.display || m.alias}
-                </button>
+                </option>
               ))}
-          </div>
+          </select>
+
+          <span
+            className="swap-hint"
+            title="Effort — só reflete a última escolha, nunca confirmado"
+          >
+            <GaugeIcon size={15} />
+          </span>
+          <select
+            className="pill-select"
+            value={currentEffort ?? ''}
+            title="Trocar o effort do Claude Code (não confirmado pelo Claude Code)"
+            onChange={(e) => e.target.value && onPickEffort(e.target.value)}
+          >
+            {!currentEffort && (
+              <option value="" disabled>
+                Effort…
+              </option>
+            )}
+            {EFFORT_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
+          </select>
         </>
       )}
 
@@ -73,7 +118,7 @@ export function StatusBar({
 
       {active ? (
         <div className="status-right">
-          <ContextMeter tokens={contextTokens} />
+          <ContextMeter tokens={contextTokens} contextWindow={contextWindow} />
           <button className="icon-btn" title="Visualizar a memória" onClick={onViewMemory}>
             <BookmarkIcon size={14} />
           </button>

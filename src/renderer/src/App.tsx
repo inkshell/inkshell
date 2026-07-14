@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
-import type { AppConfig, SessionSummary } from '@shared/types'
+import {
+  CONTEXT_WINDOW,
+  type AppConfig,
+  type SessionContext,
+  type SessionSummary
+} from '@shared/types'
 import type { Tab } from './types'
 import { Sidebar } from './components/Sidebar'
 import { TabBar } from './components/TabBar'
@@ -23,7 +28,7 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const [contextTokens, setContextTokens] = useState<number | null>(null)
+  const [liveSession, setLiveSession] = useState<SessionContext | null>(null)
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null
 
@@ -88,6 +93,10 @@ export function App() {
     const m = config?.defaultModel.trim()
     return m ? m : undefined
   }, [config])
+  const defaultEffort = useCallback((): string | undefined => {
+    const e = config?.defaultEffort.trim()
+    return e ? e : undefined
+  }, [config])
 
   // --- Tab lifecycle -------------------------------------------------------
   const openNewChat = useCallback(() => {
@@ -99,11 +108,13 @@ export function App() {
       cwd: currentProject,
       claudeConfigDir: claudeConfigDirFor(currentProject) ?? null,
       model: defaultModel() ?? null,
+      effort: defaultEffort() ?? null,
+      startedAtMs: Date.now(),
       title: 'Novo chat'
     }
     setTabs((prev) => [...prev, tab])
     setActiveTabId(tab.id)
-  }, [currentProject, defaultModel, claudeConfigDirFor])
+  }, [currentProject, defaultModel, defaultEffort, claudeConfigDirFor])
 
   const openResume = useCallback(
     (sessionId: string) => {
@@ -121,12 +132,14 @@ export function App() {
         cwd: currentProject,
         claudeConfigDir: claudeConfigDirFor(currentProject) ?? null,
         model: defaultModel() ?? null,
+        effort: defaultEffort() ?? null,
+        startedAtMs: Date.now(),
         title: 'Resumindo…'
       }
       setTabs((prev) => [...prev, tab])
       setActiveTabId(tab.id)
     },
-    [tabs, currentProject, defaultModel, claudeConfigDirFor]
+    [tabs, currentProject, defaultModel, defaultEffort, claudeConfigDirFor]
   )
 
   const closeTab = useCallback((id: string) => {
@@ -163,30 +176,41 @@ export function App() {
   const requestModel = useCallback(
     (alias: string) => {
       writeToActive(`/model ${alias}\r`)
-      // Reflect the switch in the tab so the session tint follows the model.
+      // Optimistic guess so the tint updates instantly; the next transcript
+      // poll below confirms it (or corrects it) against real usage.
       if (activeTabId)
         setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, model: alias } : t)))
     },
     [writeToActive, activeTabId]
   )
+  const requestEffort = useCallback(
+    (effort: string) => {
+      writeToActive(`/effort ${effort}\r`)
+      // Purely optimistic — unlike the model, effort is never recorded in the
+      // transcript, so there's no way to confirm or correct this later.
+      if (activeTabId)
+        setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, effort } : t)))
+    },
+    [writeToActive, activeTabId]
+  )
   const requestStats = useCallback(() => writeToActive('/stats\r'), [writeToActive])
 
-  // --- Context meter: poll the active session's transcript -----------------
+  // --- Live session: poll the active transcript for token usage + model ----
   useEffect(() => {
     if (!currentProject || !activeTab?.sessionId) {
-      setContextTokens(null)
+      setLiveSession(null)
       return
     }
     const project = currentProject
     const sessionId = activeTab.sessionId
     let cancelled = false
     const read = async () => {
-      const tokens = await window.vibebox.history.contextTokens(
+      const ctx = await window.vibebox.history.sessionContext(
         project,
         sessionId,
         claudeConfigDirFor(project)
       )
-      if (!cancelled) setContextTokens(tokens)
+      if (!cancelled) setLiveSession(ctx)
     }
     read()
     const timer = setInterval(read, 2000)
@@ -195,6 +219,34 @@ export function App() {
       clearInterval(timer)
     }
   }, [currentProject, activeTab?.sessionId, claudeConfigDirFor])
+
+  // The model alias actually backing the active session: the transcript's
+  // recorded model id, matched against each config model's `idPrefix` (the
+  // only ground truth there is — Claude Code never exposes this any other
+  // way). Discarded if it predates this tab's own run — a resumed session's
+  // last transcript line can be older than the current process, e.g. when
+  // resuming launches under a different `--model` than that history was on —
+  // in which case the tab's launch model (the actual `--model` argument) is
+  // the correct answer until a fresh turn lands.
+  const activeModelAlias = useCallback((): string | null => {
+    const isFresh =
+      liveSession?.timestampMs != null &&
+      activeTab != null &&
+      liveSession.timestampMs >= activeTab.startedAtMs
+    const modelId = isFresh ? liveSession.model : null
+    const match = modelId
+      ? config?.models.find((m) => m.idPrefix && modelId.startsWith(m.idPrefix))
+      : undefined
+    return match?.alias ?? activeTab?.model ?? null
+  }, [liveSession, config, activeTab])
+
+  // The context meter's denominator: the resolved model's own window (config
+  // edited per `ModelConfig.contextWindow`), falling back to a flat guess
+  // before any model is known at all (e.g. a brand-new chat).
+  const activeContextWindow = useCallback((): number => {
+    const alias = activeModelAlias()
+    return config?.models.find((m) => m.alias === alias)?.contextWindow ?? CONTEXT_WINDOW
+  }, [activeModelAlias, config])
 
   // --- Keyboard shortcuts (capture phase, to beat xterm's key handling) -----
   const shortcutRef = useRef({ openNewChat, closeTab, activeTabId })
@@ -238,7 +290,7 @@ export function App() {
 
   // The active session's model colour tints the whole chrome (falls back to the
   // iris brand accent via CSS when there's no live tab).
-  const sessionAlias = activeTab?.model ?? config.defaultModel
+  const sessionAlias = activeModelAlias() ?? config.defaultModel
   const sessionAccent =
     config.models.find((m) => m.alias && m.alias === sessionAlias)?.color ?? null
   const appStyle = sessionAccent ? ({ '--session': sessionAccent } as CSSProperties) : undefined
@@ -299,18 +351,6 @@ export function App() {
               onToggleSidebar={toggleSidebar}
             />
 
-            {activeTab && (
-              <StatusBar
-                project={projectName}
-                active
-                models={config.models}
-                contextTokens={contextTokens}
-                onPickModel={requestModel}
-                onViewMemory={() => setNotice('A visualização da memória chega em breve.')}
-                onAnalytics={requestStats}
-              />
-            )}
-
             {error && (
               <div className="banner error">
                 <span className="glyph">⚠</span>
@@ -323,19 +363,36 @@ export function App() {
             )}
 
             <div className="stage">
-              <div className="terminals">
-                {tabs.map((tab) => (
-                  <TerminalView
-                    key={tab.id}
-                    tab={tab}
-                    active={tab.id === activeTabId}
-                    onReady={onTabReady}
-                    onTitle={onTabTitle}
-                    onExit={closeTab}
-                    onError={onTabError}
+              <div className="workspace">
+                {activeTab && (
+                  <StatusBar
+                    project={projectName}
+                    active
+                    models={config.models}
+                    currentModel={activeModelAlias()}
+                    currentEffort={activeTab.effort}
+                    contextTokens={liveSession?.tokens ?? null}
+                    contextWindow={activeContextWindow()}
+                    onPickModel={requestModel}
+                    onPickEffort={requestEffort}
+                    onViewMemory={() => setNotice('A visualização da memória chega em breve.')}
+                    onAnalytics={requestStats}
                   />
-                ))}
-                {tabs.length === 0 && <EmptyState />}
+                )}
+                <div className="terminals">
+                  {tabs.map((tab) => (
+                    <TerminalView
+                      key={tab.id}
+                      tab={tab}
+                      active={tab.id === activeTabId}
+                      onReady={onTabReady}
+                      onTitle={onTabTitle}
+                      onExit={closeTab}
+                      onError={onTabError}
+                    />
+                  ))}
+                  {tabs.length === 0 && <EmptyState />}
+                </div>
               </div>
             </div>
 

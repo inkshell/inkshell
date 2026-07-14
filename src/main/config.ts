@@ -12,15 +12,39 @@ const MAX_RECENT_PROJECTS = 20
  */
 export function defaultModels(): ModelConfig[] {
   return [
-    { alias: 'fable', display: 'Fable 5', idPrefix: 'claude-fable-5', color: '#f5c366' },
-    { alias: 'opus', display: 'Opus 4.8', idPrefix: 'claude-opus-4-8', color: '#b98bff' },
-    { alias: 'sonnet', display: 'Sonnet 5', idPrefix: 'claude-sonnet-5', color: '#6f9dff' },
-    { alias: 'haiku', display: 'Haiku 4.5', idPrefix: 'claude-haiku-4-5', color: '#5fd8a4' }
+    {
+      alias: 'fable',
+      display: 'Fable 5',
+      idPrefix: 'claude-fable-5',
+      color: '#f5c366',
+      contextWindow: 1_000_000
+    },
+    {
+      alias: 'opus',
+      display: 'Opus 4.8',
+      idPrefix: 'claude-opus-4-8',
+      color: '#b98bff',
+      contextWindow: 1_000_000
+    },
+    {
+      alias: 'sonnet',
+      display: 'Sonnet 5',
+      idPrefix: 'claude-sonnet-5',
+      color: '#6f9dff',
+      contextWindow: 1_000_000
+    },
+    {
+      alias: 'haiku',
+      display: 'Haiku 4.5',
+      idPrefix: 'claude-haiku-4-5',
+      color: '#5fd8a4',
+      contextWindow: 200_000
+    }
   ]
 }
 
 function defaultConfig(): AppConfig {
-  return { projects: [], defaultModel: 'sonnet', models: defaultModels() }
+  return { projects: [], defaultModel: 'sonnet', models: defaultModels(), defaultEffort: '' }
 }
 
 /**
@@ -39,6 +63,19 @@ function migrateModelColors(models: ModelConfig[]): ModelConfig[] {
     const next = LEGACY_COLORS[m.color?.toLowerCase()]
     return next ? { ...m, color: next } : m
   })
+}
+
+/**
+ * Fills in `contextWindow` for a config saved before that field existed.
+ * Haiku's id is the one recognizable exception to the 1M window every other
+ * current model carries.
+ */
+function migrateContextWindows(models: ModelConfig[]): ModelConfig[] {
+  return models.map((m) =>
+    typeof m.contextWindow === 'number' && m.contextWindow > 0
+      ? m
+      : { ...m, contextWindow: m.idPrefix?.includes('haiku') ? 200_000 : 1_000_000 }
+  )
 }
 
 function configDir(): string {
@@ -67,9 +104,12 @@ export function loadConfig(): AppConfig {
         typeof raw.defaultModel === 'string' && raw.defaultModel.trim()
           ? raw.defaultModel
           : base.defaultModel,
-      models: migrateModelColors(
-        Array.isArray(raw.models) && raw.models.length > 0 ? raw.models : base.models
-      )
+      models: migrateContextWindows(
+        migrateModelColors(
+          Array.isArray(raw.models) && raw.models.length > 0 ? raw.models : base.models
+        )
+      ),
+      defaultEffort: typeof raw.defaultEffort === 'string' ? raw.defaultEffort : base.defaultEffort
     }
   } catch {
     return base

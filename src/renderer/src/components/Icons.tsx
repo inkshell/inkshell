@@ -48,6 +48,16 @@ export const SidebarIcon = ({ size = 16 }: IconProps) =>
 export const SwapIcon = ({ size = 16 }: IconProps) =>
   svg(size, <path d="M4 8h13l-3-3M20 16H7l3 3" />)
 
+export const GaugeIcon = ({ size = 16 }: IconProps) =>
+  svg(
+    size,
+    <>
+      <path d="M5 17a7 7 0 0 1 14 0" />
+      <path d="M12 17l4-6" />
+      <circle cx="12" cy="17" r="1.1" fill="currentColor" stroke="none" />
+    </>
+  )
+
 export const BarsIcon = ({ size = 16 }: IconProps) =>
   svg(
     size,
@@ -62,6 +72,17 @@ export const BookmarkIcon = ({ size = 16 }: IconProps) =>
   svg(size, <path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1Z" />)
 
 export const ChevronIcon = ({ size = 12 }: IconProps) => svg(size, <path d="M9 6l6 6-6 6" />)
+
+/** Two nested chevrons (guillemet `»`). The `chev-*` classes let CSS stream
+ *  them one after the other — see the tab-rail overflow affordance. */
+export const DoubleChevronIcon = ({ size = 14 }: IconProps) =>
+  svg(
+    size,
+    <>
+      <path className="chev-a" d="M5 6l6 6-6 6" />
+      <path className="chev-b" d="M12 6l6 6-6 6" />
+    </>
+  )
 
 export const MinimizeIcon = ({ size = 14 }: IconProps) => svg(size, <path d="M5 12h14" />)
 

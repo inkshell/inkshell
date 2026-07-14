@@ -1,4 +1,4 @@
-import type { AppConfig, ModelConfig } from '@shared/types'
+import { EFFORT_LEVELS, type AppConfig, type ModelConfig } from '@shared/types'
 import { CloseIcon, PlusIcon } from './Icons'
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
 }
 
 function blankModel(): ModelConfig {
-  return { alias: '', display: '', idPrefix: 'claude-', color: '#a8978c' }
+  return { alias: '', display: '', idPrefix: 'claude-', color: '#a8978c', contextWindow: 200_000 }
 }
 
 /**
@@ -51,6 +51,7 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
               <span className="col-head">Nome</span>
               <span className="col-head">Alias</span>
               <span className="col-head">Prefixo do ID</span>
+              <span className="col-head">Janela</span>
               <span />
             </div>
 
@@ -80,6 +81,15 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
                   value={m.idPrefix}
                   onChange={(e) => updateModel(i, { idPrefix: e.target.value })}
                 />
+                <input
+                  type="number"
+                  className="field"
+                  title="Janela de contexto em tokens (denominador do medidor)"
+                  min={1}
+                  step={1000}
+                  value={m.contextWindow}
+                  onChange={(e) => updateModel(i, { contextWindow: Number(e.target.value) || 0 })}
+                />
                 <button className="del-btn" title="Remover modelo" onClick={() => removeModel(i)}>
                   <CloseIcon size={12} />
                 </button>
@@ -93,7 +103,7 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
 
           <div className="settings-divider" />
 
-          <div className="default-model">
+          <div className="setting-row">
             <span style={{ color: 'var(--text-muted)' }}>Modelo padrão de novos chats</span>
             <select
               className="select"
@@ -107,6 +117,22 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
                     {m.display || m.alias} ({m.alias})
                   </option>
                 ))}
+            </select>
+          </div>
+
+          <div className="setting-row">
+            <span style={{ color: 'var(--text-muted)' }}>Effort padrão de novos chats</span>
+            <select
+              className="select"
+              value={config.defaultEffort}
+              onChange={(e) => onChange({ ...config, defaultEffort: e.target.value })}
+            >
+              <option value="">Padrão do Claude Code</option>
+              {EFFORT_LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {level}
+                </option>
+              ))}
             </select>
           </div>
         </div>

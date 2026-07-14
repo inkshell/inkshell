@@ -12,7 +12,7 @@ export const IpcChannel = {
   DialogPickFolder: 'dialog:pickFolder',
   HistoryListSessions: 'history:listSessions',
   HistoryDiscoverProjects: 'history:discoverProjects',
-  HistoryContextTokens: 'history:contextTokens',
+  HistorySessionContext: 'history:sessionContext',
 
   // Pseudo-terminal (request/response)
   PtyCreate: 'pty:create',

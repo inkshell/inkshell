@@ -638,29 +638,50 @@ button {
   );
 }
 
+/* Overflow affordance — no floating chip, just the chrome edge coming alive.
+   The strip's dissolve mask (above) already fades the tabs beneath, so the
+   glyph needs no border or backdrop: at rest it's a faint double chevron; on
+   hover a session-tinted halo blooms behind it and the two chevrons stream
+   outward in a staggered loop — a quiet "more tabs this way". */
 .rail-nudge {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 22px;
-  height: 22px;
+  bottom: 0;
+  height: 34px;
+  width: 46px;
   display: none;
-  place-items: center;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--session-line);
-  background: var(--bg-glass);
-  backdrop-filter: blur(8px);
-  color: var(--text-muted);
+  align-items: center;
+  padding: 0 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
   z-index: 2;
+  transition: color var(--dur) var(--ease);
+}
+/* The halo — a soft session disc, folded away until hover. */
+.rail-nudge::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  background: radial-gradient(closest-side, var(--session-glow), transparent 75%);
+  opacity: 0;
+  transform: translateY(-50%) scale(0.6);
   transition:
-    color var(--dur) var(--ease),
-    border-color var(--dur) var(--ease),
-    background var(--dur) var(--ease);
+    opacity var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+  pointer-events: none;
 }
 .rail-nudge svg {
   display: block;
+  position: relative;
 }
 .rail-nudge.left {
+  left: 0;
+  justify-content: flex-start;
+}
+.rail-nudge.left::before {
   left: 0;
 }
 .rail-nudge.left svg {
@@ -668,16 +689,44 @@ button {
 }
 .rail-nudge.right {
   right: 0;
+  justify-content: flex-end;
+}
+.rail-nudge.right::before {
+  right: 0;
 }
 .rail-nudge:hover {
-  color: var(--text-primary);
-  border-color: var(--session);
-  background: var(--bg-card-hover);
-  box-shadow: 0 0 12px var(--session-glow);
+  color: var(--session);
+}
+.rail-nudge:hover::before {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+.rail-nudge:hover .chev-b {
+  animation: chev-stream 0.9s var(--ease) infinite;
+}
+.rail-nudge:hover .chev-a {
+  animation: chev-stream 0.9s var(--ease) infinite 0.12s;
+}
+@keyframes chev-stream {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateX(2px);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-nudge:hover .chev-a,
+  .rail-nudge:hover .chev-b {
+    animation: none;
+  }
 }
 .tab-rail.ovl-l .rail-nudge.left,
 .tab-rail.ovl-r .rail-nudge.right {
-  display: grid;
+  display: flex;
 }
 .tab {
   display: flex;
@@ -761,9 +810,14 @@ button {
   padding: 12px 14px;
   position: relative;
 }
-.terminals {
-  position: relative;
+/* The unified card: the toolbar is its header row, the terminal is its body —
+   one bordered, shadowed, rounded shape rather than two stacked pieces. */
+.workspace {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--bg-terminal);
@@ -772,8 +826,8 @@ button {
     0 18px 50px rgba(0, 0, 0, 0.45);
   overflow: hidden;
 }
-/* A session-coloured hairline crowning the terminal card. */
-.terminals::before {
+/* A session-coloured hairline crowning the whole card. */
+.workspace::before {
   content: '';
   position: absolute;
   left: 0;
@@ -783,6 +837,12 @@ button {
   background: linear-gradient(90deg, var(--session), transparent 55%);
   opacity: 0.7;
   z-index: 1;
+}
+.terminals {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .term-host {
   position: absolute;
@@ -914,51 +974,43 @@ button {
   gap: 6px;
 }
 
-/* Model switcher */
+/* Model + effort switchers */
 .swap-hint {
   color: var(--text-faint);
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
-.model-pills {
-  display: flex;
-  gap: 5px;
-}
-.model-pill {
-  display: flex;
-  align-items: center;
-  gap: 7px;
+.pill-select {
   height: 26px;
-  padding: 0 11px;
+  padding: 0 26px 0 12px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-muted);
+  border: 1px solid var(--pill, var(--border));
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238a93a8'/%3E%3C/svg%3E")
+      no-repeat right 10px center / 8px 5px,
+    color-mix(in srgb, var(--pill, var(--accent)) 14%, var(--bg-card));
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
+  font-family: inherit;
+  appearance: none;
+  cursor: pointer;
   transition:
-    color var(--dur) var(--ease),
     border-color var(--dur) var(--ease),
     background var(--dur) var(--ease),
     box-shadow var(--dur) var(--ease);
 }
-.model-pill .pdot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--pill, var(--accent));
-  transition: transform var(--dur) var(--ease);
-}
-.model-pill:hover {
-  color: var(--text-primary);
-  border-color: var(--pill, var(--accent));
-  background: color-mix(in srgb, var(--pill, var(--accent)) 16%, var(--bg-card));
+.pill-select:hover {
   box-shadow: 0 0 14px color-mix(in srgb, var(--pill, var(--accent)) 36%, transparent);
 }
-.model-pill:hover .pdot {
-  transform: scale(1.25);
-  box-shadow: 0 0 8px var(--pill, var(--accent));
+.pill-select:focus {
+  outline: none;
+  border-color: var(--pill, var(--accent));
+}
+.pill-select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
 }
 
 .icon-btn {
@@ -1141,7 +1193,7 @@ button {
 }
 .model-row {
   display: grid;
-  grid-template-columns: 30px 1.4fr 1fr 1.6fr 30px;
+  grid-template-columns: 30px 1.2fr 0.8fr 1.3fr 0.9fr 30px;
   gap: 9px;
   align-items: center;
 }
@@ -1203,10 +1255,13 @@ button {
   background: var(--border-soft);
   margin: 18px 0;
 }
-.default-model {
+.setting-row {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.setting-row + .setting-row {
+  margin-top: 10px;
 }
 .select {
   height: 34px;

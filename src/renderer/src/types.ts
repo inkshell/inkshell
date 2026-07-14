@@ -14,6 +14,15 @@ export interface Tab {
   claudeConfigDir: string | null
   /** Model alias the tab launched on. */
   model: string | null
+  /** Effort level the tab launched on (`--effort`), or `null` for the CLI's own default. */
+  effort: string | null
+  /**
+   * Epoch ms this tab's `claude` process was started. A transcript reading
+   * timestamped before this belongs to a previous run of the session (e.g. a
+   * resume launched under a different `--model` than its prior history) and
+   * must not be trusted as the tab's current model.
+   */
+  startedAtMs: number
   /** Tab label — the terminal title, updated as the CLI sets it. */
   title: string
 }

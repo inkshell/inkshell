@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Tab } from '../types'
-import { ChevronIcon, CloseIcon, PlusIcon, SidebarIcon } from './Icons'
+import { CloseIcon, DoubleChevronIcon, PlusIcon, SidebarIcon } from './Icons'
 
 interface Props {
   tabs: Tab[]
@@ -87,7 +87,7 @@ export function TabBar({
         className={`tab-rail no-drag ${overflow.left ? 'ovl-l' : ''} ${overflow.right ? 'ovl-r' : ''}`}
       >
         <button className="rail-nudge left" title="Abas anteriores" onClick={() => nudge(-1)}>
-          <ChevronIcon size={13} />
+          <DoubleChevronIcon size={15} />
         </button>
 
         <div className="tab-strip" ref={stripRef} onScroll={measure} onWheel={onWheel}>
@@ -126,7 +126,7 @@ export function TabBar({
         </div>
 
         <button className="rail-nudge right" title="Próximas abas" onClick={() => nudge(1)}>
-          <ChevronIcon size={13} />
+          <DoubleChevronIcon size={15} />
         </button>
       </div>
     </div>

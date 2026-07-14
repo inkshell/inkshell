@@ -1,9 +1,10 @@
-import { CONTEXT_WINDOW } from '@shared/types'
 import { fmtK } from '../lib/format'
 
 interface Props {
   /** Live context size in tokens, or `null` before the first assistant reply. */
   tokens: number | null
+  /** The active model's context window — the meter's denominator. */
+  contextWindow: number
 }
 
 /** Fuel-gauge color for a fill fraction: green with room, amber loading, red near full. */
@@ -19,12 +20,12 @@ function meterColor(fraction: number): string {
  * Before the first assistant reply there is nothing to read, so it shows a muted
  * placeholder.
  */
-export function ContextMeter({ tokens }: Props) {
-  const fraction = tokens === null ? null : Math.min(1, tokens / CONTEXT_WINDOW)
-  const pct = tokens === null ? 0 : Math.min(100, Math.floor((tokens * 100) / CONTEXT_WINDOW))
+export function ContextMeter({ tokens, contextWindow }: Props) {
+  const fraction = tokens === null ? null : Math.min(1, tokens / contextWindow)
+  const pct = tokens === null ? 0 : Math.min(100, Math.floor((tokens * 100) / contextWindow))
   const level = fraction === null ? 'var(--text-faint)' : meterColor(fraction)
 
-  const label = tokens === null ? 'contexto —' : `${fmtK(tokens)}/${fmtK(CONTEXT_WINDOW)} · ${pct}%`
+  const label = tokens === null ? 'contexto —' : `${fmtK(tokens)}/${fmtK(contextWindow)} · ${pct}%`
 
   const labelClass =
     fraction !== null && fraction >= 0.85
@@ -36,7 +37,7 @@ export function ContextMeter({ tokens }: Props) {
   const tip =
     tokens === null
       ? 'Contexto da sessão — ainda sem resposta do Claude'
-      : `Contexto da sessão: ${tokens} de ${CONTEXT_WINDOW} tokens (janela padrão de 200k)`
+      : `Contexto da sessão: ${tokens} de ${contextWindow} tokens`
 
   return (
     <div className="meter" title={tip}>

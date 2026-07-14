@@ -1,7 +1,7 @@
 import { closeSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import type { SessionSummary } from '@shared/types'
+import type { SessionContext, SessionSummary } from '@shared/types'
 
 /**
  * Reads Claude Code's own transcript store under `~/.claude/projects/`. VibeBox
@@ -141,12 +141,22 @@ function extractCwd(value: Json): string | null {
 }
 
 /**
- * `input + cache_creation + cache_read` for an `assistant` transcript line, or
- * `null` if the line is not an assistant message carrying a `usage` block.
- * Mirrors the CLI's context indicator (output tokens are excluded).
+ * Token usage, model id, and recording time for an `assistant` transcript
+ * line, or `null` if the line is not an assistant message carrying a `usage`
+ * block. Token count mirrors the CLI's context indicator (output tokens are
+ * excluded); the model id is the same field third-party tools (e.g. Redline)
+ * read to know which model actually produced a turn, since it's never exposed
+ * any other way; the timestamp lets a caller recognize a reading left over
+ * from before the current run (e.g. a resume launched under a different
+ * `--model` than its prior history). Sidechain lines (a subagent's own turns,
+ * interleaved into the same file) are skipped — their `usage` belongs to that
+ * subagent's context, not the main conversation's.
  */
-function assistantUsageTokens(value: Json): number | null {
+function assistantContext(
+  value: Json
+): { tokens: number; model: string | null; timestampMs: number | null } | null {
   if (value.type !== 'assistant') return null
+  if (value.isSidechain === true) return null
   const message = value.message as Json | undefined
   const usage = message?.usage as Json | undefined
   if (!usage) return null
@@ -154,9 +164,10 @@ function assistantUsageTokens(value: Json): number | null {
     const n = usage[key]
     return typeof n === 'number' ? n : 0
   }
-  return (
+  const tokens =
     field('input_tokens') + field('cache_creation_input_tokens') + field('cache_read_input_tokens')
-  )
+  const model = typeof message?.model === 'string' ? message.model : null
+  return { tokens, model, timestampMs: extractTimestampMs(value) }
 }
 
 /** Lists the Claude Code sessions recorded for `projectPath`, newest first. */
@@ -220,15 +231,17 @@ export function sessionTranscriptPath(
 }
 
 /**
- * The size of a session's live context window: the token count the most recent
- * assistant turn sent to the model. Returns `null` for a transcript with no
+ * The live state of a session: the token count of its most recent assistant
+ * turn (the context window meter) and the model id that produced it (the only
+ * ground truth for "which model is this session actually on" — Claude Code
+ * exposes no other way to ask). Returns `null` for a transcript with no
  * assistant reply yet (a brand-new chat) or one that can't be read.
  */
-export function contextTokens(
+export function sessionContext(
   projectPath: string,
   sessionId: string,
   claudeConfigDir?: string
-): number | null {
+): SessionContext | null {
   const path = sessionTranscriptPath(projectPath, sessionId, claudeConfigDir)
   let tail: string
   try {
@@ -242,8 +255,8 @@ export function contextTokens(
   for (let i = lines.length - 1; i >= 0; i--) {
     const value = safeParse(lines[i])
     if (!value) continue
-    const tokens = assistantUsageTokens(value)
-    if (tokens !== null) return tokens
+    const found = assistantContext(value)
+    if (found) return found
   }
   return null
 }

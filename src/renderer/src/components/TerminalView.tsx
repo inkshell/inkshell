@@ -64,6 +64,7 @@ export function TerminalView({ tab, active, onReady, onTitle, onExit, onError }:
         cwd: tab.cwd ?? undefined,
         resumeSessionId: tab.resumeSessionId ?? undefined,
         model: tab.model ?? undefined,
+        effort: tab.effort ?? undefined,
         claudeConfigDir: tab.claudeConfigDir ?? undefined,
         cols: term.cols,
         rows: term.rows

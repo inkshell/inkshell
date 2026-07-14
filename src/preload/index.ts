@@ -6,6 +6,7 @@ import type {
   PtyCreateResult,
   PtyDataEvent,
   PtyExitEvent,
+  SessionContext,
   SessionSummary
 } from '@shared/types'
 
@@ -32,12 +33,12 @@ const api = {
       ipcRenderer.invoke(IpcChannel.HistoryListSessions, projectPath, claudeConfigDir),
     discoverProjects: (): Promise<string[]> =>
       ipcRenderer.invoke(IpcChannel.HistoryDiscoverProjects),
-    contextTokens: (
+    sessionContext: (
       projectPath: string,
       sessionId: string,
       claudeConfigDir?: string
-    ): Promise<number | null> =>
-      ipcRenderer.invoke(IpcChannel.HistoryContextTokens, projectPath, sessionId, claudeConfigDir)
+    ): Promise<SessionContext | null> =>
+      ipcRenderer.invoke(IpcChannel.HistorySessionContext, projectPath, sessionId, claudeConfigDir)
   },
 
   pty: {

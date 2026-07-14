@@ -34,6 +34,15 @@ export interface ModelConfig {
   idPrefix: string
   /** Hex accent color (e.g. "#e8825c") shown next to the model in the picker. */
   color: string
+  /**
+   * Context window in tokens, used as the denominator for this model's
+   * context meter reading instead of a flat guess. Config-edited like the
+   * rest of `ModelConfig` — there's no API to read it off the model itself,
+   * and a session recorded on a beta context variant (e.g. Sonnet's 1M mode)
+   * is indistinguishable from the regular one by transcript id alone, so this
+   * is necessarily one fixed number per model, not per-session truth.
+   */
+  contextWindow: number
 }
 
 /** The persisted application configuration (`~/.vibebox/config.json`). */
@@ -43,6 +52,13 @@ export interface AppConfig {
   defaultModel: string
   /** The user's model list, shown in the toolbar picker. */
   models: ModelConfig[]
+  /**
+   * Passed via `--effort` to every chat this app opens (`low`, `medium`,
+   * `high`, `xhigh`, `max`), or `''` to leave it up to Claude Code's own
+   * default. Unlike the model, effort is never recorded in a transcript, so
+   * there's no live picker for it — only this launch-time default.
+   */
+  defaultEffort: string
 }
 
 /** A summary of a recorded Claude Code session, for the history list. */
@@ -62,6 +78,8 @@ export interface PtyCreateOptions {
   resumeSessionId?: string
   /** Model alias passed via `--model`, if any. */
   model?: string
+  /** Effort level passed via `--effort`, if any. */
+  effort?: string
   /** Overrides `CLAUDE_CONFIG_DIR` for this session (default `~/.claude`). */
   claudeConfigDir?: string
   cols: number
@@ -88,3 +106,27 @@ export interface PtyExitEvent {
 
 /** The default context window the toolbar meter is drawn against. */
 export const CONTEXT_WINDOW = 200_000
+
+/** The levels `--effort` / `/effort` accept, in ascending order. */
+export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+
+/**
+ * The live state of a session, read off the most recent `assistant` line in its
+ * transcript. `model` is the full model id Claude Code recorded for that turn
+ * (e.g. `"claude-opus-4-8-..."`) — the transcript is the only place a session's
+ * active model is ever recorded, so this is how the toolbar knows which model
+ * is really selected instead of just guessing from the last `/model` sent.
+ */
+export interface SessionContext {
+  /** input + cache_creation + cache_read for that turn (output excluded). */
+  tokens: number
+  /** Model id for that turn, or `null` when the transcript has no assistant reply yet. */
+  model: string | null
+  /**
+   * Epoch ms of that turn's own `timestamp` line, or `null` if absent. Lets a
+   * caller tell a fresh reading from a stale one — e.g. a resumed session's
+   * newest transcript line can predate the current run, when the CLI was
+   * launched with a different `--model` than that history was recorded under.
+   */
+  timestampMs: number | null
+}

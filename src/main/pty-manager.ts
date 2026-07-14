@@ -21,8 +21,9 @@ export class PtyManager {
   /**
    * Spawns a Claude Code session. New chats get a UUID we choose (via
    * `--session-id`); resumes reuse the original id (the CLI does too, unless
-   * `--fork-session`). Every session launches on the configured default model;
-   * switching afterwards is a one-shot `/model` typed via the toolbar.
+   * `--fork-session`). Every session launches on the configured default model
+   * and effort; switching the model afterwards is a one-shot `/model` typed
+   * via the toolbar (effort has no such picker — see `AppConfig.defaultEffort`).
    */
   create(opts: PtyCreateOptions): PtyCreateResult {
     const args: string[] = []
@@ -35,6 +36,7 @@ export class PtyManager {
       args.push('--session-id', sessionId)
     }
     if (opts.model) args.push('--model', opts.model)
+    if (opts.effort) args.push('--effort', opts.effort)
 
     // VibeBox itself may be launched with CLAUDE_CONFIG_DIR set; never leak that
     // into the child — each session's config dir is decided per-project. An
