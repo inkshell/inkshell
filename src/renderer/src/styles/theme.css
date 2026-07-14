@@ -394,6 +394,25 @@ button {
 .btn.square:hover {
   color: var(--text-primary);
 }
+/* Accent-filled affirmative button, used for a confirmation dialog's action. */
+.btn.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+.btn.primary:hover {
+  background: var(--accent-soft);
+}
+/* Destructive variant (e.g. "Apagar") — reads red, fills on hover. */
+.btn.danger {
+  border-color: color-mix(in srgb, var(--error) 45%, transparent);
+  color: var(--error);
+}
+.btn.danger:hover {
+  background: var(--error);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
 
 /* Section header (a static label + count above each sidebar pane) */
 .section-title {
@@ -447,23 +466,28 @@ button {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--text-faint);
+  background: var(--row-accent, var(--session));
   flex-shrink: 0;
+  opacity: 0.75;
   transition:
     background var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease);
+    box-shadow var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
 }
 .project-row:hover {
   background: var(--bg-card);
   color: var(--text-primary);
+}
+.project-row:hover::before {
+  opacity: 1;
 }
 .project-row.active {
   background: var(--session-tint);
   color: var(--text-primary);
 }
 .project-row.active::before {
-  background: var(--session);
-  box-shadow: 0 0 8px var(--session-glow);
+  opacity: 1;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--row-accent, var(--session)) 40%, transparent);
 }
 .project-row .name {
   overflow: hidden;
@@ -534,6 +558,47 @@ button {
   font-size: 12px;
   padding: 14px 10px;
   line-height: 1.5;
+}
+
+/* Right-click menu over a history card. A full-viewport overlay catches the
+   outside click that dismisses it; the menu itself is positioned at the cursor. */
+.ctx-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+.ctx-menu {
+  position: fixed;
+  min-width: 168px;
+  padding: 5px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+}
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  text-align: left;
+  color: var(--text-primary);
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.ctx-item:hover {
+  background: var(--bg-card-hover);
+}
+.ctx-item.danger {
+  color: var(--error);
+}
+.ctx-item.danger:hover {
+  background: color-mix(in srgb, var(--error) 14%, transparent);
 }
 
 /* =========================================================================
@@ -809,12 +874,51 @@ button {
   box-shadow: 0 0 8px color-mix(in srgb, var(--tab-accent, var(--session)) 40%, transparent);
   flex-shrink: 0;
   opacity: 0.75;
+  position: relative;
   transition: opacity var(--dur) var(--ease);
 }
 .tab:hover .dot,
 .tab.active .dot {
   opacity: 1;
 }
+/* While the CLI is working on a turn, a thin ring spins around the dot —
+   a discreet "still thinking" tell that doesn't compete with the dot itself. */
+.tab.processing .dot::before {
+  content: '';
+  position: absolute;
+  inset: -3.5px;
+  border-radius: 50%;
+  border: 1.3px solid transparent;
+  border-top-color: var(--tab-accent, var(--session));
+  border-left-color: color-mix(in srgb, var(--tab-accent, var(--session)) 45%, transparent);
+  opacity: 0.8;
+  animation: dot-spin 0.85s linear infinite;
+}
+@keyframes dot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab.processing .dot::before {
+    animation: none;
+  }
+}
+/* A viewer tab (diff / file / commit) wears a glyph where a chat wears its
+   project-colour dot, so the two kinds never read as the same thing. */
+.tab-glyph {
+  display: grid;
+  place-items: center;
+  color: var(--tab-accent, var(--session));
+  opacity: 0.8;
+  flex-shrink: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+.tab:hover .tab-glyph,
+.tab.active .tab-glyph {
+  opacity: 1;
+}
+
 .tab-close {
   width: 20px;
   height: 20px;
@@ -1173,7 +1277,7 @@ button {
 }
 
 /* =========================================================================
-   Settings modal
+   Modals (settings + confirmation)
    ========================================================================= */
 
 .overlay {
@@ -1217,6 +1321,26 @@ button {
   font-size: 12.5px;
   margin: 0 0 16px;
   line-height: 1.55;
+}
+
+/* Compact confirmation dialog: a narrower modal with a prompt + two actions. */
+.confirm-modal {
+  width: min(420px, 92vw);
+}
+.confirm-message {
+  margin: 0 0 20px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.confirm-message strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
 }
 
 .model-table {
@@ -1325,4 +1449,775 @@ button {
 .select:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* =========================================================================
+   Project panel (right dock) — git + files. Navigation lives here; anything
+   that needs width (a diff, a file, a commit) opens as a viewer tab in the
+   centre. Reads the same --session tokens as the rest of the chrome; green /
+   amber / red are reserved for git semantics and never for the accent.
+   ========================================================================= */
+
+.panel {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sidebar);
+  border-left: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+.panel-empty {
+  color: var(--text-faint);
+  font-size: 12.5px;
+  padding: 16px 14px;
+  line-height: 1.5;
+}
+.panel-empty.sm {
+  padding: 12px 10px;
+  font-size: 12px;
+}
+
+.panel-head {
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+/* Segmented Git / Arquivos control. */
+.mode {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-extreme);
+}
+.mode button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  border-radius: 6px;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.mode button:hover {
+  color: var(--text-primary);
+}
+.mode button.on {
+  background: var(--session-tint);
+  color: var(--text-primary);
+}
+.mode button.on svg {
+  color: var(--session);
+}
+
+/* Each mode's body fills the panel and owns its own scroll regions. */
+.pview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Branch header: name, ahead/behind, pull/push/refresh. */
+.branch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px 6px;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 650;
+  flex-shrink: 0;
+}
+.branch-row > svg {
+  color: var(--session);
+  flex-shrink: 0;
+}
+.branch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ab {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.ab.up {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+.ab.down {
+  color: var(--accent-soft);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.branch-row .acts {
+  margin-left: auto;
+  display: flex;
+  gap: 3px;
+}
+.mini {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  transition:
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.mini:hover:enabled {
+  border-color: var(--session-line);
+  color: var(--text-primary);
+}
+.mini:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Mudanças / Histórico sub-tabs. */
+.gtabs {
+  display: flex;
+  gap: 16px;
+  padding: 8px 14px 0;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+.gtab {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 0 1px 8px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--dur) var(--ease);
+}
+.gtab:hover {
+  color: var(--text-primary);
+}
+.gtab.on {
+  color: var(--text-primary);
+}
+.gtab.on::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--session);
+  box-shadow: 0 0 8px var(--session-glow);
+}
+.grp-n {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  background: var(--bg-card);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Changed-files list. */
+.plist {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 8px;
+}
+.grp {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 6px 5px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  color: var(--text-muted);
+}
+.frow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  transition: background var(--dur) var(--ease);
+}
+.frow:hover {
+  background: var(--bg-card);
+}
+.frow.sel {
+  background: var(--session-tint);
+}
+.frow.static {
+  cursor: default;
+}
+.frow.static:hover {
+  background: transparent;
+}
+.st {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.st.m {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+}
+.st.a {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 15%, transparent);
+}
+.st.d,
+.st.u {
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 15%, transparent);
+}
+.frow .fn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 55%;
+}
+.frow .fp {
+  color: var(--text-faint);
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.frow .op {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0;
+  flex-shrink: 0;
+  transition:
+    opacity var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.frow:hover .op {
+  opacity: 1;
+}
+.frow .op:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+/* Commit composer, pinned to the panel's foot. */
+.composer {
+  padding: 12px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex-shrink: 0;
+}
+.composer textarea {
+  resize: none;
+  height: 62px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-extreme);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  user-select: text;
+}
+.composer textarea::placeholder {
+  color: var(--text-faint);
+}
+.composer textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+/* "Gerar mensagem com o Claude" — a session-tinted dashed affordance. */
+.gen {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px dashed var(--session-line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.gen:hover:enabled {
+  background: var(--session-tint);
+  color: var(--text-primary);
+}
+.gen:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+.gen svg {
+  color: var(--session);
+  flex-shrink: 0;
+}
+.crow-actions {
+  display: flex;
+  gap: 7px;
+}
+.cbtn {
+  flex: 1;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition:
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+.cbtn:hover:enabled {
+  border-color: var(--session-line);
+  background: var(--bg-card-hover);
+}
+.cbtn.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+.cbtn.primary:hover:enabled {
+  background: var(--accent-soft);
+}
+.cbtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Branch history — a vertical commit graph. */
+.clist {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px 12px;
+}
+.crow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur) var(--ease);
+}
+.crow:hover {
+  background: var(--bg-card);
+}
+.crow .rail {
+  align-self: stretch;
+  width: 9px;
+  flex-shrink: 0;
+  position: relative;
+}
+.crow .rail::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  bottom: -8px;
+  width: 1px;
+  background: var(--border);
+  transform: translateX(-50%);
+}
+.crow.first .rail::before {
+  top: 9px;
+}
+.crow.last .rail::before {
+  bottom: calc(100% - 9px);
+}
+.crow .rail::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transform: translateX(-50%);
+}
+.crow.up .rail::after {
+  background: var(--session);
+  box-shadow: 0 0 8px var(--session-glow);
+}
+.crow .cbody {
+  min-width: 0;
+}
+.crow .cmsg {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+.crow .cmeta {
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.tag-local {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+/* Files mode — filter + lazy tree. */
+.filter {
+  margin: 10px 12px 4px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-extreme);
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+.filter input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  user-select: text;
+}
+.filter input:focus {
+  outline: none;
+}
+.filter input::placeholder {
+  color: var(--text-faint);
+}
+.tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 8px 12px;
+}
+.trow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: 27px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  border-radius: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.trow:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+.trow.sel {
+  background: var(--session-tint);
+  color: var(--text-primary);
+}
+.trow > span {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+.trow .car {
+  color: var(--text-faint);
+  transition: transform var(--dur) var(--ease);
+}
+.trow.open .car {
+  transform: rotate(90deg);
+}
+.trow .fo {
+  color: var(--accent-soft);
+}
+.trow .fi2 {
+  color: var(--text-faint);
+}
+.trow .nm2 {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trow .mod {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--warn);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* =========================================================================
+   Viewer tabs — diff / file / commit in the central card
+   ========================================================================= */
+
+.viewer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.viewer[hidden] {
+  display: none;
+}
+.vw-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-sidebar);
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.vw-glyph {
+  color: var(--session);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.vw-path {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vw-path .dir {
+  color: var(--text-faint);
+}
+.vw-spacer {
+  margin-left: auto;
+}
+.vw-meta {
+  color: var(--text-faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.vw-btn {
+  width: 26px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition:
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.vw-btn:hover {
+  border-color: var(--session-line);
+  color: var(--text-primary);
+}
+.vw-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.vw-note {
+  padding: 18px 16px;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+
+/* Small pill chips in a viewer header. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 9px;
+  gap: 5px;
+  border-radius: var(--radius-pill);
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.chip.add {
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  color: var(--ok);
+}
+.chip.del {
+  background: color-mix(in srgb, var(--error) 12%, transparent);
+  color: var(--error);
+}
+.chip.ro {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+.chip.hash {
+  font-family: var(--font-mono);
+  background: var(--session-tint);
+  color: var(--text-primary);
+  border: 1px solid var(--session-line);
+  font-weight: 600;
+}
+
+/* Commit viewer's changed-file summary above its patch. */
+.commit-files {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* The diff / file code table. */
+.code {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+.code td {
+  padding: 0;
+  vertical-align: top;
+}
+.code .dln {
+  width: 44px;
+  min-width: 44px;
+  text-align: right;
+  padding: 0 8px;
+  color: var(--text-faint);
+  font-size: 10px;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.code .dln + .dln {
+  border-right: 1px solid var(--border-soft);
+}
+.code .src {
+  padding: 0 14px 0 10px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+.code .src .sign {
+  display: inline-block;
+  width: 1ch;
+  color: var(--text-faint);
+}
+.code tr.add td {
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+}
+.code tr.add .dln {
+  color: color-mix(in srgb, var(--ok) 80%, var(--text-faint));
+}
+.code tr.add .src,
+.code tr.add .src .sign {
+  color: var(--text-primary);
+}
+.code tr.del td {
+  background: color-mix(in srgb, var(--error) 11%, transparent);
+}
+.code tr.del .dln {
+  color: color-mix(in srgb, var(--error) 75%, var(--text-faint));
+}
+.code tr.del .src,
+.code tr.del .src .sign {
+  color: color-mix(in srgb, var(--text-primary) 85%, var(--error));
+}
+.code tr.hunk td {
+  background: var(--bg-sidebar);
+  color: var(--session);
+  font-size: 10.5px;
+  padding: 3px 0;
+}
+.code tr.file-sep td {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.code tr.file-sep .src {
+  color: var(--text-primary);
 }

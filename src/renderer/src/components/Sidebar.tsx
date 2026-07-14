@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import type { ProjectEntry, SessionSummary } from '@shared/types'
 import { relativeTime } from '../lib/format'
-import { ChevronIcon, FolderIcon, GearIcon } from './Icons'
+import { ChevronIcon, FolderIcon, GearIcon, TrashIcon } from './Icons'
 
 interface Props {
   isMac: boolean
@@ -13,6 +13,14 @@ interface Props {
   onOpenSettings: () => void
   onSelectProject: (path: string) => void
   onOpenSession: (sessionId: string) => void
+  onDeleteSession: (sessionId: string) => void
+}
+
+/** The right-click menu open over a history card, anchored at the cursor. */
+interface SessionMenu {
+  x: number
+  y: number
+  sessionId: string
 }
 
 /** Height the header occupies when its section is collapsed to just the label. */
@@ -72,11 +80,23 @@ export function Sidebar({
   onBrowse,
   onOpenSettings,
   onSelectProject,
-  onOpenSession
+  onOpenSession,
+  onDeleteSession
 }: Props) {
   // The projects / history split (and each section's collapsed state) is
   // remembered between launches.
   const layout = useDefaultLayout({ id: 'vibebox:sidebar-sections' })
+  const [menu, setMenu] = useState<SessionMenu | null>(null)
+
+  // Escape dismisses the context menu (clicks land on the overlay instead).
+  useEffect(() => {
+    if (!menu) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenu(null)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [menu])
 
   return (
     <aside className="sidebar">
@@ -106,16 +126,22 @@ export function Sidebar({
       >
         <Section id="projects" title="PROJETOS" count={projects.length} defaultSize="42%">
           <div className="project-list">
-            {projects.map((p) => (
-              <button
-                key={p.path}
-                className={`project-row ${currentProject === p.path ? 'active' : ''}`}
-                title={p.path}
-                onClick={() => onSelectProject(p.path)}
-              >
-                <span className="name">{p.name}</span>
-              </button>
-            ))}
+            {projects.map((p) => {
+              const rowStyle = p.color
+                ? ({ ['--row-accent' as string]: p.color } as CSSProperties)
+                : undefined
+              return (
+                <button
+                  key={p.path}
+                  className={`project-row ${currentProject === p.path ? 'active' : ''}`}
+                  style={rowStyle}
+                  title={p.path}
+                  onClick={() => onSelectProject(p.path)}
+                >
+                  <span className="name">{p.name}</span>
+                </button>
+              )
+            })}
           </div>
         </Section>
 
@@ -138,6 +164,10 @@ export function Sidebar({
                   className="history-card"
                   title={s.preview}
                   onClick={() => onOpenSession(s.sessionId)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setMenu({ x: e.clientX, y: e.clientY, sessionId: s.sessionId })
+                  }}
                 >
                   <div className="history-preview">{s.preview}</div>
                   <div className="history-time">{relativeTime(s.createdMs)}</div>
@@ -147,6 +177,37 @@ export function Sidebar({
           )}
         </Section>
       </Group>
+
+      {menu && (
+        <div
+          className="ctx-overlay"
+          onMouseDown={() => setMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            setMenu(null)
+          }}
+        >
+          <div
+            className="ctx-menu"
+            style={{
+              left: Math.min(menu.x, window.innerWidth - 190),
+              top: Math.min(menu.y, window.innerHeight - 52)
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <button
+              className="ctx-item danger"
+              onClick={() => {
+                onDeleteSession(menu.sessionId)
+                setMenu(null)
+              }}
+            >
+              <TrashIcon size={14} />
+              Apagar chat
+            </button>
+          </div>
+        </div>
+      )}
     </aside>
   )
 }

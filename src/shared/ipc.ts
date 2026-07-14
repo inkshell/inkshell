@@ -13,6 +13,7 @@ export const IpcChannel = {
   HistoryListSessions: 'history:listSessions',
   HistoryDiscoverProjects: 'history:discoverProjects',
   HistorySessionContext: 'history:sessionContext',
+  HistoryDeleteSession: 'history:deleteSession',
 
   // Pseudo-terminal (request/response)
   PtyCreate: 'pty:create',
@@ -23,6 +24,19 @@ export const IpcChannel = {
   // Pseudo-terminal (main -> renderer push)
   PtyData: 'pty:data',
   PtyExit: 'pty:exit',
+
+  // Project panel — git (main drives the real `git` binary) & files
+  GitStatus: 'git:status',
+  GitDiff: 'git:diff',
+  GitStage: 'git:stage',
+  GitUnstage: 'git:unstage',
+  GitCommit: 'git:commit',
+  GitPush: 'git:push',
+  GitLog: 'git:log',
+  GitShow: 'git:show',
+  GitSuggestMessage: 'git:suggestMessage',
+  FsList: 'fs:list',
+  FsRead: 'fs:read',
 
   // Window controls (frameless custom chrome; dragging is done via CSS regions)
   WindowMinimize: 'window:minimize',

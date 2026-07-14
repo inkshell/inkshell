@@ -110,6 +110,87 @@ export interface PtyExitEvent {
   exitCode: number
 }
 
+/* =========================================================================
+   Project panel — git + files. These back a read-mostly panel on the right of
+   the window: the main process drives the real `git` binary (never a
+   reimplementation) via `execFile` in the project directory and returns typed
+   results; the renderer only renders them. The one write path is git itself
+   (stage / commit / push) and it always goes through these channels.
+   ========================================================================= */
+
+/** A single changed path in `git status`, staged or unstaged. */
+export interface GitFileChange {
+  /** Repo-root-relative path (POSIX separators, exactly as git reports it). */
+  path: string
+  /**
+   * Git's one-letter status for this path in this list: 'M' modified, 'A'
+   * added, 'D' deleted, 'R' renamed, 'C' copied, '?' untracked, 'U' unmerged.
+   */
+  status: string
+  /** For a rename/copy, the original path; otherwise omitted. */
+  origPath?: string
+}
+
+/** The working tree's git state, as read for the project panel. */
+export interface GitStatus {
+  /** False when the project directory is not inside a git work tree. */
+  isRepo: boolean
+  /** Current branch name, or null on a detached HEAD / unknown. */
+  branch: string | null
+  /** Upstream ref (e.g. "origin/main"), or null when the branch has none. */
+  upstream: string | null
+  /** Commits ahead of / behind the upstream (0 when there is no upstream). */
+  ahead: number
+  behind: number
+  /** Paths staged in the index. */
+  staged: GitFileChange[]
+  /** Paths changed in the working tree, including untracked ones. */
+  unstaged: GitFileChange[]
+}
+
+/** One entry in the branch history (`git log`). */
+export interface GitCommit {
+  hash: string
+  shortHash: string
+  subject: string
+  author: string
+  /** Author date, epoch ms. */
+  dateMs: number
+  /** True when this commit is not yet on the branch's upstream. */
+  unpushed: boolean
+}
+
+/** A commit opened in the viewer: metadata, file list and the full patch. */
+export interface GitCommitDetail {
+  hash: string
+  shortHash: string
+  subject: string
+  author: string
+  dateMs: number
+  insertions: number
+  deletions: number
+  files: GitFileChange[]
+  /** Raw unified diff text of the whole commit. */
+  diff: string
+}
+
+/** One entry in a project directory listing (the files-panel tree). */
+export interface TreeEntry {
+  /** Base name. */
+  name: string
+  /** Project-relative path (POSIX separators). */
+  path: string
+  isDir: boolean
+}
+
+/** A file opened in the read-only viewer. */
+export interface FileContent {
+  path: string
+  content: string
+  /** True when the file exceeded the read cap or is binary — content is empty. */
+  tooLarge: boolean
+}
+
 /** The default context window the toolbar meter is drawn against. */
 export const CONTEXT_WINDOW = 200_000
 

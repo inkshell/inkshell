@@ -2,12 +2,17 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IpcChannel } from '@shared/ipc'
 import type {
   AppConfig,
+  FileContent,
+  GitCommit,
+  GitCommitDetail,
+  GitStatus,
   PtyCreateOptions,
   PtyCreateResult,
   PtyDataEvent,
   PtyExitEvent,
   SessionContext,
-  SessionSummary
+  SessionSummary,
+  TreeEntry
 } from '@shared/types'
 
 /**
@@ -38,7 +43,13 @@ const api = {
       sessionId: string,
       claudeConfigDir?: string
     ): Promise<SessionContext | null> =>
-      ipcRenderer.invoke(IpcChannel.HistorySessionContext, projectPath, sessionId, claudeConfigDir)
+      ipcRenderer.invoke(IpcChannel.HistorySessionContext, projectPath, sessionId, claudeConfigDir),
+    deleteSession: (
+      projectPath: string,
+      sessionId: string,
+      claudeConfigDir?: string
+    ): Promise<void> =>
+      ipcRenderer.invoke(IpcChannel.HistoryDeleteSession, projectPath, sessionId, claudeConfigDir)
   },
 
   pty: {
@@ -67,6 +78,34 @@ const api = {
       ipcRenderer.on(IpcChannel.PtyExit, listener)
       return () => ipcRenderer.removeListener(IpcChannel.PtyExit, listener)
     }
+  },
+
+  git: {
+    status: (projectPath: string): Promise<GitStatus> =>
+      ipcRenderer.invoke(IpcChannel.GitStatus, projectPath),
+    diff: (projectPath: string, filePath: string, staged: boolean): Promise<string> =>
+      ipcRenderer.invoke(IpcChannel.GitDiff, projectPath, filePath, staged),
+    stage: (projectPath: string, filePath: string): Promise<void> =>
+      ipcRenderer.invoke(IpcChannel.GitStage, projectPath, filePath),
+    unstage: (projectPath: string, filePath: string): Promise<void> =>
+      ipcRenderer.invoke(IpcChannel.GitUnstage, projectPath, filePath),
+    commit: (projectPath: string, message: string): Promise<void> =>
+      ipcRenderer.invoke(IpcChannel.GitCommit, projectPath, message),
+    push: (projectPath: string): Promise<void> =>
+      ipcRenderer.invoke(IpcChannel.GitPush, projectPath),
+    log: (projectPath: string): Promise<GitCommit[]> =>
+      ipcRenderer.invoke(IpcChannel.GitLog, projectPath),
+    show: (projectPath: string, hash: string): Promise<GitCommitDetail> =>
+      ipcRenderer.invoke(IpcChannel.GitShow, projectPath, hash),
+    suggestMessage: (projectPath: string, claudeConfigDir?: string): Promise<string> =>
+      ipcRenderer.invoke(IpcChannel.GitSuggestMessage, projectPath, claudeConfigDir)
+  },
+
+  fs: {
+    list: (projectPath: string, relPath: string): Promise<TreeEntry[]> =>
+      ipcRenderer.invoke(IpcChannel.FsList, projectPath, relPath),
+    read: (projectPath: string, relPath: string): Promise<FileContent> =>
+      ipcRenderer.invoke(IpcChannel.FsRead, projectPath, relPath)
   },
 
   window: {

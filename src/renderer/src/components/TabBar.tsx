@@ -7,7 +7,23 @@ import {
   type CSSProperties
 } from 'react'
 import type { Tab } from '../types'
-import { CloseIcon, DoubleChevronIcon, PlusIcon, SidebarIcon } from './Icons'
+import {
+  CloseIcon,
+  CommitIcon,
+  DiffIcon,
+  DoubleChevronIcon,
+  FileTextIcon,
+  PanelRightIcon,
+  PlusIcon,
+  SidebarIcon
+} from './Icons'
+
+/** The glyph a viewer tab wears in place of a chat's project-colour dot. */
+function tabGlyph(kind: Tab['kind']) {
+  if (kind === 'diff') return <DiffIcon size={12} />
+  if (kind === 'commit') return <CommitIcon size={12} />
+  return <FileTextIcon size={12} />
+}
 
 interface Props {
   tabs: Tab[]
@@ -20,6 +36,7 @@ interface Props {
   onSelectTab: (id: string) => void
   onCloseTab: (id: string) => void
   onToggleSidebar: () => void
+  onTogglePanel: () => void
 }
 
 export function TabBar({
@@ -30,7 +47,8 @@ export function TabBar({
   onNewChat,
   onSelectTab,
   onCloseTab,
-  onToggleSidebar
+  onToggleSidebar,
+  onTogglePanel
 }: Props) {
   const stripRef = useRef<HTMLDivElement>(null)
   // Whether tabs are scrolled off each edge — drives the dissolve masks and
@@ -116,7 +134,7 @@ export function TabBar({
               <div
                 key={tab.id}
                 data-tab-id={tab.id}
-                className={`tab no-drag ${isActive ? 'active' : ''}`}
+                className={`tab no-drag ${isActive ? 'active' : ''} ${tab.processing ? 'processing' : ''}`}
                 style={tabStyle}
                 onClick={() => onSelectTab(tab.id)}
                 onMouseDown={(e) => {
@@ -128,7 +146,11 @@ export function TabBar({
                   }
                 }}
               >
-                <span className="dot" />
+                {tab.kind === 'terminal' ? (
+                  <span className="dot" />
+                ) : (
+                  <span className="tab-glyph">{tabGlyph(tab.kind)}</span>
+                )}
                 <span className="title">{tab.title}</span>
                 <button
                   className="tab-close"
@@ -149,6 +171,14 @@ export function TabBar({
           <DoubleChevronIcon size={15} />
         </button>
       </div>
+
+      <button
+        className="sidebar-toggle no-drag"
+        title="Mostrar/ocultar o painel do projeto"
+        onClick={onTogglePanel}
+      >
+        <PanelRightIcon size={16} />
+      </button>
     </div>
   )
 }

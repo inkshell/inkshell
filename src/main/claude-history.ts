@@ -1,4 +1,4 @@
-import { closeSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
+import { closeSync, openSync, readdirSync, readSync, rmSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { SessionContext, SessionSummary } from '@shared/types'
@@ -7,6 +7,8 @@ import type { SessionContext, SessionSummary } from '@shared/types'
  * Reads Claude Code's own transcript store under `~/.claude/projects/`. VibeBox
  * never writes here — it only reflects the history the CLI records — so the
  * history list and context meter stay in lockstep with plain `claude` runs.
+ * The single deliberate exception is `deleteSession`, which removes a
+ * transcript at the user's explicit request.
  */
 
 /** Bytes of the head of a transcript scanned for a preview + creation time. */
@@ -228,6 +230,25 @@ export function sessionTranscriptPath(
     encodeProjectDir(projectPath),
     `${sessionId}.jsonl`
   )
+}
+
+/**
+ * Deletes a recorded session's transcript — this module's one write, only ever
+ * reached from an explicit "delete chat" action in the UI. The session id is
+ * held to the CLI's UUID shape before being joined into a path, so a malformed
+ * value coming over IPC can't reach outside the project's transcript dir
+ * (`projectPath` needs no such check: `encodeProjectDir` reduces it to
+ * alphanumerics and dashes). Deleting an already-gone file is a no-op.
+ */
+export function deleteSession(
+  projectPath: string,
+  sessionId: string,
+  claudeConfigDir?: string
+): void {
+  if (!/^[0-9a-fA-F-]{8,64}$/.test(sessionId)) {
+    throw new Error(`Invalid session id: ${sessionId}`)
+  }
+  rmSync(sessionTranscriptPath(projectPath, sessionId, claudeConfigDir), { force: true })
 }
 
 /**

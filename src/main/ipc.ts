@@ -2,7 +2,24 @@ import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { IpcChannel } from '@shared/ipc'
 import type { AppConfig, PtyCreateOptions } from '@shared/types'
 import { addRecentProject, loadConfig, saveConfig } from './config'
-import { discoverKnownProjects, listSessions, sessionContext } from './claude-history'
+import {
+  deleteSession,
+  discoverKnownProjects,
+  listSessions,
+  sessionContext
+} from './claude-history'
+import {
+  gitCommit,
+  gitDiff,
+  gitLog,
+  gitPush,
+  gitShow,
+  gitStage,
+  gitStatus,
+  gitUnstage,
+  suggestCommitMessage
+} from './git'
+import { listDir, readProjectFile } from './project-files'
 import { PtyManager } from './pty-manager'
 
 /**
@@ -41,6 +58,11 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
     (_e, projectPath: string, sessionId: string, claudeConfigDir?: string) =>
       sessionContext(projectPath, sessionId, claudeConfigDir)
   )
+  ipcMain.handle(
+    IpcChannel.HistoryDeleteSession,
+    (_e, projectPath: string, sessionId: string, claudeConfigDir?: string) =>
+      deleteSession(projectPath, sessionId, claudeConfigDir)
+  )
 
   // --- Pseudo-terminal ----------------------------------------------------
   ipcMain.handle(IpcChannel.PtyCreate, (_e, opts: PtyCreateOptions) => ptyManager.create(opts))
@@ -51,6 +73,39 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
     ptyManager.resize(ptyId, cols, rows)
   )
   ipcMain.on(IpcChannel.PtyKill, (_e, ptyId: number) => ptyManager.kill(ptyId))
+
+  // --- Project panel: git + files -----------------------------------------
+  // Every handler drives the real `git` binary in the project directory; the
+  // renderer only ever renders what comes back (the sandbox is never widened).
+  ipcMain.handle(IpcChannel.GitStatus, (_e, projectPath: string) => gitStatus(projectPath))
+  ipcMain.handle(IpcChannel.GitDiff, (_e, projectPath: string, filePath: string, staged: boolean) =>
+    gitDiff(projectPath, filePath, staged)
+  )
+  ipcMain.handle(IpcChannel.GitStage, (_e, projectPath: string, filePath: string) =>
+    gitStage(projectPath, filePath)
+  )
+  ipcMain.handle(IpcChannel.GitUnstage, (_e, projectPath: string, filePath: string) =>
+    gitUnstage(projectPath, filePath)
+  )
+  ipcMain.handle(IpcChannel.GitCommit, (_e, projectPath: string, message: string) =>
+    gitCommit(projectPath, message)
+  )
+  ipcMain.handle(IpcChannel.GitPush, (_e, projectPath: string) => gitPush(projectPath))
+  ipcMain.handle(IpcChannel.GitLog, (_e, projectPath: string) => gitLog(projectPath))
+  ipcMain.handle(IpcChannel.GitShow, (_e, projectPath: string, hash: string) =>
+    gitShow(projectPath, hash)
+  )
+  ipcMain.handle(
+    IpcChannel.GitSuggestMessage,
+    (_e, projectPath: string, claudeConfigDir?: string) =>
+      suggestCommitMessage(projectPath, claudeConfigDir)
+  )
+  ipcMain.handle(IpcChannel.FsList, (_e, projectPath: string, relPath: string) =>
+    listDir(projectPath, relPath)
+  )
+  ipcMain.handle(IpcChannel.FsRead, (_e, projectPath: string, relPath: string) =>
+    readProjectFile(projectPath, relPath)
+  )
 
   // --- Window controls ----------------------------------------------------
   ipcMain.on(IpcChannel.WindowMinimize, () => window.minimize())

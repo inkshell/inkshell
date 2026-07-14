@@ -6,14 +6,17 @@ import {
   type SessionContext,
   type SessionSummary
 } from '@shared/types'
-import type { Tab } from './types'
+import { type Tab, type ViewerRef, viewerKey } from './types'
 import { Sidebar } from './components/Sidebar'
 import { TabBar } from './components/TabBar'
 import { TitleBar } from './components/TitleBar'
 import { StatusBar } from './components/StatusBar'
 import { TerminalView } from './components/TerminalView'
+import { ViewerView } from './components/ViewerView'
+import { ProjectPanel } from './components/ProjectPanel'
 import { EmptyState } from './components/EmptyState'
 import { SettingsModal } from './components/SettingsModal'
+import { ConfirmModal } from './components/ConfirmModal'
 import { CloseIcon } from './components/Icons'
 
 const isMac = window.vibebox.platform === 'darwin'
@@ -26,6 +29,9 @@ export function App() {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  // The session a right-click asked to delete, held until the user confirms
+  // (or dismisses) the modal. Carries the summary so the prompt can quote it.
+  const [pendingDelete, setPendingDelete] = useState<SessionSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [liveSession, setLiveSession] = useState<SessionContext | null>(null)
@@ -105,6 +111,7 @@ export function App() {
   const openNewChat = useCallback(() => {
     const tab: Tab = {
       id: `tab-${tabSeq++}`,
+      kind: 'terminal',
       ptyId: null,
       sessionId: null,
       resumeSessionId: null,
@@ -113,11 +120,42 @@ export function App() {
       model: defaultModel() ?? null,
       effort: defaultEffort() ?? null,
       startedAtMs: Date.now(),
-      title: 'Novo chat'
+      title: 'Novo chat',
+      processing: false
     }
     setTabs((prev) => [...prev, tab])
     setActiveTabId(tab.id)
   }, [currentProject, defaultModel, defaultEffort, claudeConfigDirFor])
+
+  // A diff / file / commit opened from the project panel. Re-opening the same
+  // one focuses its existing tab instead of stacking a duplicate.
+  const openViewerTab = useCallback((ref: ViewerRef) => {
+    setTabs((prev) => {
+      const key = viewerKey(ref)
+      const existing = prev.find((t) => t.viewer && viewerKey(t.viewer) === key)
+      if (existing) {
+        setActiveTabId(existing.id)
+        return prev
+      }
+      const tab: Tab = {
+        id: `tab-${tabSeq++}`,
+        kind: ref.kind,
+        viewer: ref,
+        ptyId: null,
+        sessionId: null,
+        resumeSessionId: null,
+        cwd: ref.project,
+        claudeConfigDir: ref.claudeConfigDir,
+        model: null,
+        effort: null,
+        startedAtMs: Date.now(),
+        title: ref.label,
+        processing: false
+      }
+      setActiveTabId(tab.id)
+      return [...prev, tab]
+    })
+  }, [])
 
   const openResume = useCallback(
     (sessionId: string) => {
@@ -129,6 +167,7 @@ export function App() {
       }
       const tab: Tab = {
         id: `tab-${tabSeq++}`,
+        kind: 'terminal',
         ptyId: null,
         sessionId,
         resumeSessionId: sessionId,
@@ -137,7 +176,8 @@ export function App() {
         model: defaultModel() ?? null,
         effort: defaultEffort() ?? null,
         startedAtMs: Date.now(),
-        title: 'Resumindo…'
+        title: 'Resumindo…',
+        processing: false
       }
       setTabs((prev) => [...prev, tab])
       setActiveTabId(tab.id)
@@ -153,16 +193,50 @@ export function App() {
     })
   }, [])
 
+  // Right-click "Apagar chat" only opens the confirmation modal; the actual
+  // deletion waits for `confirmDelete` below.
+  const requestDelete = useCallback(
+    (sessionId: string) => {
+      setPendingDelete(sessions.find((s) => s.sessionId === sessionId) ?? null)
+    },
+    [sessions]
+  )
+
+  const confirmDelete = useCallback(async () => {
+    const sessionId = pendingDelete?.sessionId
+    setPendingDelete(null)
+    if (!currentProject || !sessionId) return
+    // A deleted chat can't stay open: close its tab first, which kills the
+    // `claude` process before the transcript underneath it disappears.
+    const open = tabs.find((t) => t.sessionId === sessionId)
+    if (open) closeTab(open.id)
+    try {
+      await window.vibebox.history.deleteSession(
+        currentProject,
+        sessionId,
+        claudeConfigDirFor(currentProject)
+      )
+    } catch (err) {
+      setError(`Não foi possível apagar o chat: ${err instanceof Error ? err.message : err}`)
+    }
+    reloadSessions(currentProject)
+  }, [pendingDelete, currentProject, tabs, closeTab, claudeConfigDirFor, reloadSessions])
+
   // Callbacks from TerminalView.
   const onTabReady = useCallback((tabId: string, ptyId: number, sessionId: string) => {
     setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, ptyId, sessionId } : t)))
   }, [])
   const onTabTitle = useCallback((tabId: string, title: string) => {
-    // The CLI prefixes its OSC title with its own "✳" brand glyph (e.g.
-    // "✳ Claude Code") — redundant with the tab's own project-colour dot, so
-    // it's stripped for display only; the title itself is still theirs verbatim.
-    const clean = title.replace(/^[✳✻✽✢✶]\s*/, '').trim()
-    if (clean) setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, title: clean } : t)))
+    // The CLI prefixes its OSC title with a status glyph: its "✳" brand mark
+    // while idle, or a Braille spinner frame (U+2800–28FF) while it's working
+    // on a turn. Both are redundant with the tab's own project-colour dot, so
+    // they're stripped for display only — the rest of the title is theirs
+    // verbatim. The spinner prefix doubles as our only local "is it thinking"
+    // signal, which drives the spinning ring drawn around that same dot.
+    const processing = /^[⠀-⣿]/.test(title)
+    const clean = title.replace(/^[✳✻✽✢✶⠀-⣿]\s*/, '').trim()
+    if (clean)
+      setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, title: clean, processing } : t)))
   }, [])
   const onTabError = useCallback(
     (tabId: string, message: string) => {
@@ -281,16 +355,25 @@ export function App() {
     window.vibebox.config.save(next)
   }, [])
 
-  // Resizable layout: the sidebar width is remembered between launches, and its
-  // panel ref lets the toolbar toggle collapse/expand it.
+  // Resizable layout: the sidebar and the project panel each remember their
+  // width between launches, and a panel ref lets a toolbar button toggle each.
+  // (Layout id bumped to `-3col` so a saved two-panel layout can't misapply.)
   const sidebarPanel = usePanelRef()
-  const layout = useDefaultLayout({ id: 'vibebox:layout' })
+  const projectPanel = usePanelRef()
+  const [panelCollapsed, setPanelCollapsed] = useState(false)
+  const layout = useDefaultLayout({ id: 'vibebox:layout-3col' })
   const toggleSidebar = useCallback(() => {
     const p = sidebarPanel.current
     if (!p) return
     if (p.isCollapsed()) p.expand()
     else p.collapse()
   }, [sidebarPanel])
+  const togglePanel = useCallback(() => {
+    const p = projectPanel.current
+    if (!p) return
+    if (p.isCollapsed()) p.expand()
+    else p.collapse()
+  }, [projectPanel])
 
   if (!config) return null
 
@@ -310,6 +393,11 @@ export function App() {
       ? null
       : (config.projects.find((p) => p.path === path)?.name ?? path.split(/[/\\]/).pop() ?? path)
   const projectName = nameForPath(activeTab?.cwd ?? currentProject)
+
+  // The project panel follows the active tab's directory (a viewer tab's cwd is
+  // the project it was opened from), falling back to the sidebar selection.
+  const panelProject = activeTab?.cwd ?? currentProject
+  const panelConfigDir = activeTab?.claudeConfigDir ?? claudeConfigDirFor(currentProject) ?? null
 
   return (
     <>
@@ -341,6 +429,7 @@ export function App() {
             onOpenSettings={() => setShowSettings(true)}
             onSelectProject={selectProject}
             onOpenSession={openResume}
+            onDeleteSession={requestDelete}
           />
         </Panel>
 
@@ -359,6 +448,7 @@ export function App() {
               onSelectTab={setActiveTabId}
               onCloseTab={closeTab}
               onToggleSidebar={toggleSidebar}
+              onTogglePanel={togglePanel}
             />
 
             {error && (
@@ -374,7 +464,7 @@ export function App() {
 
             <div className="stage">
               <div className="workspace">
-                {activeTab && (
+                {activeTab && activeTab.kind === 'terminal' && (
                   <StatusBar
                     project={projectName}
                     active
@@ -390,17 +480,26 @@ export function App() {
                   />
                 )}
                 <div className="terminals">
-                  {tabs.map((tab) => (
-                    <TerminalView
-                      key={tab.id}
-                      tab={tab}
-                      active={tab.id === activeTabId}
-                      onReady={onTabReady}
-                      onTitle={onTabTitle}
-                      onExit={closeTab}
-                      onError={onTabError}
-                    />
-                  ))}
+                  {tabs.map((tab) =>
+                    tab.kind === 'terminal' ? (
+                      <TerminalView
+                        key={tab.id}
+                        tab={tab}
+                        active={tab.id === activeTabId}
+                        onReady={onTabReady}
+                        onTitle={onTabTitle}
+                        onExit={closeTab}
+                        onError={onTabError}
+                      />
+                    ) : (
+                      <ViewerView
+                        key={tab.id}
+                        tab={tab}
+                        active={tab.id === activeTabId}
+                        onError={setError}
+                      />
+                    )
+                  )}
                   {tabs.length === 0 && <EmptyState />}
                 </div>
               </div>
@@ -418,6 +517,29 @@ export function App() {
             )}
           </div>
         </Panel>
+
+        <Separator className="sep sep-h" />
+
+        <Panel
+          id="panel"
+          className="pane"
+          panelRef={projectPanel}
+          collapsible
+          collapsedSize={0}
+          minSize={248}
+          maxSize={520}
+          defaultSize={312}
+          groupResizeBehavior="preserve-pixel-size"
+          onResize={(size) => setPanelCollapsed(size.inPixels === 0)}
+        >
+          <ProjectPanel
+            project={panelProject}
+            claudeConfigDir={panelConfigDir}
+            visible={!panelCollapsed}
+            onOpenViewer={openViewerTab}
+            onError={setError}
+          />
+        </Panel>
       </Group>
 
       {showSettings && (
@@ -425,6 +547,22 @@ export function App() {
           config={config}
           onChange={persistConfig}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmModal
+          title="Apagar chat"
+          message={
+            <>
+              Isto remove permanentemente o histórico de <strong>“{pendingDelete.preview}”</strong>.
+              Não dá para desfazer.
+            </>
+          }
+          confirmLabel="Apagar"
+          danger
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
         />
       )}
     </>
