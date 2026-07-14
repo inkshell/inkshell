@@ -1,10 +1,21 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties
+} from 'react'
 import type { Tab } from '../types'
 import { CloseIcon, DoubleChevronIcon, PlusIcon, SidebarIcon } from './Icons'
 
 interface Props {
   tabs: Tab[]
   activeTabId: string | null
+  /** Resolves a tab's working directory to its project accent colour, if any. */
+  projectColor: (cwd: string | null) => string | null
+  /** macOS + collapsed sidebar: pad the row clear of the traffic lights. */
+  reserveTrafficLights: boolean
   onNewChat: () => void
   onSelectTab: (id: string) => void
   onCloseTab: (id: string) => void
@@ -14,6 +25,8 @@ interface Props {
 export function TabBar({
   tabs,
   activeTabId,
+  projectColor,
+  reserveTrafficLights,
   onNewChat,
   onSelectTab,
   onCloseTab,
@@ -69,7 +82,7 @@ export function TabBar({
   }, [])
 
   return (
-    <div className="tabbar drag">
+    <div className={`tabbar drag ${reserveTrafficLights ? 'mac-inset' : ''}`}>
       <button
         className="sidebar-toggle no-drag"
         title="Mostrar/ocultar a barra lateral"
@@ -83,21 +96,28 @@ export function TabBar({
         Novo chat
       </button>
 
-      <div
-        className={`tab-rail ${overflow.left ? 'ovl-l' : ''} ${overflow.right ? 'ovl-r' : ''}`}
-      >
-        <button className="rail-nudge left no-drag" title="Abas anteriores" onClick={() => nudge(-1)}>
+      <div className={`tab-rail ${overflow.left ? 'ovl-l' : ''} ${overflow.right ? 'ovl-r' : ''}`}>
+        <button
+          className="rail-nudge left no-drag"
+          title="Abas anteriores"
+          onClick={() => nudge(-1)}
+        >
           <DoubleChevronIcon size={15} />
         </button>
 
         <div className="tab-strip" ref={stripRef} onScroll={measure} onWheel={onWheel}>
           {tabs.map((tab) => {
             const isActive = tab.id === activeTabId
+            const accent = projectColor(tab.cwd)
+            const tabStyle = accent
+              ? ({ ['--tab-accent' as string]: accent } as CSSProperties)
+              : undefined
             return (
               <div
                 key={tab.id}
                 data-tab-id={tab.id}
                 className={`tab no-drag ${isActive ? 'active' : ''}`}
+                style={tabStyle}
                 onClick={() => onSelectTab(tab.id)}
                 onMouseDown={(e) => {
                   // Middle-click closes the tab; preventDefault stops the
@@ -108,7 +128,7 @@ export function TabBar({
                   }
                 }}
               >
-                {isActive && <span className="dot" />}
+                <span className="dot" />
                 <span className="title">{tab.title}</span>
                 <button
                   className="tab-close"

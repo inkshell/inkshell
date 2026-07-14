@@ -11,6 +11,14 @@ export interface ProjectEntry {
   name: string
   path: string
   /**
+   * Hex accent color (e.g. "#6f9dff") for this project. It tints the app chrome
+   * while one of this project's tabs is active and marks every tab that belongs
+   * to it, so tabs from different projects stay visually distinct. Assigned from
+   * a palette when a project is first added, editable in Settings. Omitted means
+   * fall back to the brand accent.
+   */
+  color?: string
+  /**
    * Overrides Claude Code's config directory (`CLAUDE_CONFIG_DIR`, default
    * `~/.claude`) for this project. When set, the tab's `claude` process runs
    * with that env var, and this project's history + context meter read from
@@ -32,8 +40,6 @@ export interface ModelConfig {
   display: string
   /** Prefix of the model ids recorded in transcripts, e.g. "claude-opus-4-8". */
   idPrefix: string
-  /** Hex accent color (e.g. "#e8825c") shown next to the model in the picker. */
-  color: string
   /**
    * Context window in tokens, used as the denominator for this model's
    * context meter reading instead of a flat guess. Config-edited like the

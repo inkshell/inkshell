@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react'
 import { EFFORT_LEVELS, type ModelConfig } from '@shared/types'
 import { ContextMeter } from './ContextMeter'
 import { BarsIcon, BookmarkIcon, FolderIcon, GaugeIcon, SwapIcon } from './Icons'
@@ -45,7 +44,6 @@ export function StatusBar({
   onViewMemory,
   onAnalytics
 }: Props) {
-  const activeColor = models.find((m) => m.alias === currentModel)?.color
   return (
     <div className="statusbar no-drag">
       <div className="status-project" title={project ?? undefined}>
@@ -67,9 +65,6 @@ export function StatusBar({
           </span>
           <select
             className="pill-select"
-            style={
-              activeColor ? ({ ['--pill' as string]: activeColor } as CSSProperties) : undefined
-            }
             value={currentModel ?? ''}
             title="Trocar o modelo do Claude Code"
             onChange={(e) => e.target.value && onPickModel(e.target.value)}

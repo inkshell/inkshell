@@ -542,12 +542,21 @@ button {
 
 .tabbar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
-  height: 46px;
-  padding: 0 10px;
+  height: 52px;
+  /* Content seats low in the bar: generous air up top (so the row isn't glued
+     to the window ceiling / mac traffic lights) and a snug 5px gap down to the
+     divider, so tabs neither float nor crowd the toolbar below. */
+  padding: 0 10px 5px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border-soft);
+}
+/* macOS, sidebar collapsed: the main pane slides under the traffic lights, so
+   the tab row reserves room for them (added by the renderer only in that case;
+   with the sidebar open the lights float over it instead). */
+.tabbar.mac-inset {
+  padding-left: 88px;
 }
 
 .sidebar-toggle {
@@ -605,18 +614,17 @@ button {
   min-width: 0;
   height: 100%;
   display: flex;
-  align-items: stretch;
+  align-items: center;
 }
 .tab-strip {
   display: flex;
-  align-items: stretch;
+  align-items: flex-end;
   gap: 4px;
   overflow-x: auto;
   scrollbar-width: none;
   min-width: 0;
   width: 100%;
   height: 100%;
-  padding-top: 8px;
 }
 .tab-strip::-webkit-scrollbar {
   display: none;
@@ -657,7 +665,7 @@ button {
 .rail-nudge {
   position: absolute;
   bottom: 0;
-  height: 34px;
+  height: 32px;
   width: 46px;
   display: none;
   align-items: center;
@@ -739,45 +747,51 @@ button {
 .tab-rail.ovl-r .rail-nudge.right {
   display: flex;
 }
+/* Every tab carries its own project's accent — a faint translucent tint and a
+   matching hairline — so an inactive tab still reads as "belonging to" its
+   project rather than fading into the toolbar. Only the tab itself is tinted;
+   the surrounding chrome keeps the *active* tab's colour (via --session). */
 .tab {
   display: flex;
   align-items: center;
   gap: 9px;
-  height: 34px;
+  height: 32px;
   padding: 0 6px 0 12px;
-  border-radius: 10px 10px 0 0;
-  border: 1px solid transparent;
-  border-bottom: none;
-  background: transparent;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--tab-accent, var(--session)) 30%, transparent);
+  background: color-mix(in srgb, var(--tab-accent, var(--session)) 16%, transparent);
   color: var(--text-muted);
   font-size: 12.5px;
   max-width: 210px;
   position: relative;
   transition:
     background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
     color var(--dur) var(--ease);
   flex-shrink: 0;
-  align-self: flex-end;
 }
 .tab:hover {
-  background: var(--bg-card);
+  background: color-mix(in srgb, var(--tab-accent, var(--session)) 24%, var(--bg-card));
   color: var(--text-primary);
 }
+/* Active tab — a seated segment carrying its project's accent: a tinted fill,
+   an accent-mixed hairline, and a glowing project-coloured line along its base
+   that grounds the tab so its bottom no longer fades into empty space. */
 .tab.active {
   background: var(--session-tint);
+  border-color: color-mix(in srgb, var(--tab-accent, var(--session)) 30%, var(--border));
   color: var(--text-primary);
 }
-/* The session-coloured seam that ties the active tab to the terminal below. */
 .tab.active::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
+  left: 9px;
+  right: 9px;
+  bottom: 0;
   height: 2px;
-  border-radius: 2px 2px 0 0;
-  background: var(--session);
-  box-shadow: 0 0 10px var(--session-glow);
+  border-radius: 2px;
+  background: var(--tab-accent, var(--session));
+  box-shadow: 0 0 9px color-mix(in srgb, var(--tab-accent, var(--session)) 55%, transparent);
 }
 .tab .title {
   overflow: hidden;
@@ -785,13 +799,21 @@ button {
   white-space: nowrap;
   cursor: default;
 }
+/* Every tab wears a dot in its own project's colour, so tabs from different
+   projects stay legible even when inactive. */
 .tab .dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--session);
-  box-shadow: 0 0 8px var(--session-glow);
+  background: var(--tab-accent, var(--session));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--tab-accent, var(--session)) 40%, transparent);
   flex-shrink: 0;
+  opacity: 0.75;
+  transition: opacity var(--dur) var(--ease);
+}
+.tab:hover .dot,
+.tab.active .dot {
+  opacity: 1;
 }
 .tab-close {
   width: 20px;
@@ -996,11 +1018,11 @@ button {
   height: 26px;
   padding: 0 26px 0 12px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--pill, var(--border));
+  border: 1px solid var(--session-line);
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238a93a8'/%3E%3C/svg%3E")
       no-repeat right 10px center / 8px 5px,
-    color-mix(in srgb, var(--pill, var(--accent)) 14%, var(--bg-card));
+    color-mix(in srgb, var(--session) 14%, var(--bg-card));
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
@@ -1013,11 +1035,11 @@ button {
     box-shadow var(--dur) var(--ease);
 }
 .pill-select:hover {
-  box-shadow: 0 0 14px color-mix(in srgb, var(--pill, var(--accent)) 36%, transparent);
+  box-shadow: 0 0 14px var(--session-glow);
 }
 .pill-select:focus {
   outline: none;
-  border-color: var(--pill, var(--accent));
+  border-color: var(--session);
 }
 .pill-select option {
   background: var(--bg-card);
@@ -1204,7 +1226,7 @@ button {
 }
 .model-row {
   display: grid;
-  grid-template-columns: 30px 1.2fr 0.8fr 1.3fr 0.9fr 30px;
+  grid-template-columns: 1.2fr 0.8fr 1.3fr 0.9fr 30px;
   gap: 9px;
   align-items: center;
 }
@@ -1239,6 +1261,23 @@ button {
   border-radius: 8px;
   background: none;
   cursor: pointer;
+}
+.project-color-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.project-color-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.project-color-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: 12.5px;
 }
 .del-btn {
   width: 28px;

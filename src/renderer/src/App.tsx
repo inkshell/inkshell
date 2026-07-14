@@ -29,6 +29,9 @@ export function App() {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [liveSession, setLiveSession] = useState<SessionContext | null>(null)
+  // Tracks whether the sidebar is collapsed (button or drag) so the tab row can
+  // reserve space for the macOS traffic lights it would otherwise slide under.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null
 
@@ -155,7 +158,10 @@ export function App() {
     setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, ptyId, sessionId } : t)))
   }, [])
   const onTabTitle = useCallback((tabId: string, title: string) => {
-    const clean = title.trim()
+    // The CLI prefixes its OSC title with its own "✳" brand glyph (e.g.
+    // "✳ Claude Code") — redundant with the tab's own project-colour dot, so
+    // it's stripped for display only; the title itself is still theirs verbatim.
+    const clean = title.replace(/^[✳✻✽✢✶]\s*/, '').trim()
     if (clean) setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, title: clean } : t)))
   }, [])
   const onTabError = useCallback(
@@ -288,11 +294,12 @@ export function App() {
 
   if (!config) return null
 
-  // The active session's model colour tints the whole chrome (falls back to the
-  // iris brand accent via CSS when there's no live tab).
-  const sessionAlias = activeModelAlias() ?? config.defaultModel
-  const sessionAccent =
-    config.models.find((m) => m.alias && m.alias === sessionAlias)?.color ?? null
+  // Each project's chosen colour. A tab wears its project's colour, and the
+  // active tab's colour tints the whole chrome (falls back to the brand accent
+  // via CSS when the tab has no project or the project has no colour set).
+  const projectColor = (path: string | null): string | null =>
+    (path ? config.projects.find((p) => p.path === path)?.color : null) ?? null
+  const sessionAccent = projectColor(activeTab?.cwd ?? currentProject)
   const appStyle = sessionAccent ? ({ '--session': sessionAccent } as CSSProperties) : undefined
 
   // The toolbar belongs to the active tab's content, so it names *that* tab's
@@ -323,6 +330,7 @@ export function App() {
           maxSize={460}
           defaultSize={272}
           groupResizeBehavior="preserve-pixel-size"
+          onResize={(size) => setSidebarCollapsed(size.inPixels === 0)}
         >
           <Sidebar
             isMac={isMac}
@@ -345,6 +353,8 @@ export function App() {
             <TabBar
               tabs={tabs}
               activeTabId={activeTabId}
+              projectColor={projectColor}
+              reserveTrafficLights={isMac && sidebarCollapsed}
               onNewChat={openNewChat}
               onSelectTab={setActiveTabId}
               onCloseTab={closeTab}

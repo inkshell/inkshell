@@ -7,37 +7,51 @@ import type { AppConfig, ModelConfig, ProjectEntry } from '@shared/types'
 const MAX_RECENT_PROJECTS = 20
 
 /**
- * The built-in models, used until the user edits the list. Colors are drawn
- * from the app palette so the picker stays on one set of hues.
+ * Accent colors handed out to projects as they're added, cycled by index so a
+ * fresh set of projects reads as visually distinct out of the box. Cool, jewel
+ * hues with no browns — the user can override any of them in Settings.
  */
+export const PROJECT_PALETTE = [
+  '#6f9dff',
+  '#b98bff',
+  '#5fd8a4',
+  '#f472b6',
+  '#38bdf8',
+  '#c084fc',
+  '#2dd4bf',
+  '#fb7185'
+]
+
+/** The palette color for the nth project (wraps around the list). */
+export function paletteColor(index: number): string {
+  return PROJECT_PALETTE[index % PROJECT_PALETTE.length]
+}
+
+/** The built-in models, used until the user edits the list. */
 export function defaultModels(): ModelConfig[] {
   return [
     {
       alias: 'fable',
       display: 'Fable 5',
       idPrefix: 'claude-fable-5',
-      color: '#f5c366',
       contextWindow: 1_000_000
     },
     {
       alias: 'opus',
       display: 'Opus 4.8',
       idPrefix: 'claude-opus-4-8',
-      color: '#b98bff',
       contextWindow: 1_000_000
     },
     {
       alias: 'sonnet',
       display: 'Sonnet 5',
       idPrefix: 'claude-sonnet-5',
-      color: '#6f9dff',
       contextWindow: 1_000_000
     },
     {
       alias: 'haiku',
       display: 'Haiku 4.5',
       idPrefix: 'claude-haiku-4-5',
-      color: '#5fd8a4',
       contextWindow: 200_000
     }
   ]
@@ -48,21 +62,13 @@ function defaultConfig(): AppConfig {
 }
 
 /**
- * Upgrades the palette in place: any model still carrying one of the old warm
- * built-in colours is moved to the new cool default. Colours the user picked by
- * hand don't match this map, so they're left untouched.
+ * Gives every project an accent color: ones saved before the field existed (or
+ * added without one) get a palette color by their position in the list, so an
+ * upgraded config lights up with distinct per-project hues. Colors already set
+ * are left untouched.
  */
-const LEGACY_COLORS: Record<string, string> = {
-  '#e5c07b': '#f5c366', // fable
-  '#e8825c': '#b98bff', // opus
-  '#61afef': '#6f9dff', // sonnet
-  '#98c379': '#5fd8a4' // haiku
-}
-function migrateModelColors(models: ModelConfig[]): ModelConfig[] {
-  return models.map((m) => {
-    const next = LEGACY_COLORS[m.color?.toLowerCase()]
-    return next ? { ...m, color: next } : m
-  })
+function migrateProjectColors(projects: ProjectEntry[]): ProjectEntry[] {
+  return projects.map((p, i) => (p.color ? p : { ...p, color: paletteColor(i) }))
 }
 
 /**
@@ -99,15 +105,13 @@ export function loadConfig(): AppConfig {
   try {
     const raw = JSON.parse(readFileSync(configPath(), 'utf-8')) as Partial<AppConfig>
     return {
-      projects: Array.isArray(raw.projects) ? raw.projects : base.projects,
+      projects: migrateProjectColors(Array.isArray(raw.projects) ? raw.projects : base.projects),
       defaultModel:
         typeof raw.defaultModel === 'string' && raw.defaultModel.trim()
           ? raw.defaultModel
           : base.defaultModel,
       models: migrateContextWindows(
-        migrateModelColors(
-          Array.isArray(raw.models) && raw.models.length > 0 ? raw.models : base.models
-        )
+        Array.isArray(raw.models) && raw.models.length > 0 ? raw.models : base.models
       ),
       defaultEffort: typeof raw.defaultEffort === 'string' ? raw.defaultEffort : base.defaultEffort
     }
@@ -131,7 +135,11 @@ export function saveConfig(config: AppConfig): void {
  */
 export function addRecentProject(config: AppConfig, path: string): AppConfig {
   if (config.projects.some((p) => p.path === path)) return config
-  const entry: ProjectEntry = { name: basename(path) || path, path }
+  const entry: ProjectEntry = {
+    name: basename(path) || path,
+    path,
+    color: paletteColor(config.projects.length)
+  }
   const projects = [entry, ...config.projects].slice(0, MAX_RECENT_PROJECTS)
   const next = { ...config, projects }
   saveConfig(next)

@@ -1,4 +1,4 @@
-import { EFFORT_LEVELS, type AppConfig, type ModelConfig } from '@shared/types'
+import { EFFORT_LEVELS, type AppConfig, type ModelConfig, type ProjectEntry } from '@shared/types'
 import { CloseIcon, PlusIcon } from './Icons'
 
 interface Props {
@@ -8,14 +8,14 @@ interface Props {
 }
 
 function blankModel(): ModelConfig {
-  return { alias: '', display: '', idPrefix: 'claude-', color: '#a8978c', contextWindow: 200_000 }
+  return { alias: '', display: '', idPrefix: 'claude-', contextWindow: 200_000 }
 }
 
 /**
  * Settings, mirroring the desktop app: the model list shown in the toolbar
  * picker (editable so a newly released model is a config edit, not a release),
- * plus which model new chats start on. Every change is pushed up immediately and
- * persisted by the caller.
+ * the accent colour each project wears, plus which model / effort new chats
+ * start on. Every change is pushed up immediately and persisted by the caller.
  */
 export function SettingsModal({ config, onChange, onClose }: Props) {
   const updateModel = (i: number, patch: Partial<ModelConfig>) => {
@@ -27,6 +27,10 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
   }
   const addModel = () => {
     onChange({ ...config, models: [...config.models, blankModel()] })
+  }
+  const updateProject = (i: number, patch: Partial<ProjectEntry>) => {
+    const projects = config.projects.map((p, idx) => (idx === i ? { ...p, ...patch } : p))
+    onChange({ ...config, projects })
   }
 
   return (
@@ -47,7 +51,6 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
 
           <div className="model-table">
             <div className="model-row">
-              <span className="col-head">Cor</span>
               <span className="col-head">Nome</span>
               <span className="col-head">Alias</span>
               <span className="col-head">Prefixo do ID</span>
@@ -57,12 +60,6 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
 
             {config.models.map((m, i) => (
               <div className="model-row" key={i}>
-                <input
-                  type="color"
-                  className="color-input"
-                  value={m.color}
-                  onChange={(e) => updateModel(i, { color: e.target.value })}
-                />
                 <input
                   className="field"
                   placeholder="Opus 4.8"
@@ -100,6 +97,34 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
           <button className="btn add-model" onClick={addModel}>
             <PlusIcon size={14} /> Adicionar modelo
           </button>
+
+          <div className="settings-divider" />
+
+          <p className="modal-desc">
+            A cor de cada projeto. Ela pinta as abas do projeto e todo o cromo do app enquanto uma
+            delas está ativa.
+          </p>
+
+          {config.projects.length === 0 ? (
+            <div className="empty-note">Abra um projeto para escolher a cor dele.</div>
+          ) : (
+            <div className="project-color-list">
+              {config.projects.map((p, i) => (
+                <div className="project-color-row" key={p.path}>
+                  <input
+                    type="color"
+                    className="color-input"
+                    value={p.color ?? '#6f9dff'}
+                    title={`Cor de ${p.name}`}
+                    onChange={(e) => updateProject(i, { color: e.target.value })}
+                  />
+                  <span className="project-color-name" title={p.path}>
+                    {p.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="settings-divider" />
 
