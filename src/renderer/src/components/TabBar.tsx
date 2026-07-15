@@ -18,6 +18,9 @@ import {
   SidebarIcon
 } from './Icons'
 
+const DRAG_THRESHOLD = 4 // px a press must travel before it becomes a drag
+const SETTLE_MS = 170 // grabbed-tab settle glide; must match the CSS transition
+
 /** The glyph a viewer tab wears in place of a chat's project-colour dot. */
 function tabGlyph(kind: Tab['kind']) {
   if (kind === 'diff') return <DiffIcon size={12} />
@@ -35,6 +38,8 @@ interface Props {
   onNewChat: () => void
   onSelectTab: (id: string) => void
   onCloseTab: (id: string) => void
+  /** Reorder: move tab `id` to final position `toIndex` in the list. */
+  onReorderTab: (id: string, toIndex: number) => void
   onToggleSidebar: () => void
   onTogglePanel: () => void
 }
@@ -47,6 +52,7 @@ export function TabBar({
   onNewChat,
   onSelectTab,
   onCloseTab,
+  onReorderTab,
   onToggleSidebar,
   onTogglePanel
 }: Props) {
@@ -99,6 +105,112 @@ export function TabBar({
     stripRef.current?.scrollBy({ left: dir * 240, behavior: 'smooth' })
   }, [])
 
+  // Drag-to-reorder — a horizontal-only, pointer-driven slide (never the
+  // browser's free-floating HTML5 ghost). The grabbed tab tracks the cursor's
+  // X and nothing else; the tabs it passes glide aside to open its landing
+  // slot; on release it settles into that gap and the array commits — so the
+  // real reorder happens exactly once, with no mid-drag reshuffle.
+  //
+  // `drag` drives the render (offsets + which slot is targeted); `gestureRef`
+  // holds the immutable geometry measured at grab time so pointermove stays a
+  // pure arithmetic step.
+  const [drag, setDrag] = useState<{
+    id: string
+    from: number
+    dx: number
+    target: number
+    slot: number // the grabbed tab's footprint — how far passed tabs glide
+    settling: boolean
+  } | null>(null)
+  const gestureRef = useRef<{
+    id: string
+    from: number
+    startX: number
+    centers: number[] // original viewport-X centre of each tab
+    slots: number[] // each tab's footprint (width + gap)
+    moved: boolean
+    target: number
+  } | null>(null)
+  // Set on a real drag so the click that follows pointerup doesn't also select
+  // the tab; cleared on the next press so it never suppresses a genuine click.
+  const draggedRef = useRef(false)
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent, index: number) => {
+      draggedRef.current = false
+      // Left button only, and never when the press lands on the close button.
+      if (e.button !== 0 || (e.target as HTMLElement).closest('.tab-close')) return
+      const strip = stripRef.current
+      if (!strip) return
+      const nodes = Array.from(strip.querySelectorAll<HTMLElement>('.tab'))
+      const rects = nodes.map((n) => n.getBoundingClientRect())
+      // Measure the inter-tab gap from the DOM rather than trusting a constant.
+      const gap = rects.length > 1 ? Math.max(0, rects[1].left - rects[0].right) : 4
+      gestureRef.current = {
+        id: tabs[index].id,
+        from: index,
+        startX: e.clientX,
+        centers: rects.map((r) => r.left + r.width / 2),
+        slots: rects.map((r) => r.width + gap),
+        moved: false,
+        target: index
+      }
+      e.currentTarget.setPointerCapture(e.pointerId)
+    },
+    [tabs]
+  )
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    const g = gestureRef.current
+    if (!g) return
+    const dx = e.clientX - g.startX
+    if (!g.moved && Math.abs(dx) < DRAG_THRESHOLD) return
+    g.moved = true
+    draggedRef.current = true
+
+    // Where the grabbed tab's centre now sits, and the slot that centre has
+    // slid into — walk outward from the origin only as far as it has crossed.
+    const c = g.centers[g.from] + dx
+    let target = g.from
+    if (dx > 0) {
+      for (let j = g.from + 1; j < g.centers.length; j++) {
+        if (c <= g.centers[j]) break
+        target = j
+      }
+    } else {
+      for (let j = g.from - 1; j >= 0; j--) {
+        if (c >= g.centers[j]) break
+        target = j
+      }
+    }
+    g.target = target
+    setDrag({ id: g.id, from: g.from, dx, target, slot: g.slots[g.from], settling: false })
+  }, [])
+
+  const finishDrag = useCallback(
+    (commit: boolean) => {
+      const g = gestureRef.current
+      gestureRef.current = null
+      if (!g) return
+      if (!g.moved) return // a plain click — leave selection to onClick
+      const { id, from } = g
+      const target = commit ? g.target : from
+      // The offset that lands the grabbed tab dead-centre in its target slot:
+      // the summed footprints of every tab it leaps over (right = +, left = −).
+      let restDx = 0
+      if (target > from) for (let j = from + 1; j <= target; j++) restDx += g.slots[j]
+      else for (let j = target; j < from; j++) restDx -= g.slots[j]
+      // Glide to rest, then swap the array underneath at the same instant the
+      // transform clears — the tab is already sitting in the gap, so no snap.
+      setDrag((d) => (d ? { ...d, dx: restDx, target, settling: true } : d))
+      window.setTimeout(() => {
+        if (commit) onReorderTab(id, target)
+        setDrag(null)
+      }, SETTLE_MS)
+    },
+    [onReorderTab]
+  )
+
   return (
     <div className={`tabbar drag ${reserveTrafficLights ? 'mac-inset' : ''}`}>
       <button
@@ -123,20 +235,47 @@ export function TabBar({
           <DoubleChevronIcon size={15} />
         </button>
 
-        <div className="tab-strip" ref={stripRef} onScroll={measure} onWheel={onWheel}>
-          {tabs.map((tab) => {
+        <div
+          className={`tab-strip ${drag ? 'reordering' : ''}`}
+          ref={stripRef}
+          onScroll={measure}
+          onWheel={onWheel}
+        >
+          {tabs.map((tab, index) => {
             const isActive = tab.id === activeTabId
             const accent = projectColor(tab.cwd)
-            const tabStyle = accent
-              ? ({ ['--tab-accent' as string]: accent } as CSSProperties)
-              : undefined
+            // The grabbed tab tracks the cursor; the tabs between its origin and
+            // its target glide aside by one grabbed-tab footprint to bare the
+            // landing slot. Everything else holds still.
+            let offset = 0
+            const isSource = drag?.id === tab.id
+            if (drag && !isSource) {
+              if (drag.target > drag.from && index > drag.from && index <= drag.target)
+                offset = -drag.slot
+              else if (drag.target < drag.from && index < drag.from && index >= drag.target)
+                offset = drag.slot
+            }
+            const tabStyle: CSSProperties = {
+              ...(accent ? ({ ['--tab-accent' as string]: accent } as CSSProperties) : {}),
+              ...(drag ? { transform: `translateX(${isSource ? drag.dx : offset}px)` } : {})
+            }
             return (
               <div
                 key={tab.id}
                 data-tab-id={tab.id}
-                className={`tab no-drag ${isActive ? 'active' : ''} ${tab.processing ? 'processing' : ''}`}
+                className={`tab no-drag ${isActive ? 'active' : ''} ${tab.processing ? 'processing' : ''} ${isSource ? (drag.settling ? 'grabbed settling' : 'grabbed') : ''}`}
                 style={tabStyle}
-                onClick={() => onSelectTab(tab.id)}
+                onPointerDown={(e) => onPointerDown(e, index)}
+                onPointerMove={onPointerMove}
+                onPointerUp={() => finishDrag(true)}
+                onPointerCancel={() => finishDrag(false)}
+                onClick={() => {
+                  if (draggedRef.current) {
+                    draggedRef.current = false
+                    return
+                  }
+                  onSelectTab(tab.id)
+                }}
                 onMouseDown={(e) => {
                   // Middle-click closes the tab; preventDefault stops the
                   // browser's middle-click auto-scroll puck from popping up.

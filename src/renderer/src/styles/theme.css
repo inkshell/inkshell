@@ -937,6 +937,46 @@ button {
   color: var(--error);
 }
 
+/* Drag-to-reorder. Tabs invite a grab; while a reorder is underway the tabs
+   being nudged aside glide on a spring, and the grabbed tab — lifted with a
+   little shadow — tracks the cursor's X with no transition of its own, so it
+   stays glued to the finger. On release it gets the same glide to settle into
+   its slot (the `.settling` state) before the array quietly commits. */
+.tab {
+  cursor: grab;
+  user-select: none;
+}
+.tab .title {
+  cursor: inherit;
+}
+.tab-strip.reordering .tab {
+  transition:
+    transform 170ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.tab-strip.reordering {
+  user-select: none;
+}
+/* Scoped under .reordering so these out-specify the transition rule above and
+   the grabbed tab truly stays glued to the cursor (no lag) while dragging. */
+.tab-strip.reordering .tab.grabbed {
+  transition: none;
+  z-index: 5;
+  cursor: grabbing;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+.tab-strip.reordering .tab.grabbed.settling {
+  transition: transform 170ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-strip.reordering .tab,
+  .tab-strip.reordering .tab.grabbed.settling {
+    transition: none;
+  }
+}
+
 /* =========================================================================
    Terminal area — the hero
    ========================================================================= */

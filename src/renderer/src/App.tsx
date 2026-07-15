@@ -193,6 +193,20 @@ export function App() {
     })
   }, [])
 
+  // Drag-to-reorder: move `tabId` to final position `toIndex` in the list.
+  const reorderTab = useCallback((tabId: string, toIndex: number) => {
+    setTabs((prev) => {
+      const from = prev.findIndex((t) => t.id === tabId)
+      if (from === -1) return prev
+      const to = Math.max(0, Math.min(toIndex, prev.length - 1))
+      if (to === from) return prev
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }, [])
+
   // Right-click "Apagar chat" only opens the confirmation modal; the actual
   // deletion waits for `confirmDelete` below.
   const requestDelete = useCallback(
@@ -447,6 +461,7 @@ export function App() {
               onNewChat={openNewChat}
               onSelectTab={setActiveTabId}
               onCloseTab={closeTab}
+              onReorderTab={reorderTab}
               onToggleSidebar={toggleSidebar}
               onTogglePanel={togglePanel}
             />
