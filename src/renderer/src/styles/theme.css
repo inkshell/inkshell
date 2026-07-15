@@ -31,6 +31,7 @@
   /* Lines & status */
   --border: #232a37;
   --border-soft: #191e28;
+  --border-strong: #313a4a;
   --error: #ff6b81;
   --warn: #f5c366;
   --ok: #5fd8a4;
@@ -482,7 +483,7 @@ button {
   opacity: 1;
 }
 .project-row.active {
-  background: var(--session-tint);
+  background: color-mix(in srgb, var(--row-accent, var(--session)) 15%, var(--bg-card));
   color: var(--text-primary);
 }
 .project-row.active::before {
@@ -1166,32 +1167,43 @@ button {
   place-items: center;
   flex-shrink: 0;
 }
+/* Deliberately neutral: the project accent already tints the chrome around
+   these (the corner wash, the folder glyph, the tabs), so the switchers stay
+   graphite and let it read. Depth comes from a hairline top highlight rather
+   than a fill; focus uses the fixed brand iris, never --session. */
 .pill-select {
   height: 26px;
-  padding: 0 26px 0 12px;
+  padding: 0 28px 0 12px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--session-line);
+  border: 1px solid var(--border);
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238a93a8'/%3E%3C/svg%3E")
-      no-repeat right 10px center / 8px 5px,
-    color-mix(in srgb, var(--session) 14%, var(--bg-card));
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6' fill='none'%3E%3Cpath d='M1 1.5L4.5 5L8 1.5' stroke='%238a93a8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      no-repeat right 11px center / 9px 6px,
+    var(--bg-card);
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
   font-family: inherit;
   appearance: none;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition:
     border-color var(--dur) var(--ease),
-    background var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
     box-shadow var(--dur) var(--ease);
 }
 .pill-select:hover {
-  box-shadow: 0 0 14px var(--session-glow);
+  border-color: var(--border-strong);
+  background-color: var(--bg-card-hover);
 }
 .pill-select:focus {
   outline: none;
-  border-color: var(--session);
+}
+.pill-select:focus-visible {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 .pill-select option {
   background: var(--bg-card);

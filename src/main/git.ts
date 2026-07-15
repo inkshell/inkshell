@@ -165,7 +165,15 @@ export async function gitStatus(projectPath: string): Promise<GitStatus> {
       unstaged: []
     }
   }
-  const { stdout } = await git(projectPath, ['status', '--porcelain=v2', '--branch', '-z'])
+  // `--untracked-files=all`: the default collapses a new directory into a single
+  // `dir/` entry, which has no per-file diff to show. Every row must be a file.
+  const { stdout } = await git(projectPath, [
+    'status',
+    '--porcelain=v2',
+    '--branch',
+    '--untracked-files=all',
+    '-z'
+  ])
   return parseStatus(stdout)
 }
 
