@@ -72,7 +72,7 @@ export function TerminalView({ tab, active, onReady, onTitle, onExit, onError }:
       .then(({ ptyId, sessionId }) => {
         // The tab may have been closed while the pty was starting.
         if (disposed) {
-          window.vibebox.pty.kill(ptyId)
+          void window.vibebox.pty.close(ptyId)
           return
         }
         ptyIdRef.current = ptyId
@@ -107,7 +107,8 @@ export function TerminalView({ tab, active, onReady, onTitle, onExit, onError }:
       disposed = true
       observer.disconnect()
       unsubscribers.forEach((u) => u())
-      if (ptyIdRef.current !== null) window.vibebox.pty.kill(ptyIdRef.current)
+      // The tab is going away now; the `claude` behind it exits on its own time.
+      if (ptyIdRef.current !== null) void window.vibebox.pty.close(ptyIdRef.current)
       term.dispose()
     }
     // Deliberately run once per tab; the tab's identity/config never changes.

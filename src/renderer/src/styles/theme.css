@@ -926,6 +926,14 @@ button {
   place-items: center;
   border-radius: 6px;
   border: none;
+  /* Load-bearing: the UA's default button padding (1px 6px) would leave an 8px
+     content box, narrower than the 12px glyph — and an overflowing grid item
+     aligns to start, not centre, so the X would sit off to the right. */
+  padding: 0;
+  /* Also load-bearing: a long title overflows the tab's 210px cap, and without
+     this the close button — not the title — absorbs the shrink, squashing the
+     square to a 12px-wide rectangle. */
+  flex-shrink: 0;
   background: transparent;
   color: var(--text-faint);
   transition:

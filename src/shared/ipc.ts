@@ -19,7 +19,7 @@ export const IpcChannel = {
   PtyCreate: 'pty:create',
   PtyWrite: 'pty:write',
   PtyResize: 'pty:resize',
-  PtyKill: 'pty:kill',
+  PtyClose: 'pty:close',
 
   // Pseudo-terminal (main -> renderer push)
   PtyData: 'pty:data',

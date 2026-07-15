@@ -59,7 +59,8 @@ const api = {
       ipcRenderer.send(IpcChannel.PtyWrite, ptyId, data),
     resize: (ptyId: number, cols: number, rows: number): void =>
       ipcRenderer.send(IpcChannel.PtyResize, ptyId, cols, rows),
-    kill: (ptyId: number): void => ipcRenderer.send(IpcChannel.PtyKill, ptyId),
+    /** Sends `/exit` and resolves once the session is gone (killed if it won't). */
+    close: (ptyId: number): Promise<void> => ipcRenderer.invoke(IpcChannel.PtyClose, ptyId),
 
     /** Subscribes to output for a single pty. Returns an unsubscribe function. */
     onData: (ptyId: number, cb: (data: string) => void): (() => void) => {

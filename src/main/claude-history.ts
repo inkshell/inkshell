@@ -14,6 +14,12 @@ import type { SessionContext, SessionSummary } from '@shared/types'
 /** Bytes of the head of a transcript scanned for a preview + creation time. */
 const HEAD_SCAN_BYTES = 256 * 1024
 /**
+ * Bytes of the tail scanned for a session's `ai-title`. The CLI rewrites that
+ * line on most turns, so the newest one lands within ~30KB of the end even on a
+ * multi-megabyte transcript; this window keeps a wide margin over that.
+ */
+const TITLE_TAIL_BYTES = 128 * 1024
+/**
  * Bytes of the tail scanned for the live context reading. A single assistant
  * line (with its full `usage` block) is only a few KB, so this keeps several of
  * the most recent lines even when a large tool result sits between them.
@@ -131,6 +137,44 @@ function extractPreview(value: Json): string | null {
   return trimmed.split(/\s+/).join(' ').slice(0, 140)
 }
 
+/**
+ * The CLI's own one-line summary of a session, carried on an `ai-title` line.
+ * This is the same text it writes as the terminal title, so a history card and
+ * an open tab name the chat identically. The CLI titles a session once it has
+ * something to summarize, so a very short one may carry no `ai-title` at all.
+ */
+function extractAiTitle(value: Json): string | null {
+  if (value.type !== 'ai-title') return null
+  const title = value.aiTitle
+  if (typeof title !== 'string') return null
+  return title.trim().split(/\s+/).join(' ').slice(0, 140) || null
+}
+
+/**
+ * The newest title recorded for a transcript, or `null` for one the CLI never
+ * titled. The CLI revises a title as a conversation drifts, so only the last
+ * line counts — hence a backwards scan of the tail, as in `sessionContext`.
+ */
+function readAiTitle(path: string): string | null {
+  let tail: string
+  try {
+    tail = readTail(path, TITLE_TAIL_BYTES)
+  } catch {
+    return null
+  }
+  const lines = tail.split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    // Assistant lines dominate the tail and run to megabytes; keeping the
+    // substring test ahead of the parser keeps this off the history list's path.
+    if (!lines[i].includes('"ai-title"')) continue
+    const value = safeParse(lines[i])
+    if (!value) continue
+    const title = extractAiTitle(value)
+    if (title !== null) return title
+  }
+  return null
+}
+
 /** The creation time (epoch ms) carried by a transcript line's `timestamp`. */
 function extractTimestampMs(value: Json): number | null {
   if (typeof value.timestamp !== 'string') return null
@@ -193,23 +237,25 @@ export function listSessions(projectPath: string, claudeConfigDir?: string): Ses
       continue
     }
 
-    // One pass over the head picks up both the first user message (the preview)
-    // and the first timestamped event (the creation time), which need not be
-    // the same line.
-    let preview: string | null = null
+    // One pass over the head picks up both the first user message (the fallback
+    // preview) and the first timestamped event (the creation time), which need
+    // not be the same line.
+    let firstMessage: string | null = null
     let created: number | null = null
     for (const line of readHead(path, HEAD_SCAN_BYTES).split('\n')) {
       if (!line) continue
       const value = safeParse(line)
       if (!value) continue
       if (created === null) created = extractTimestampMs(value)
-      if (preview === null) preview = extractPreview(value)
-      if (preview !== null && created !== null) break
+      if (firstMessage === null) firstMessage = extractPreview(value)
+      if (firstMessage !== null && created !== null) break
     }
 
     sessions.push({
       sessionId,
-      preview: preview ?? '(sem mensagens)',
+      // The CLI's title describes what a chat became; the opening message only
+      // shows where it started, so it stands in just for untitled sessions.
+      preview: readAiTitle(path) ?? firstMessage ?? '(sem mensagens)',
       createdMs: created ?? mtimeMs
     })
   }

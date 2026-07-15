@@ -70,7 +70,11 @@ export interface AppConfig {
 /** A summary of a recorded Claude Code session, for the history list. */
 export interface SessionSummary {
   sessionId: string
-  /** First real user message, one line, truncated. */
+  /**
+   * How the chat is named in the history list: the CLI's own `ai-title` — the
+   * same text it shows as the tab title — falling back to the first real user
+   * message for a session it never titled. One line, truncated.
+   */
   preview: string
   /** Creation time in epoch milliseconds (first timestamped event, else file mtime). */
   createdMs: number

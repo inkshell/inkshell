@@ -72,7 +72,9 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
   ipcMain.on(IpcChannel.PtyResize, (_e, ptyId: number, cols: number, rows: number) =>
     ptyManager.resize(ptyId, cols, rows)
   )
-  ipcMain.on(IpcChannel.PtyKill, (_e, ptyId: number) => ptyManager.kill(ptyId))
+  // `handle`, not `on`: callers need to await the child actually being gone —
+  // deleting a chat has to wait out the session that still owns its transcript.
+  ipcMain.handle(IpcChannel.PtyClose, (_e, ptyId: number) => ptyManager.close(ptyId))
 
   // --- Project panel: git + files -----------------------------------------
   // Every handler drives the real `git` binary in the project directory; the

@@ -176,13 +176,16 @@ export function App() {
         model: defaultModel() ?? null,
         effort: defaultEffort() ?? null,
         startedAtMs: Date.now(),
-        title: 'Resumindo…',
+        // The history card's name for this chat carries over as the tab title,
+        // so a resume opens already named instead of sitting on a placeholder
+        // until the CLI re-emits its own (identical) title over OSC.
+        title: sessions.find((s) => s.sessionId === sessionId)?.preview ?? 'Resumindo…',
         processing: false
       }
       setTabs((prev) => [...prev, tab])
       setActiveTabId(tab.id)
     },
-    [tabs, currentProject, defaultModel, defaultEffort, claudeConfigDirFor]
+    [tabs, sessions, currentProject, defaultModel, defaultEffort, claudeConfigDirFor]
   )
 
   const closeTab = useCallback((id: string) => {
@@ -220,10 +223,14 @@ export function App() {
     const sessionId = pendingDelete?.sessionId
     setPendingDelete(null)
     if (!currentProject || !sessionId) return
-    // A deleted chat can't stay open: close its tab first, which kills the
-    // `claude` process before the transcript underneath it disappears.
+    // A deleted chat can't stay open. Wait out its `claude` before removing the
+    // transcript: a session still running writes its own on the way out, which
+    // would resurrect the file we're about to delete.
     const open = tabs.find((t) => t.sessionId === sessionId)
-    if (open) closeTab(open.id)
+    if (open) {
+      if (open.ptyId !== null) await window.vibebox.pty.close(open.ptyId)
+      closeTab(open.id)
+    }
     try {
       await window.vibebox.history.deleteSession(
         currentProject,
@@ -290,20 +297,22 @@ export function App() {
   const requestStats = useCallback(() => writeToActive('/stats\r'), [writeToActive])
 
   // --- Live session: poll the active transcript for token usage + model ----
+  // Keyed off the tab's own project, not the sidebar selection: a tab keeps its
+  // transcript wherever it was launched, so browsing to another project in the
+  // sidebar must not blank out the meter of the tab still on screen.
+  const activeProject = activeTab?.cwd ?? currentProject
+  const activeConfigDir = activeTab?.claudeConfigDir ?? claudeConfigDirFor(activeProject)
   useEffect(() => {
-    if (!currentProject || !activeTab?.sessionId) {
+    if (!activeProject || !activeTab?.sessionId) {
       setLiveSession(null)
       return
     }
-    const project = currentProject
+    const project = activeProject
+    const configDir = activeConfigDir
     const sessionId = activeTab.sessionId
     let cancelled = false
     const read = async () => {
-      const ctx = await window.vibebox.history.sessionContext(
-        project,
-        sessionId,
-        claudeConfigDirFor(project)
-      )
+      const ctx = await window.vibebox.history.sessionContext(project, sessionId, configDir)
       if (!cancelled) setLiveSession(ctx)
     }
     read()
@@ -312,7 +321,7 @@ export function App() {
       cancelled = true
       clearInterval(timer)
     }
-  }, [currentProject, activeTab?.sessionId, claudeConfigDirFor])
+  }, [activeProject, activeConfigDir, activeTab?.sessionId])
 
   // The model alias actually backing the active session: the transcript's
   // recorded model id, matched against each config model's `idPrefix` (the
@@ -396,7 +405,7 @@ export function App() {
   // via CSS when the tab has no project or the project has no colour set).
   const projectColor = (path: string | null): string | null =>
     (path ? config.projects.find((p) => p.path === path)?.color : null) ?? null
-  const sessionAccent = projectColor(activeTab?.cwd ?? currentProject)
+  const sessionAccent = projectColor(activeProject)
   const appStyle = sessionAccent ? ({ '--session': sessionAccent } as CSSProperties) : undefined
 
   // The toolbar belongs to the active tab's content, so it names *that* tab's
@@ -406,12 +415,12 @@ export function App() {
     path == null
       ? null
       : (config.projects.find((p) => p.path === path)?.name ?? path.split(/[/\\]/).pop() ?? path)
-  const projectName = nameForPath(activeTab?.cwd ?? currentProject)
+  const projectName = nameForPath(activeProject)
 
   // The project panel follows the active tab's directory (a viewer tab's cwd is
   // the project it was opened from), falling back to the sidebar selection.
-  const panelProject = activeTab?.cwd ?? currentProject
-  const panelConfigDir = activeTab?.claudeConfigDir ?? claudeConfigDirFor(currentProject) ?? null
+  const panelProject = activeProject
+  const panelConfigDir = activeConfigDir ?? null
 
   return (
     <>

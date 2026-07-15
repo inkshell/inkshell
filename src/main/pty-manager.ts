@@ -6,6 +6,14 @@ import type { PtyCreateOptions, PtyCreateResult } from '@shared/types'
 import { overrideConfigDir } from './claude-history'
 
 /**
+ * How long a session gets to honor `/exit` before it is killed outright. Long
+ * enough for the CLI to tear itself down, short enough that a session which
+ * can't answer — mid-turn, or parked on a permission prompt — never holds the
+ * window open for a noticeable beat.
+ */
+const GRACEFUL_EXIT_TIMEOUT_MS = 3000
+
+/**
  * Owns every live `claude` child process, one per open tab. Each runs inside a
  * pseudo-terminal so the CLI behaves exactly as it does in a real terminal —
  * colors, prompts, `/`-commands and all — while its bytes stream to an xterm.js
@@ -14,6 +22,8 @@ import { overrideConfigDir } from './claude-history'
 export class PtyManager {
   private nextId = 1
   private readonly sessions = new Map<number, pty.IPty>()
+  /** In-flight `close` calls, so a second one joins the first instead of racing it. */
+  private readonly closing = new Map<number, Promise<void>>()
 
   /** `sender` is the renderer that receives `pty:data` / `pty:exit` pushes. */
   constructor(private readonly sender: WebContents) {}
@@ -88,6 +98,46 @@ export class PtyManager {
     }
   }
 
+  /**
+   * Ends a session the way a person would: types `/exit` at the prompt and lets
+   * the CLI shut itself down, rather than yanking the process out from under it.
+   * Falls back to `kill` if the session hasn't gone by the timeout. Resolves once
+   * the child is actually gone, either way.
+   */
+  close(ptyId: number): Promise<void> {
+    const child = this.sessions.get(ptyId)
+    if (!child) return Promise.resolve()
+    const pending = this.closing.get(ptyId)
+    if (pending) return pending
+
+    const done = new Promise<void>((resolve) => {
+      let settled = false
+      const finish = (hard: boolean): void => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        listener.dispose()
+        this.closing.delete(ptyId)
+        if (hard) this.kill(ptyId)
+        resolve()
+      }
+
+      const listener = child.onExit(() => finish(false))
+      const timer = setTimeout(() => finish(true), GRACEFUL_EXIT_TIMEOUT_MS)
+      try {
+        // Ctrl-U first: it clears whatever is half-typed at the prompt, without
+        // which `/exit` lands as a suffix to it and the CLI submits the whole
+        // thing as a prompt (`meu texto/exit`) instead of quitting.
+        child.write('\x15/exit\r')
+      } catch {
+        finish(true)
+      }
+    })
+
+    this.closing.set(ptyId, done)
+    return done
+  }
+
   kill(ptyId: number): void {
     const child = this.sessions.get(ptyId)
     if (!child) return
@@ -99,8 +149,16 @@ export class PtyManager {
     }
   }
 
-  /** Tears down every session — called when the window closes. */
-  disposeAll(): void {
+  /**
+   * Asks every session to `/exit` at once and waits for them all. The window and
+   * app close paths in `index.ts` hold themselves open until this resolves.
+   */
+  async disposeAll(): Promise<void> {
+    await Promise.all([...this.sessions.keys()].map((id) => this.close(id)))
+  }
+
+  /** Last resort: hard-kills anything still alive once the window is already gone. */
+  killAll(): void {
     for (const id of [...this.sessions.keys()]) this.kill(id)
   }
 }
