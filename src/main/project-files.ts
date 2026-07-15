@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { isAbsolute, relative, resolve } from 'node:path'
+import { homedir } from 'node:os'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { FileContent, TreeEntry } from '@shared/types'
 
 /**
@@ -44,6 +45,45 @@ export function listDir(projectPath: string, relPath: string): TreeEntry[] {
   }
   out.sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1))
   return out
+}
+
+/**
+ * Answers "is this text an openable file of this project?" for the terminal's
+ * path linkifier, which asks about every path-shaped token Claude prints. A
+ * candidate may be absolute, `~`-prefixed or project-relative; anything that
+ * isn't an existing regular file inside the project resolves to `null` (that
+ * is the normal answer for prose that merely looks like a path, e.g. `e.g`).
+ * Returns the project-relative path the viewer opens with.
+ */
+export function resolveProjectPath(projectPath: string, candidate: string): string | null {
+  const trimmed = candidate.trim()
+  if (!trimmed) return null
+
+  const expanded =
+    trimmed === '~' || trimmed.startsWith('~/') ? resolve(homedir(), trimmed.slice(2)) : trimmed
+
+  let rel: string
+  if (isAbsolute(expanded)) {
+    rel = relative(projectPath, expanded)
+    if (!rel || rel.startsWith('..')) return null
+  } else {
+    rel = expanded
+  }
+
+  let abs: string
+  try {
+    abs = within(projectPath, rel)
+  } catch {
+    return null
+  }
+  try {
+    if (!statSync(abs).isFile()) return null
+  } catch {
+    return null
+  }
+  // The viewer keys tabs off this path, so keep it in the `/` form the rest of
+  // the app (git, the file tree) already speaks.
+  return relative(projectPath, abs).split(sep).join('/')
 }
 
 /** Reads one file for the read-only viewer, refusing binary / oversized ones. */

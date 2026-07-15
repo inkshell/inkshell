@@ -58,8 +58,17 @@ export function createMainWindow(): BrowserWindow {
   maybeCaptureScreenshot(window)
 
   // Open target=_blank / external links in the user's browser, never in-app.
+  // Only web URLs are forwarded: `openExternal` hands whatever it's given to the
+  // OS, and a scheme with no app behind it (`about:blank`, say) surfaces as a
+  // system modal offering the App Store — so anything else is dropped here
+  // rather than shown to the user. It also rejects on failure, and an unhandled
+  // rejection in main is a crash risk, so the promise is always caught.
   window.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    if (/^https?:\/\//i.test(url)) {
+      shell.openExternal(url).catch((err) => {
+        console.error(`Failed to open ${url} externally:`, err)
+      })
+    }
     return { action: 'deny' }
   })
 

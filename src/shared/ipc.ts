@@ -37,6 +37,7 @@ export const IpcChannel = {
   GitSuggestMessage: 'git:suggestMessage',
   FsList: 'fs:list',
   FsRead: 'fs:read',
+  FsResolve: 'fs:resolve',
 
   // Window controls (frameless custom chrome; dragging is done via CSS regions)
   WindowMinimize: 'window:minimize',

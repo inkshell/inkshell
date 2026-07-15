@@ -106,7 +106,10 @@ const api = {
     list: (projectPath: string, relPath: string): Promise<TreeEntry[]> =>
       ipcRenderer.invoke(IpcChannel.FsList, projectPath, relPath),
     read: (projectPath: string, relPath: string): Promise<FileContent> =>
-      ipcRenderer.invoke(IpcChannel.FsRead, projectPath, relPath)
+      ipcRenderer.invoke(IpcChannel.FsRead, projectPath, relPath),
+    /** The project-relative path for a path-shaped token, or null if it isn't one. */
+    resolve: (projectPath: string, candidate: string): Promise<string | null> =>
+      ipcRenderer.invoke(IpcChannel.FsResolve, projectPath, candidate)
   },
 
   window: {

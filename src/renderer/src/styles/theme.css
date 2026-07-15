@@ -2269,3 +2269,14 @@ button {
 .code tr.file-sep .src {
   color: var(--text-primary);
 }
+/* The line a terminal path link pointed at (`ipc.ts:82`). */
+.code tr.hl td {
+  background: color-mix(in srgb, var(--session) 16%, transparent);
+}
+.code tr.hl .dln {
+  color: var(--session);
+  box-shadow: inset 2px 0 0 var(--session);
+}
+.code tr.hl .src {
+  color: var(--text-primary);
+}

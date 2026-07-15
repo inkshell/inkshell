@@ -12,6 +12,12 @@ export interface ViewerRef {
   claudeConfigDir: string | null
   /** File/diff path (project-relative), for `diff` and `file`. */
   path?: string
+  /**
+   * Line to reveal and highlight, for `file` — set when the path came from the
+   * terminal carrying one (`ipc.ts:82`). Deliberately outside `viewerKey`, so
+   * clicking the same file at a new line re-uses its tab and just moves.
+   */
+  line?: number
   /** Diff against the index (staged) vs the working tree. */
   staged?: boolean
   /** Commit hash, for `commit`. */

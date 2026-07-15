@@ -7,6 +7,7 @@ import {
   type SessionSummary
 } from '@shared/types'
 import { type Tab, type ViewerRef, viewerKey } from './types'
+import type { FileLinkTarget } from './lib/file-links'
 import { Sidebar } from './components/Sidebar'
 import { TabBar } from './components/TabBar'
 import { TitleBar } from './components/TitleBar'
@@ -135,6 +136,11 @@ export function App() {
       const existing = prev.find((t) => t.viewer && viewerKey(t.viewer) === key)
       if (existing) {
         setActiveTabId(existing.id)
+        // Same file, new line (a second click in the terminal): keep the tab and
+        // let the viewer move to it.
+        if (existing.viewer!.line !== ref.line) {
+          return prev.map((t) => (t.id === existing.id ? { ...t, viewer: ref } : t))
+        }
         return prev
       }
       const tab: Tab = {
@@ -156,6 +162,23 @@ export function App() {
       return [...prev, tab]
     })
   }, [])
+
+  // A file path clicked in a terminal's output. The path arrives already
+  // resolved against the project, so this only has to name the tab.
+  const openFileFromTerminal = useCallback(
+    (target: FileLinkTarget, project: string) => {
+      openViewerTab({
+        kind: 'file',
+        project,
+        claudeConfigDir: claudeConfigDirFor(project) ?? null,
+        path: target.path,
+        line: target.line ?? undefined,
+        label: target.path.split('/').pop() ?? target.path,
+        dir: target.path.split('/').slice(0, -1).join('/') || undefined
+      })
+    },
+    [openViewerTab, claudeConfigDirFor]
+  )
 
   const openResume = useCallback(
     (sessionId: string) => {
@@ -511,6 +534,7 @@ export function App() {
                         tab={tab}
                         active={tab.id === activeTabId}
                         onReady={onTabReady}
+                        onOpenFile={openFileFromTerminal}
                         onTitle={onTabTitle}
                         onExit={closeTab}
                         onError={onTabError}

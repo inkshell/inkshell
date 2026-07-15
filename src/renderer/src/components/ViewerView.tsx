@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FileContent, GitCommitDetail } from '@shared/types'
 import type { Tab } from '../types'
 import { relativeTime } from '../lib/format'
@@ -128,6 +128,7 @@ export function ViewerView({ tab, active, onError }: Props) {
   const [file, setFile] = useState<FileContent | null>(null)
   const [commit, setCommit] = useState<GitCommitDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const lineRef = useRef<HTMLTableRowElement>(null)
 
   const load = useCallback(async () => {
     if (!ref) return
@@ -150,6 +151,13 @@ export function ViewerView({ tab, active, onError }: Props) {
   useEffect(() => {
     load()
   }, [load])
+
+  // Reveal the line a terminal link pointed at, once its row exists. A hidden
+  // tab can't be scrolled meaningfully, so this waits for it to be shown.
+  useEffect(() => {
+    if (!active || loading || ref?.line == null) return
+    lineRef.current?.scrollIntoView({ block: 'center' })
+  }, [active, loading, ref?.line, file])
 
   if (!ref) return null
 
@@ -212,7 +220,11 @@ export function ViewerView({ tab, active, onError }: Props) {
             <table className="code">
               <tbody>
                 {(file?.content ?? '').split('\n').map((line, i) => (
-                  <tr key={i}>
+                  <tr
+                    key={i}
+                    ref={ref.line === i + 1 ? lineRef : undefined}
+                    className={ref.line === i + 1 ? 'hl' : undefined}
+                  >
                     <td className="dln">{i + 1}</td>
                     <td className="src">{line || ' '}</td>
                   </tr>
