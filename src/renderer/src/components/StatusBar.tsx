@@ -1,6 +1,6 @@
 import { EFFORT_LEVELS, type ModelConfig } from '@shared/types'
 import { ContextMeter } from './ContextMeter'
-import { BarsIcon, BookmarkIcon, FolderIcon, GaugeIcon, SwapIcon } from './Icons'
+import { BarsIcon, BookmarkIcon, FolderIcon, GaugeIcon, InfoIcon, SwapIcon } from './Icons'
 
 interface Props {
   /** Basename of the selected project, or null when none is chosen. */
@@ -15,11 +15,21 @@ interface Props {
   contextTokens: number | null
   /** The active model's context window — the meter's denominator. */
   contextWindow: number
+  /**
+   * Whether the session's input box is verifiably empty. The switchers type
+   * `/commands` into the pty, which appends to whatever is half-written there —
+   * so while a draft is visible they are disabled instead.
+   */
+  promptEmpty: boolean
   onPickModel: (alias: string) => void
   onPickEffort: (effort: string) => void
+  /** A switcher was reached for while the chat holds a draft; explain why not. */
+  onDraftBlocked: () => void
   onViewMemory: () => void
   onAnalytics: () => void
 }
+
+const draftHint = 'Chat com texto escrito: envie ou apague para trocar'
 
 /**
  * The bottom status bar — the app's ground line, in the spirit of an editor's
@@ -39,8 +49,10 @@ export function StatusBar({
   currentEffort,
   contextTokens,
   contextWindow,
+  promptEmpty,
   onPickModel,
   onPickEffort,
+  onDraftBlocked,
   onViewMemory,
   onAnalytics
 }: Props) {
@@ -60,52 +72,75 @@ export function StatusBar({
       {active && (
         <>
           <span className="status-divider" />
-          <span className="swap-hint" title="Trocar o modelo do Claude Code">
-            <SwapIcon size={15} />
-          </span>
-          <select
-            className="pill-select"
-            value={currentModel ?? ''}
-            title="Trocar o modelo do Claude Code"
-            onChange={(e) => e.target.value && onPickModel(e.target.value)}
+          {/* Takes the swap glyph's own slot — that glyph meaning exactly the
+              thing now suspended — so the explanation costs the strip no width
+              it hasn't got, and says as much of itself as fits. It sits outside
+              `.switchers` on purpose: only a direct child of the bar can be
+              shrunk past the sentence it holds. */}
+          {promptEmpty ? (
+            <span className="swap-hint" title="Trocar o modelo do Claude Code">
+              <SwapIcon size={15} />
+            </span>
+          ) : (
+            <button className="draft-note" title={draftHint} onClick={onDraftBlocked}>
+              <InfoIcon size={14} />
+              <span>{draftHint}</span>
+            </button>
+          )}
+          {/* Wraps the pills so a click still lands somewhere while they are
+              disabled: a disabled control swallows the event instead of
+              bubbling it, which would leave the greyed pill mute to the very
+              user asking it why. */}
+          <span
+            className={`switchers${promptEmpty ? '' : ' blocked'}`}
+            onClick={promptEmpty ? undefined : onDraftBlocked}
           >
-            {!currentModel && (
-              <option value="" disabled>
-                Modelo…
-              </option>
-            )}
-            {models
-              .filter((m) => m.alias)
-              .map((m) => (
-                <option key={m.alias} value={m.alias}>
-                  {m.display || m.alias}
+            <select
+              className="pill-select"
+              value={currentModel ?? ''}
+              disabled={!promptEmpty}
+              title="Trocar o modelo do Claude Code"
+              onChange={(e) => e.target.value && onPickModel(e.target.value)}
+            >
+              {!currentModel && (
+                <option value="" disabled>
+                  Modelo…
+                </option>
+              )}
+              {models
+                .filter((m) => m.alias)
+                .map((m) => (
+                  <option key={m.alias} value={m.alias}>
+                    {m.display || m.alias}
+                  </option>
+                ))}
+            </select>
+
+            <span
+              className="swap-hint"
+              title="Effort — só reflete a última escolha, nunca confirmado"
+            >
+              <GaugeIcon size={15} />
+            </span>
+            <select
+              className="pill-select"
+              value={currentEffort ?? ''}
+              disabled={!promptEmpty}
+              title="Trocar o effort do Claude Code (não confirmado pelo Claude Code)"
+              onChange={(e) => e.target.value && onPickEffort(e.target.value)}
+            >
+              {!currentEffort && (
+                <option value="" disabled>
+                  Effort…
+                </option>
+              )}
+              {EFFORT_LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {level}
                 </option>
               ))}
-          </select>
-
-          <span
-            className="swap-hint"
-            title="Effort — só reflete a última escolha, nunca confirmado"
-          >
-            <GaugeIcon size={15} />
+            </select>
           </span>
-          <select
-            className="pill-select"
-            value={currentEffort ?? ''}
-            title="Trocar o effort do Claude Code (não confirmado pelo Claude Code)"
-            onChange={(e) => e.target.value && onPickEffort(e.target.value)}
-          >
-            {!currentEffort && (
-              <option value="" disabled>
-                Effort…
-              </option>
-            )}
-            {EFFORT_LEVELS.map((level) => (
-              <option key={level} value={level}>
-                {level}
-              </option>
-            ))}
-          </select>
         </>
       )}
 
@@ -117,9 +152,19 @@ export function StatusBar({
           <button className="icon-btn" title="Visualizar a memória" onClick={onViewMemory}>
             <BookmarkIcon size={14} />
           </button>
-          <button className="icon-btn" title="Analytics (/stats)" onClick={onAnalytics}>
-            <BarsIcon size={14} />
-          </button>
+          <span
+            className={promptEmpty ? undefined : 'blocked'}
+            onClick={promptEmpty ? undefined : onDraftBlocked}
+          >
+            <button
+              className="icon-btn"
+              disabled={!promptEmpty}
+              title="Analytics (/stats)"
+              onClick={onAnalytics}
+            >
+              <BarsIcon size={14} />
+            </button>
+          </span>
         </div>
       ) : (
         <div className="status-hint">

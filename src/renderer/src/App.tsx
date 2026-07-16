@@ -12,7 +12,7 @@ import { Sidebar } from './components/Sidebar'
 import { TabBar } from './components/TabBar'
 import { TitleBar } from './components/TitleBar'
 import { StatusBar } from './components/StatusBar'
-import { TerminalView } from './components/TerminalView'
+import { TerminalView, type TerminalViewHandle } from './components/TerminalView'
 import { ViewerView } from './components/ViewerView'
 import { ProjectPanel } from './components/ProjectPanel'
 import { EmptyState } from './components/EmptyState'
@@ -22,6 +22,15 @@ import { CloseIcon } from './components/Icons'
 
 const isMac = window.vibebox.platform === 'darwin'
 let tabSeq = 0
+
+/**
+ * Why the status bar's switchers are out of reach. They type `/commands` into
+ * the session, and bytes written to the pty land wherever the CLI's cursor is —
+ * appended to a half-written prompt, the command would be submitted as part of
+ * it rather than run.
+ */
+const DRAFT_BLOCKED_NOTICE =
+  'O campo do chat tem texto escrito — envie ou apague antes de trocar o modelo ou o effort pela barra.'
 
 export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null)
@@ -291,33 +300,71 @@ export function App() {
   )
 
   // --- Toolbar actions -----------------------------------------------------
-  const writeToActive = useCallback(
-    (text: string) => {
-      if (activeTab?.ptyId != null) window.vibebox.pty.write(activeTab.ptyId, text)
+  // Imperative handles into the live terminals, for asking the active one
+  // whether its input box is empty (the draft exists only on the CLI's screen).
+  const terminalRefs = useRef(new Map<string, TerminalViewHandle>())
+  /**
+   * Whether the active tab's input box is verifiably empty. The status bar
+   * switchers are disabled while it isn't: bytes written to the pty append to
+   * whatever is half-written in the box, so a `/command` typed over a draft
+   * would submit the two as one prompt. Polled — the CLI never announces its
+   * input state, the screen is the only source of truth.
+   */
+  const [promptEmpty, setPromptEmpty] = useState(false)
+  useEffect(() => {
+    const check = (): void =>
+      setPromptEmpty(
+        (activeTabId ? terminalRefs.current.get(activeTabId)?.promptIsEmpty() : false) ?? false
+      )
+    check()
+    const id = window.setInterval(check, 300)
+    return () => window.clearInterval(id)
+  }, [activeTabId])
+
+  /**
+   * Types a slash command into the active session — only when its input box is
+   * verifiably empty (see `promptEmpty` above). The switchers are disabled and
+   * say why while a draft is visible; this re-checks at call time to close the
+   * gap between two polls, where the state on screen is still the old one.
+   * Returns whether the command was actually sent.
+   */
+  const writeCommandToActive = useCallback(
+    (command: string): boolean => {
+      const handle = activeTabId ? terminalRefs.current.get(activeTabId) : undefined
+      if (activeTab?.ptyId == null || !handle?.promptIsEmpty()) {
+        setPromptEmpty(false)
+        setNotice(DRAFT_BLOCKED_NOTICE)
+        return false
+      }
+      window.vibebox.pty.write(activeTab.ptyId, `${command}\r`)
+      return true
     },
-    [activeTab]
+    [activeTab, activeTabId]
   )
   const requestModel = useCallback(
     (alias: string) => {
-      writeToActive(`/model ${alias}\r`)
+      if (!writeCommandToActive(`/model ${alias}`)) return
       // Optimistic guess so the tint updates instantly; the next transcript
       // poll below confirms it (or corrects it) against real usage.
       if (activeTabId)
         setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, model: alias } : t)))
     },
-    [writeToActive, activeTabId]
+    [writeCommandToActive, activeTabId]
   )
   const requestEffort = useCallback(
     (effort: string) => {
-      writeToActive(`/effort ${effort}\r`)
+      if (!writeCommandToActive(`/effort ${effort}`)) return
       // Purely optimistic — unlike the model, effort is never recorded in the
       // transcript, so there's no way to confirm or correct this later.
       if (activeTabId)
         setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, effort } : t)))
     },
-    [writeToActive, activeTabId]
+    [writeCommandToActive, activeTabId]
   )
-  const requestStats = useCallback(() => writeToActive('/stats\r'), [writeToActive])
+  const requestStats = useCallback(
+    () => void writeCommandToActive('/stats'),
+    [writeCommandToActive]
+  )
 
   // --- Live session: poll the active transcript for token usage + model ----
   // Keyed off the tab's own project, not the sidebar selection: a tab keeps its
@@ -520,8 +567,10 @@ export function App() {
                     currentEffort={activeTab.effort}
                     contextTokens={liveSession?.tokens ?? null}
                     contextWindow={activeContextWindow()}
+                    promptEmpty={promptEmpty}
                     onPickModel={requestModel}
                     onPickEffort={requestEffort}
+                    onDraftBlocked={() => setNotice(DRAFT_BLOCKED_NOTICE)}
                     onViewMemory={() => setNotice('A visualização da memória chega em breve.')}
                     onAnalytics={requestStats}
                   />
@@ -531,6 +580,10 @@ export function App() {
                     tab.kind === 'terminal' ? (
                       <TerminalView
                         key={tab.id}
+                        ref={(handle) => {
+                          if (handle) terminalRefs.current.set(tab.id, handle)
+                          else terminalRefs.current.delete(tab.id)
+                        }}
                         tab={tab}
                         active={tab.id === activeTabId}
                         onReady={onTabReady}

@@ -1,10 +1,15 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { terminalTheme } from '../lib/xterm-theme'
 import { createFileLinkProvider, type FileLinkTarget } from '../lib/file-links'
 import type { Tab } from '../types'
+
+export interface TerminalViewHandle {
+  /** True when the CLI's input box is on screen and verifiably empty. */
+  promptIsEmpty: () => boolean
+}
 
 interface Props {
   tab: Tab
@@ -35,19 +40,77 @@ function openUrl(uri: string): void {
 }
 
 /**
+ * Whether the CLI's input box is verifiably empty.
+ *
+ * A half-written draft lives inside the `claude` process, which never reports
+ * it anywhere — its only observable trace is the screen itself. So this reads
+ * the input box the CLI draws at the bottom of the buffer: a `❯` marker line
+ * between two `───` border lines. Callers use it to decide whether typing a
+ * `/command` into the pty is safe; anything already in the box would swallow
+ * the command into the draft and submit the two as one prompt.
+ *
+ * It deliberately errs toward "not empty". Every state it cannot positively
+ * recognize as an empty prompt counts as a draft: no box on screen (CLI still
+ * booting, or a redesigned layout), a box taller than one row (the draft holds
+ * a line break, even if no cell in it is visible), a marker other than `❯`
+ * (the `!` bash and `#` memory modes only ever engage by typing), or any text
+ * it can't classify. The failure mode is a needlessly disabled switcher —
+ * never a corrupted prompt. The one text tolerated is the CLI's own
+ * placeholder (`Try "…"`), which renders dim and only appears while the input
+ * is empty; dim text that isn't the placeholder (a paste chip, ghost text)
+ * still counts as content.
+ */
+function promptBoxIsEmpty(term: Terminal): boolean {
+  const buffer = term.buffer.active
+  const last = buffer.length - 1
+  const first = Math.max(0, buffer.length - term.rows)
+  const borderAt = (y: number): boolean =>
+    /^\s*─{8,}\s*$/.test(buffer.getLine(y)?.translateToString(true) ?? '')
+
+  let bottom = -1
+  for (let y = last; y >= first; y--) {
+    if (borderAt(y)) {
+      bottom = y
+      break
+    }
+  }
+  let top = -1
+  for (let y = bottom - 1; y >= first; y--) {
+    if (borderAt(y)) {
+      top = y
+      break
+    }
+  }
+  if (top < 0) return false
+
+  // An empty prompt is exactly one row tall. A taller box means the draft
+  // already holds a line break even when every visible cell in it is blank —
+  // a draft may well *start* with a blank line, or be nothing but newlines.
+  if (bottom - top !== 2) return false
+
+  const line = buffer.getLine(top + 1)
+  if (!line) return false
+  if (!line.translateToString(true).startsWith('❯')) return false
+  let dimText = ''
+  for (let x = 1; x < line.length; x++) {
+    const cell = line.getCell(x)
+    const chars = cell?.getChars() ?? ''
+    if (!chars.trim()) continue
+    if (!cell!.isDim()) return false
+    dimText += chars
+  }
+  return dimText === '' || dimText.startsWith('Try')
+}
+
+/**
  * One live terminal, bound to one `claude` child process. Owns its xterm
  * instance for the tab's whole lifetime — inactive tabs stay mounted (just
  * hidden) so their scrollback and process keep running in the background.
  */
-export function TerminalView({
-  tab,
-  active,
-  onReady,
-  onOpenFile,
-  onTitle,
-  onExit,
-  onError
-}: Props) {
+export const TerminalView = forwardRef<TerminalViewHandle, Props>(function TerminalView(
+  { tab, active, onReady, onOpenFile, onTitle, onExit, onError }: Props,
+  ref
+) {
   const hostRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -57,6 +120,14 @@ export function TerminalView({
   // re-run (which would respawn the process).
   const cbRef = useRef({ onReady, onOpenFile, onTitle, onExit, onError })
   cbRef.current = { onReady, onOpenFile, onTitle, onExit, onError }
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      promptIsEmpty: () => (termRef.current ? promptBoxIsEmpty(termRef.current) : false)
+    }),
+    []
+  )
 
   useEffect(() => {
     const host = hostRef.current
@@ -171,4 +242,4 @@ export function TerminalView({
   }, [active])
 
   return <div ref={hostRef} className="term-host" hidden={!active} />
-}
+})
