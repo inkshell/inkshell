@@ -100,8 +100,12 @@ const api = {
       ipcRenderer.invoke(IpcChannel.GitLog, projectPath),
     show: (projectPath: string, hash: string): Promise<GitCommitDetail> =>
       ipcRenderer.invoke(IpcChannel.GitShow, projectPath, hash),
-    suggestMessage: (projectPath: string, claudeConfigDir?: string): Promise<string> =>
-      ipcRenderer.invoke(IpcChannel.GitSuggestMessage, projectPath, claudeConfigDir)
+    suggestMessage: (
+      projectPath: string,
+      claudeConfigDir?: string,
+      model?: string
+    ): Promise<string> =>
+      ipcRenderer.invoke(IpcChannel.GitSuggestMessage, projectPath, claudeConfigDir, model)
   },
 
   fs: {

@@ -100,8 +100,8 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
   )
   ipcMain.handle(
     IpcChannel.GitSuggestMessage,
-    (_e, projectPath: string, claudeConfigDir?: string) =>
-      suggestCommitMessage(projectPath, claudeConfigDir)
+    (_e, projectPath: string, claudeConfigDir?: string, model?: string) =>
+      suggestCommitMessage(projectPath, claudeConfigDir, model)
   )
   ipcMain.handle(IpcChannel.FsList, (_e, projectPath: string, relPath: string) =>
     listDir(projectPath, relPath)

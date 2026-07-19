@@ -332,10 +332,14 @@ function claudeEnv(claudeConfigDir?: string): NodeJS.ProcessEnv {
  * real `claude` CLI headless (`claude -p`) over `git diff --staged`. The diff is
  * capped so a huge staging area can't blow up the prompt; the returned text is
  * stripped of any stray code fences the model might wrap it in.
+ *
+ * `model` is the configured `commitMessageModel` — passed straight through as
+ * `--model`, or omitted entirely so the CLI uses its own default.
  */
 export async function suggestCommitMessage(
   projectPath: string,
-  claudeConfigDir?: string
+  claudeConfigDir?: string,
+  model?: string
 ): Promise<string> {
   const root = await repoRoot(projectPath)
   const { stdout: diff } = await git(root, ['diff', '--staged', '--no-color'])
@@ -351,10 +355,11 @@ export async function suggestCommitMessage(
     clipped
 
   const bin = process.platform === 'win32' ? 'claude.cmd' : 'claude'
+  const args = model?.trim() ? ['--model', model.trim(), '-p', prompt] : ['-p', prompt]
   const stdout = await new Promise<string>((resolvePromise, reject) => {
     execFile(
       bin,
-      ['-p', prompt],
+      args,
       {
         cwd: root,
         env: claudeEnv(claudeConfigDir),

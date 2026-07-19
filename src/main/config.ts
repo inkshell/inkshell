@@ -34,7 +34,13 @@ export function defaultModels(): ModelConfig[] {
 }
 
 function defaultConfig(): AppConfig {
-  return { projects: [], defaultModel: 'sonnet', models: defaultModels(), defaultEffort: '' }
+  return {
+    projects: [],
+    defaultModel: 'sonnet',
+    models: defaultModels(),
+    defaultEffort: '',
+    commitMessageModel: 'haiku'
+  }
 }
 
 /**
@@ -89,7 +95,13 @@ export function loadConfig(): AppConfig {
       models: migrateContextWindows(
         Array.isArray(raw.models) && raw.models.length > 0 ? raw.models : base.models
       ),
-      defaultEffort: typeof raw.defaultEffort === 'string' ? raw.defaultEffort : base.defaultEffort
+      defaultEffort: typeof raw.defaultEffort === 'string' ? raw.defaultEffort : base.defaultEffort,
+      // A string (including '') is the user's choice; only an absent field
+      // falls back to the default.
+      commitMessageModel:
+        typeof raw.commitMessageModel === 'string'
+          ? raw.commitMessageModel
+          : base.commitMessageModel
     }
   } catch {
     return base

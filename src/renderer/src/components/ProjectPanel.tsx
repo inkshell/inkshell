@@ -20,6 +20,8 @@ interface Props {
   project: string | null
   /** `CLAUDE_CONFIG_DIR` override for `project`, threaded into `claude -p`. */
   claudeConfigDir: string | null
+  /** `--model` for the `claude -p` commit-message run; `''` leaves it to the CLI. */
+  commitMessageModel: string
   /** Whether the panel is expanded — gates the polling so a collapsed panel is idle. */
   visible: boolean
   /** Opens (or focuses) a diff / file / commit viewer tab in the centre. */
@@ -40,7 +42,14 @@ const fileDir = (p: string): string => p.split('/').slice(0, -1).join('/')
  * anything that needs width (a diff, a file, a commit) opens as a viewer tab in
  * the centre. Every git action drives the real binary through `window.inkshell.git`.
  */
-export function ProjectPanel({ project, claudeConfigDir, visible, onOpenViewer, onError }: Props) {
+export function ProjectPanel({
+  project,
+  claudeConfigDir,
+  commitMessageModel,
+  visible,
+  onOpenViewer,
+  onError
+}: Props) {
   const [mode, setMode] = useState<Mode>('git')
   const [gitTab, setGitTab] = useState<GitTab>('changes')
 
@@ -157,13 +166,19 @@ export function ProjectPanel({ project, claudeConfigDir, visible, onOpenViewer, 
     if (!project) return
     setGenerating(true)
     try {
-      setMessage(await window.inkshell.git.suggestMessage(project, claudeConfigDir ?? undefined))
+      setMessage(
+        await window.inkshell.git.suggestMessage(
+          project,
+          claudeConfigDir ?? undefined,
+          commitMessageModel || undefined
+        )
+      )
     } catch (err) {
       fail(err)
     } finally {
       setGenerating(false)
     }
-  }, [project, claudeConfigDir, fail])
+  }, [project, claudeConfigDir, commitMessageModel, fail])
 
   // --- Openers -------------------------------------------------------------
   const open = useCallback(

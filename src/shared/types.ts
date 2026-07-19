@@ -87,6 +87,14 @@ export interface AppConfig {
    * there's no live picker for it — only this launch-time default.
    */
   defaultEffort: string
+  /**
+   * `/model` alias (or full id) passed via `--model` to the headless
+   * `claude -p` run behind "Gerar mensagem com o Claude", or `''` to let the
+   * CLI pick. Separate from `defaultModel` because summarising a diff is a
+   * cheap one-shot job — worth pointing at a smaller model than the one you
+   * chat with.
+   */
+  commitMessageModel: string
 }
 
 /** A summary of a recorded Claude Code session, for the history list. */

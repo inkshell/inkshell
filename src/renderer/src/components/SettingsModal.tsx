@@ -128,6 +128,31 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
               ))}
             </select>
           </div>
+
+          <div className="settings-divider" />
+
+          <div className="setting-row">
+            <span style={{ color: 'var(--text-muted)' }}>Modelo da mensagem de commit</span>
+            <select
+              className="select"
+              value={config.commitMessageModel}
+              onChange={(e) => onChange({ ...config, commitMessageModel: e.target.value })}
+            >
+              <option value="">Padrão do Claude Code</option>
+              {config.models
+                .filter((m) => m.alias)
+                .map((m) => (
+                  <option key={m.alias} value={m.alias}>
+                    {m.display || m.alias} ({m.alias})
+                  </option>
+                ))}
+            </select>
+          </div>
+          <span className="form-hint">
+            O botão <strong>Gerar mensagem com o Claude</strong>, no painel de git, roda{' '}
+            <code>claude -p</code> sobre o diff preparado — fora do chat, sem consumir o contexto da
+            aba.
+          </span>
         </div>
       </div>
     </div>

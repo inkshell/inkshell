@@ -669,6 +669,7 @@ export function App() {
           <ProjectPanel
             project={panelProject}
             claudeConfigDir={panelConfigDir}
+            commitMessageModel={config.commitMessageModel}
             visible={!panelCollapsed}
             onOpenViewer={openViewerTab}
             onError={setError}
