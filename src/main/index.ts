@@ -40,7 +40,7 @@ function bootWindow(): void {
 }
 
 app.whenReady().then(() => {
-  app.setName('VibeBox')
+  app.setName('InkShell')
   bootWindow()
 
   // macOS: re-open a window when the dock icon is clicked and none are open.

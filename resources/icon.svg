@@ -13,7 +13,7 @@
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#glow)" />
   <rect width="512" height="512" rx="112" fill="none" stroke="#382c25" stroke-width="2" />
-  <!-- The VibeBox diamond mark -->
+  <!-- The InkShell diamond mark -->
   <g transform="translate(256 256)">
     <path d="M0 -120 L120 0 L0 120 L-120 0 Z" fill="url(#coral)" opacity="0.14" />
     <path d="M0 -86 L86 0 L0 86 L-86 0 Z" fill="url(#coral)" opacity="0.28" />

@@ -51,7 +51,7 @@ export interface ModelConfig {
   contextWindow: number
 }
 
-/** The persisted application configuration (`~/.vibebox/config.json`). */
+/** The persisted application configuration (`~/.inkshell/config.json`). */
 export interface AppConfig {
   projects: ProjectEntry[]
   /** `/model` alias (or full id) passed via `--model` to new chats. */

@@ -1,6 +1,6 @@
 # Architecture
 
-VibeBox is a standard three-process Electron application. This page is the map;
+InkShell is a standard three-process Electron application. This page is the map;
 the code comments are the territory.
 
 ```
@@ -9,7 +9,7 @@ the code comments are the territory.
 │                                                                        │
 │   window.ts        BrowserWindow + frameless chrome                    │
 │   pty-manager.ts   spawns `claude` in node-pty, streams bytes          │
-│   config.ts        ~/.vibebox/config.json load / save                  │
+│   config.ts        ~/.inkshell/config.json load / save                  │
 │   claude-history.ts reads ~/.claude/projects (sessions, context)       │
 │   ipc.ts           registers every IpcChannel handler                  │
 └───────────────▲───────────────────────────────────────┬───────────────┘
@@ -17,9 +17,9 @@ the code comments are the territory.
                 │                                         ▼
 ┌───────────────┴───────────────────────────────────────────────────────┐
 │                    preload  (contextBridge, sandboxed)                  │
-│   exposes a single typed object: window.vibebox = { pty, config, … }   │
+│   exposes a single typed object: window.inkshell = { pty, config, … }   │
 └───────────────▲───────────────────────────────────────────────────────┘
-                │ window.vibebox.*
+                │ window.inkshell.*
                 ▼
 ┌───────────────────────────────────────────────────────────────────────┐
 │                       renderer (React + xterm.js)                       │
@@ -45,7 +45,7 @@ assistant turn's `input + cache_creation + cache_read` tokens).
 
 ### preload (`src/preload`)
 
-The **only** bridge between renderer and OS. It exposes `window.vibebox`, a
+The **only** bridge between renderer and OS. It exposes `window.inkshell`, a
 narrow, fully-typed object. There is no `ipcRenderer`, no `require`, and no
 remote module in the renderer — a compromised page can do exactly what these
 functions allow and nothing more. Channel names come from `src/shared/ipc.ts` so
@@ -64,7 +64,7 @@ their scrollback and process keep running.
 1. User clicks **New Chat** (or presses `⌘T`). `App` pushes a `Tab` with a local
    id and no `ptyId` yet.
 2. The tab's `TerminalView` mounts, fits its grid, and calls
-   `window.vibebox.pty.create({ cwd, model, cols, rows })`.
+   `window.inkshell.pty.create({ cwd, model, cols, rows })`.
 3. `main` spawns `claude`, returns `{ ptyId, sessionId }`, and starts streaming.
 4. `TerminalView` reports the ids back via `onReady`; `App` records them on the
    tab. From here, keystrokes flow `xterm → pty.write → claude`, and output
@@ -76,14 +76,14 @@ their scrollback and process keep running.
 
 | State                     | Home                                             |
 | ------------------------- | ------------------------------------------------ |
-| Model list, default model | `~/.vibebox/config.json` (via `config.ts`)       |
+| Model list, default model | `~/.inkshell/config.json` (via `config.ts`)       |
 | Recent projects           | same file                                        |
 | Session transcripts       | `~/.claude/projects/` (owned by Claude Code)     |
 | Open tabs / UI state      | in-memory React state (not persisted)            |
 
 ## Why these choices
 
-- **node-pty + xterm.js** instead of parsing CLI output: VibeBox runs the *real*
+- **node-pty + xterm.js** instead of parsing CLI output: InkShell runs the *real*
   `claude` in a real PTY, so behavior is identical to a terminal.
 - **A typed IPC contract** (`shared/`) keeps the security boundary honest and
   refactors safe.

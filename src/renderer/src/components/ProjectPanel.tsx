@@ -38,7 +38,7 @@ const fileDir = (p: string): string => p.split('/').slice(0, -1).join('/')
  * the working tree (staged / unstaged, with stage + commit + push) and the
  * branch history; **Arquivos** shows the file tree. Both are navigation only —
  * anything that needs width (a diff, a file, a commit) opens as a viewer tab in
- * the centre. Every git action drives the real binary through `window.vibebox.git`.
+ * the centre. Every git action drives the real binary through `window.inkshell.git`.
  */
 export function ProjectPanel({ project, claudeConfigDir, visible, onOpenViewer, onError }: Props) {
   const [mode, setMode] = useState<Mode>('git')
@@ -67,7 +67,7 @@ export function ProjectPanel({ project, claudeConfigDir, visible, onOpenViewer, 
   const refreshStatus = useCallback(async () => {
     if (!project) return setStatus(null)
     try {
-      setStatus(await window.vibebox.git.status(project))
+      setStatus(await window.inkshell.git.status(project))
     } catch (err) {
       fail(err)
     }
@@ -76,7 +76,7 @@ export function ProjectPanel({ project, claudeConfigDir, visible, onOpenViewer, 
   const refreshLog = useCallback(async () => {
     if (!project) return setLog(null)
     try {
-      setLog(await window.vibebox.git.log(project))
+      setLog(await window.inkshell.git.log(project))
     } catch (err) {
       fail(err)
     }
@@ -85,7 +85,7 @@ export function ProjectPanel({ project, claudeConfigDir, visible, onOpenViewer, 
   const loadRoot = useCallback(async () => {
     if (!project) return setRoot(null)
     try {
-      setRoot(await window.vibebox.fs.list(project, ''))
+      setRoot(await window.inkshell.fs.list(project, ''))
     } catch (err) {
       fail(err)
     }
@@ -138,26 +138,26 @@ export function ProjectPanel({ project, claudeConfigDir, visible, onOpenViewer, 
     [refreshStatus, refreshLog, gitTab, fail]
   )
 
-  const stage = (p: string) => withBusy(() => window.vibebox.git.stage(project!, p))
-  const unstage = (p: string) => withBusy(() => window.vibebox.git.unstage(project!, p))
+  const stage = (p: string) => withBusy(() => window.inkshell.git.stage(project!, p))
+  const unstage = (p: string) => withBusy(() => window.inkshell.git.unstage(project!, p))
   const commit = () =>
     withBusy(async () => {
-      await window.vibebox.git.commit(project!, message)
+      await window.inkshell.git.commit(project!, message)
       setMessage('')
     })
   const commitAndPush = () =>
     withBusy(async () => {
-      await window.vibebox.git.commit(project!, message)
+      await window.inkshell.git.commit(project!, message)
       setMessage('')
-      await window.vibebox.git.push(project!)
+      await window.inkshell.git.push(project!)
     })
-  const push = () => withBusy(() => window.vibebox.git.push(project!))
+  const push = () => withBusy(() => window.inkshell.git.push(project!))
 
   const generate = useCallback(async () => {
     if (!project) return
     setGenerating(true)
     try {
-      setMessage(await window.vibebox.git.suggestMessage(project, claudeConfigDir ?? undefined))
+      setMessage(await window.inkshell.git.suggestMessage(project, claudeConfigDir ?? undefined))
     } catch (err) {
       fail(err)
     } finally {
@@ -209,7 +209,7 @@ export function ProjectPanel({ project, claudeConfigDir, visible, onOpenViewer, 
       })
       if (!children.has(path) && project) {
         try {
-          const kids = await window.vibebox.fs.list(project, path)
+          const kids = await window.inkshell.fs.list(project, path)
           setChildren((prev) => new Map(prev).set(path, kids))
         } catch (err) {
           fail(err)

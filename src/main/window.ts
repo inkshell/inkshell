@@ -5,21 +5,21 @@ import { join } from 'node:path'
 const isMac = process.platform === 'darwin'
 
 /**
- * Dev/CI hook: with VIBEBOX_SCREENSHOT=<path.png> set, captures the window a
+ * Dev/CI hook: with INKSHELL_SCREENSHOT=<path.png> set, captures the window a
  * moment after it renders, writes the PNG, and quits. Uses `capturePage`, so it
  * needs no screen-recording permission — the app reads its own framebuffer.
  */
 function maybeCaptureScreenshot(window: BrowserWindow): void {
-  const path = process.env['VIBEBOX_SCREENSHOT']
+  const path = process.env['INKSHELL_SCREENSHOT']
   if (!path) return
-  const delay = Number(process.env['VIBEBOX_SCREENSHOT_DELAY'] ?? 1400)
+  const delay = Number(process.env['INKSHELL_SCREENSHOT_DELAY'] ?? 1400)
   window.webContents.once('did-finish-load', () => {
     setTimeout(async () => {
       try {
         const image = await window.webContents.capturePage()
         await writeFile(path, image.toPNG())
       } catch (err) {
-        console.error('[vibebox] screenshot failed:', err)
+        console.error('[inkshell] screenshot failed:', err)
       } finally {
         app.quit()
       }

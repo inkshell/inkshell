@@ -1,20 +1,20 @@
 {
-  "name": "vibebox",
+  "name": "inkshell",
   "version": "0.1.0",
   "description": "A vibrant, tabbed desktop workspace for Claude Code — the CLI, with style.",
   "type": "module",
   "main": "./out/main/index.js",
   "author": {
-    "name": "VibeBox contributors"
+    "name": "InkShell contributors"
   },
   "license": "Apache-2.0",
-  "homepage": "https://github.com/your-org/vibebox#readme",
+  "homepage": "https://github.com/your-org/inkshell#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/vibebox.git"
+    "url": "https://github.com/your-org/inkshell.git"
   },
   "bugs": {
-    "url": "https://github.com/your-org/vibebox/issues"
+    "url": "https://github.com/your-org/inkshell/issues"
   },
   "keywords": [
     "claude",

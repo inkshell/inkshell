@@ -1,6 +1,6 @@
-appId: com.vibebox.app
-productName: VibeBox
-copyright: Copyright © 2026 VibeBox contributors
+appId: com.inkshell.app
+productName: InkShell
+copyright: Copyright © 2026 InkShell contributors
 
 directories:
   buildResources: build
@@ -37,6 +37,6 @@ linux:
     - AppImage
     - deb
   category: Development
-  maintainer: VibeBox contributors
+  maintainer: InkShell contributors
 
 npmRebuild: true

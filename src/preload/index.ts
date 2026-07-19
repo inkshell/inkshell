@@ -119,6 +119,6 @@ const api = {
   }
 }
 
-export type VibeBoxApi = typeof api
+export type InkShellApi = typeof api
 
-contextBridge.exposeInMainWorld('vibebox', api)
+contextBridge.exposeInMainWorld('inkshell', api)

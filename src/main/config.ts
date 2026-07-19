@@ -85,8 +85,8 @@ function migrateContextWindows(models: ModelConfig[]): ModelConfig[] {
 }
 
 function configDir(): string {
-  // ~/.vibebox on every platform, matching the original app's ~/.ClaudeUI dotdir.
-  const dir = join(app.getPath('home'), '.vibebox')
+  // ~/.inkshell on every platform, matching the original app's ~/.ClaudeUI dotdir.
+  const dir = join(app.getPath('home'), '.inkshell')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return dir
 }
@@ -124,7 +124,7 @@ export function saveConfig(config: AppConfig): void {
   try {
     writeFileSync(configPath(), JSON.stringify(config, null, 2), 'utf-8')
   } catch (err) {
-    console.error('[vibebox] failed to save config:', err)
+    console.error('[inkshell] failed to save config:', err)
   }
 }
 

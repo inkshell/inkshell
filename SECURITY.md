@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-VibeBox is pre-1.0. Security fixes are applied to the latest `main` and the most
+InkShell is pre-1.0. Security fixes are applied to the latest `main` and the most
 recent tagged release.
 
 | Version | Supported |
@@ -15,8 +15,8 @@ recent tagged release.
 **Please do not open a public issue for security problems.**
 
 Instead, report vulnerabilities privately via GitHub's
-[private vulnerability reporting](https://github.com/your-org/vibebox/security/advisories/new)
-or by email to **security@vibebox.dev**.
+[private vulnerability reporting](https://github.com/your-org/inkshell/security/advisories/new)
+or by email to **security@inkshell.dev**.
 
 Please include:
 
@@ -30,14 +30,14 @@ prefer to remain anonymous.
 
 ## Security model
 
-VibeBox follows Electron's recommended hardening:
+InkShell follows Electron's recommended hardening:
 
 - **Context isolation is on** and **node integration is off** in the renderer.
-- The renderer reaches the OS only through the small, typed `window.vibebox`
+- The renderer reaches the OS only through the small, typed `window.inkshell`
   bridge defined in `src/preload/index.ts` — no `ipcRenderer` or Node built-ins
   are exposed.
 - A restrictive Content-Security-Policy is set on the renderer document.
-- VibeBox spawns the user's own `claude` binary and only ever **reads** files
+- InkShell spawns the user's own `claude` binary and only ever **reads** files
   under `~/.claude/`; it does not modify Claude Code's data.
 
 If you spot a gap in any of the above, we consider it a security issue — please

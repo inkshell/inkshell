@@ -1,6 +1,6 @@
 <div align="center">
 
-# ◈ VibeBox
+# ◈ InkShell
 
 **A vibrant, tabbed desktop workspace for [Claude Code](https://docs.claude.com/en/docs/claude-code) — the CLI, with style.**
 
@@ -12,24 +12,24 @@
 
 ---
 
-VibeBox wraps the `claude` command-line agent in a warm, modern GUI: open
+InkShell wraps the `claude` command-line agent in a warm, modern GUI: open
 multiple sessions in **tabs**, browse your **projects and history**, switch
 **models** on the fly, and watch your **context window** fill up — all without
 leaving a single, beautiful window.
 
-It is a thin, respectful shell around the real thing. VibeBox never reimplements
+It is a thin, respectful shell around the real thing. InkShell never reimplements
 Claude Code; it launches your own locally-installed `claude` binary inside a
 pseudo-terminal, so every prompt, color, and `/`-command behaves exactly as it
 does in your terminal — just nicer to look at.
 
-> VibeBox is a community project and is **not affiliated with Anthropic**.
+> InkShell is a community project and is **not affiliated with Anthropic**.
 > "Claude" and "Claude Code" are trademarks of Anthropic.
 
 ## ✨ Features
 
 - **Tabbed sessions** — run several Claude Code chats side by side, each its own
   process, with `⌘T` / `⌘W` to open and close.
-- **Projects & history** — pick any folder as a working directory; VibeBox reads
+- **Projects & history** — pick any folder as a working directory; InkShell reads
   Claude Code's own transcript store (`~/.claude/projects`) to list and resume
   past sessions.
 - **Live model switcher** — one tap types `/model <alias>` into the session.
@@ -52,8 +52,8 @@ does in your terminal — just nicer to look at.
 
 ```bash
 # 1. Clone
-git clone https://github.com/your-org/vibebox.git
-cd vibebox
+git clone https://github.com/your-org/inkshell.git
+cd inkshell
 
 # 2. Install (also rebuilds the native node-pty module for Electron)
 npm install
@@ -72,12 +72,12 @@ npm run pack:linux   # AppImage + .deb
 
 ## 🧠 How it works
 
-VibeBox is a standard three-process Electron app:
+InkShell is a standard three-process Electron app:
 
 | Process      | Responsibility                                                                 |
 | ------------ | ------------------------------------------------------------------------------ |
 | **main**     | Spawns `claude` in a pseudo-terminal (`node-pty`), reads config & history, owns the window. |
-| **preload**  | A tiny `contextBridge` exposing a typed, sandboxed `window.vibebox` API.        |
+| **preload**  | A tiny `contextBridge` exposing a typed, sandboxed `window.inkshell` API.        |
 | **renderer** | React UI: tabs, sidebar, toolbar, and an `xterm.js` view per session.          |
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full picture.
@@ -86,13 +86,13 @@ See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full picture.
 
 Every color, radius, and glow lives in CSS variables at the top of
 [`src/renderer/src/styles/theme.css`](./src/renderer/src/styles/theme.css).
-Re-theming VibeBox is a one-file edit.
+Re-theming InkShell is a one-file edit.
 
 ## 🤝 Contributing
 
 Contributions are very welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) and our
 [Code of Conduct](./CODE_OF_CONDUCT.md). Good first issues are labeled
-[`good first issue`](https://github.com/your-org/vibebox/labels/good%20first%20issue).
+[`good first issue`](https://github.com/your-org/inkshell/labels/good%20first%20issue).
 
 ## 📄 License
 

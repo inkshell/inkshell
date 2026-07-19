@@ -1,4 +1,4 @@
-# VibeBox — common developer tasks.
+# InkShell — common developer tasks.
 # Thin wrappers over the npm scripts so `make <thing>` just works.
 
 .DEFAULT_GOAL := help

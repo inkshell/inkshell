@@ -170,7 +170,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
     let disposed = false
     const unsubscribers: Array<() => void> = []
 
-    window.vibebox.pty
+    window.inkshell.pty
       .create({
         cwd: tab.cwd ?? undefined,
         resumeSessionId: tab.resumeSessionId ?? undefined,
@@ -183,16 +183,16 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
       .then(({ ptyId, sessionId }) => {
         // The tab may have been closed while the pty was starting.
         if (disposed) {
-          void window.vibebox.pty.close(ptyId)
+          void window.inkshell.pty.close(ptyId)
           return
         }
         ptyIdRef.current = ptyId
         cbRef.current.onReady(tab.id, ptyId, sessionId)
 
-        unsubscribers.push(window.vibebox.pty.onData(ptyId, (data) => term.write(data)))
-        unsubscribers.push(window.vibebox.pty.onExit(ptyId, () => cbRef.current.onExit(tab.id)))
-        term.onData((data) => window.vibebox.pty.write(ptyId, data))
-        term.onResize(({ cols, rows }) => window.vibebox.pty.resize(ptyId, cols, rows))
+        unsubscribers.push(window.inkshell.pty.onData(ptyId, (data) => term.write(data)))
+        unsubscribers.push(window.inkshell.pty.onExit(ptyId, () => cbRef.current.onExit(tab.id)))
+        term.onData((data) => window.inkshell.pty.write(ptyId, data))
+        term.onResize(({ cols, rows }) => window.inkshell.pty.resize(ptyId, cols, rows))
       })
       .catch((err) => {
         if (disposed) return
@@ -220,7 +220,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
       links.dispose()
       unsubscribers.forEach((u) => u())
       // The tab is going away now; the `claude` behind it exits on its own time.
-      if (ptyIdRef.current !== null) void window.vibebox.pty.close(ptyIdRef.current)
+      if (ptyIdRef.current !== null) void window.inkshell.pty.close(ptyIdRef.current)
       term.dispose()
     }
     // Deliberately run once per tab; the tab's identity/config never changes.

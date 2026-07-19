@@ -85,7 +85,15 @@ export function Sidebar({
 }: Props) {
   // The projects / history split (and each section's collapsed state) is
   // remembered between launches.
-  const layout = useDefaultLayout({ id: 'vibebox:sidebar-sections' })
+  const layout = useDefaultLayout({ id: 'inkshell:sidebar-sections' })
+
+  // The history cards tint on hover with the colour of the project selected
+  // *here* in the sidebar — not the active tab's, which drives the app-wide
+  // --session and would bleed through otherwise.
+  const currentColor = projects.find((p) => p.path === currentProject)?.color
+  const historyStyle = currentColor
+    ? ({ ['--session' as string]: currentColor } as CSSProperties)
+    : undefined
   const [menu, setMenu] = useState<SessionMenu | null>(null)
 
   // Escape dismisses the context menu (clicks land on the overlay instead).
@@ -104,7 +112,7 @@ export function Sidebar({
       <div className="brand drag">
         <div className="brand-badge">◈</div>
         <div>
-          <div className="brand-name">VibeBox</div>
+          <div className="brand-name">InkShell</div>
           <div className="brand-tag">Claude Code, com estilo</div>
         </div>
       </div>
@@ -157,7 +165,7 @@ export function Sidebar({
           ) : sessions.length === 0 ? (
             <div className="empty-note">Nenhuma conversa ainda neste projeto.</div>
           ) : (
-            <div className="history-list">
+            <div className="history-list" style={historyStyle}>
               {sessions.map((s) => (
                 <button
                   key={s.sessionId}

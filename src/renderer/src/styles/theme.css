@@ -1,5 +1,5 @@
 /* =========================================================================
-   VibeBox design system — "Midnight Ink"
+   InkShell design system — "Midnight Ink"
    Cool graphite chrome that stays out of the way; the active session's model
    colour (--session) tints the UI so you always know which Claude you're
    talking to. Brand moments use a fixed iris→cyan spectrum. Everything reads
@@ -504,6 +504,10 @@ button {
   padding-right: 2px;
   flex: 1;
   min-height: 0;
+  /* Sidebar.tsx overrides --session here with the sidebar-selected project's
+     colour; the derived line var must be re-mixed locally or it would keep the
+     value computed at .app from the active tab's colour. */
+  --session-line: color-mix(in srgb, var(--session) 52%, var(--border));
 }
 .history-card {
   border: 1px solid transparent;

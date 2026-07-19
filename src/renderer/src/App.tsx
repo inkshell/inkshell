@@ -20,7 +20,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { ConfirmModal } from './components/ConfirmModal'
 import { CloseIcon } from './components/Icons'
 
-const isMac = window.vibebox.platform === 'darwin'
+const isMac = window.inkshell.platform === 'darwin'
 let tabSeq = 0
 
 /**
@@ -65,28 +65,28 @@ export function App() {
   // --- Init: load config, discover projects, select the first one ----------
   useEffect(() => {
     ;(async () => {
-      let cfg = await window.vibebox.config.load()
+      let cfg = await window.inkshell.config.load()
       if (cfg.projects.length === 0) {
-        const discovered = await window.vibebox.history.discoverProjects()
+        const discovered = await window.inkshell.history.discoverProjects()
         const seen = new Set<string>()
         const projects = discovered
           .filter((p) => (seen.has(p) ? false : (seen.add(p), true)))
           .map((p) => ({ name: p.split(/[/\\]/).pop() || p, path: p }))
         cfg = { ...cfg, projects }
-        await window.vibebox.config.save(cfg)
+        await window.inkshell.config.save(cfg)
       }
       setConfig(cfg)
       const first = cfg.projects[0] ?? null
       setCurrentProject(first?.path ?? null)
       if (first)
-        setSessions(await window.vibebox.history.listSessions(first.path, first.claudeConfigDir))
+        setSessions(await window.inkshell.history.listSessions(first.path, first.claudeConfigDir))
     })()
   }, [])
 
   const reloadSessions = useCallback(
     async (path: string | null) => {
       setSessions(
-        path ? await window.vibebox.history.listSessions(path, claudeConfigDirFor(path)) : []
+        path ? await window.inkshell.history.listSessions(path, claudeConfigDirFor(path)) : []
       )
     },
     [claudeConfigDirFor]
@@ -101,10 +101,10 @@ export function App() {
   )
 
   const browse = useCallback(async () => {
-    const path = await window.vibebox.dialog.pickFolder()
+    const path = await window.inkshell.dialog.pickFolder()
     if (!path) return
     // Main persisted it as a recent project; reload config to pick that up.
-    setConfig(await window.vibebox.config.load())
+    setConfig(await window.inkshell.config.load())
     selectProject(path)
   }, [selectProject])
 
@@ -260,11 +260,11 @@ export function App() {
     // would resurrect the file we're about to delete.
     const open = tabs.find((t) => t.sessionId === sessionId)
     if (open) {
-      if (open.ptyId !== null) await window.vibebox.pty.close(open.ptyId)
+      if (open.ptyId !== null) await window.inkshell.pty.close(open.ptyId)
       closeTab(open.id)
     }
     try {
-      await window.vibebox.history.deleteSession(
+      await window.inkshell.history.deleteSession(
         currentProject,
         sessionId,
         claudeConfigDirFor(currentProject)
@@ -336,7 +336,7 @@ export function App() {
         setNotice(DRAFT_BLOCKED_NOTICE)
         return false
       }
-      window.vibebox.pty.write(activeTab.ptyId, `${command}\r`)
+      window.inkshell.pty.write(activeTab.ptyId, `${command}\r`)
       return true
     },
     [activeTab, activeTabId]
@@ -382,7 +382,7 @@ export function App() {
     const sessionId = activeTab.sessionId
     let cancelled = false
     const read = async () => {
-      const ctx = await window.vibebox.history.sessionContext(project, sessionId, configDir)
+      const ctx = await window.inkshell.history.sessionContext(project, sessionId, configDir)
       if (!cancelled) setLiveSession(ctx)
     }
     read()
@@ -445,7 +445,7 @@ export function App() {
 
   const persistConfig = useCallback((next: AppConfig) => {
     setConfig(next)
-    window.vibebox.config.save(next)
+    window.inkshell.config.save(next)
   }, [])
 
   // Resizable layout: the sidebar and the project panel each remember their
@@ -454,7 +454,7 @@ export function App() {
   const sidebarPanel = usePanelRef()
   const projectPanel = usePanelRef()
   const [panelCollapsed, setPanelCollapsed] = useState(false)
-  const layout = useDefaultLayout({ id: 'vibebox:layout-3col' })
+  const layout = useDefaultLayout({ id: 'inkshell:layout-3col' })
   const toggleSidebar = useCallback(() => {
     const p = sidebarPanel.current
     if (!p) return

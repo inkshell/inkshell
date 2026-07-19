@@ -1,7 +1,7 @@
-VibeBox
-Copyright 2026 VibeBox contributors
+InkShell
+Copyright 2026 InkShell contributors
 
-This product includes software developed by the VibeBox contributors.
+This product includes software developed by the InkShell contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -11,8 +11,8 @@ You may obtain a copy of the License at
 
 ---
 
-VibeBox is a desktop front-end for Claude Code, Anthropic's command-line
-coding agent. VibeBox is an independent, community project and is not
+InkShell is a desktop front-end for Claude Code, Anthropic's command-line
+coding agent. InkShell is an independent, community project and is not
 affiliated with, endorsed by, or sponsored by Anthropic. "Claude" and
-"Claude Code" are trademarks of Anthropic. VibeBox launches the user's own
+"Claude Code" are trademarks of Anthropic. InkShell launches the user's own
 locally installed `claude` binary and never bundles or redistributes it.

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { SessionContext, SessionSummary } from '@shared/types'
 
 /**
- * Reads Claude Code's own transcript store under `~/.claude/projects/`. VibeBox
+ * Reads Claude Code's own transcript store under `~/.claude/projects/`. InkShell
  * never writes here — it only reflects the history the CLI records — so the
  * history list and context meter stay in lockstep with plain `claude` runs.
  * The single deliberate exception is `deleteSession`, which removes a

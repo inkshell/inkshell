@@ -5,7 +5,7 @@ import type { FileContent, TreeEntry } from '@shared/types'
 
 /**
  * Read-only reflection of a project's own files, backing the panel's "Arquivos"
- * mode and its file viewer. VibeBox never writes here — editing is the `claude`
+ * mode and its file viewer. InkShell never writes here — editing is the `claude`
  * process's job in the terminal, not this app's. Every path coming over IPC is
  * re-checked to stay inside the project directory before it touches disk.
  */

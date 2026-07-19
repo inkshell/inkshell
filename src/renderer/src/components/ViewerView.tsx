@@ -135,11 +135,11 @@ export function ViewerView({ tab, active, onError }: Props) {
     setLoading(true)
     try {
       if (ref.kind === 'diff' && ref.path != null) {
-        setDiff(await window.vibebox.git.diff(ref.project, ref.path, ref.staged ?? false))
+        setDiff(await window.inkshell.git.diff(ref.project, ref.path, ref.staged ?? false))
       } else if (ref.kind === 'file' && ref.path != null) {
-        setFile(await window.vibebox.fs.read(ref.project, ref.path))
+        setFile(await window.inkshell.fs.read(ref.project, ref.path))
       } else if (ref.kind === 'commit' && ref.hash != null) {
-        setCommit(await window.vibebox.git.show(ref.project, ref.hash))
+        setCommit(await window.inkshell.git.show(ref.project, ref.hash))
       }
     } catch (err) {
       onError(`Não foi possível abrir: ${err instanceof Error ? err.message : err}`)

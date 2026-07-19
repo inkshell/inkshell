@@ -52,7 +52,7 @@ export class PtyManager {
     // does not carry the mode it last ran under, so it has to be passed here too.
     args.push('--permission-mode', 'auto')
 
-    // VibeBox itself may be launched with CLAUDE_CONFIG_DIR set; never leak that
+    // InkShell itself may be launched with CLAUDE_CONFIG_DIR set; never leak that
     // into the child — each session's config dir is decided per-project. An
     // override equal to the default `~/.claude` is treated as unset so the CLI
     // uses its real default config (`~/.claude.json`, not `~/.claude/.claude.json`).

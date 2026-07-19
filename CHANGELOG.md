@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial public release of VibeBox, an Electron desktop front-end for Claude Code.
+- Initial public release of InkShell, an Electron desktop front-end for Claude Code.
 - Tabbed Claude Code sessions, each backed by its own `node-pty` process and an
   `xterm.js` view.
 - Sidebar with recent projects and resumable session history read from
@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Toolbar model switcher that types `/model <alias>` into the active session.
 - Live context meter mirroring the CLI's context-window indicator.
 - `/stats` shortcut and a placeholder memory viewer.
-- Editable model list and default model, persisted to `~/.vibebox/config.json`.
+- Editable model list and default model, persisted to `~/.inkshell/config.json`.
 - Frameless, coral-accented dark UI with per-platform window chrome.
 
-[Unreleased]: https://github.com/your-org/vibebox/commits/main
+[Unreleased]: https://github.com/your-org/inkshell/commits/main

@@ -24,6 +24,6 @@ body:
   - type: checkboxes
     id: scope
     attributes:
-      label: Fit with VibeBox
+      label: Fit with InkShell
       options:
-        - label: This keeps VibeBox a thin shell around Claude Code (it doesn't reimplement the CLI).
+        - label: This keeps InkShell a thin shell around Claude Code (it doesn't reimplement the CLI).

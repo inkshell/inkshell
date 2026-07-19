@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-VibeBox is an Electron desktop app that wraps the locally-installed `claude` CLI
+InkShell is an Electron desktop app that wraps the locally-installed `claude` CLI
 in a tabbed GUI. It **drives the real binary in a pseudo-terminal** — it never
 reimplements, parses, or fakes Claude Code's behavior. Running the app therefore
 requires a working `claude` on `PATH`.
@@ -27,9 +27,9 @@ npm run pack:mac     # (or pack:win / pack:linux) build a distributable
   (`tsconfig.web.json`). A change under `src/shared` must satisfy both.
 - **There is no test framework** in this project — no `npm test`, no test files.
   Don't hunt for one; verify changes by running the app (`npm run dev`).
-- **Headless screenshot** (dev/CI): `VIBEBOX_SCREENSHOT=/path.png ./node_modules/.bin/electron .`
+- **Headless screenshot** (dev/CI): `INKSHELL_SCREENSHOT=/path.png ./node_modules/.bin/electron .`
   after a build renders the window, writes a PNG via `capturePage`, and quits.
-  `VIBEBOX_SCREENSHOT_DELAY` (ms) tunes the wait.
+  `INKSHELL_SCREENSHOT_DELAY` (ms) tunes the wait.
 
 ## Architecture
 
@@ -41,7 +41,7 @@ electron-vite (`electron.vite.config.ts`):
   a resume is `claude --resume <id>`, both with an optional `--model`. `window.ts`
   owns the frameless `BrowserWindow`. `ipc.ts` registers every handler.
 - **`src/preload`** — the **only** door between renderer and OS. Exposes one typed
-  object, `window.vibebox`, via `contextBridge`. The renderer has no `ipcRenderer`,
+  object, `window.inkshell`, via `contextBridge`. The renderer has no `ipcRenderer`,
   no `require`, no remote module. Compiled to `.mjs` (package is `"type":
   "module"`) and loaded with `sandbox: false`, `contextIsolation: true`.
 - **`src/renderer`** — React + xterm.js. `App.tsx` holds all UI state (config,
@@ -76,7 +76,7 @@ know before touching it:
   excluded), mirroring the CLI's own indicator, against a `CONTEXT_WINDOW` of
   200k. `App.tsx` polls this every 2s for the active tab.
 
-VibeBox's own config lives separately at `~/.vibebox/config.json` (`main/config.ts`)
+InkShell's own config lives separately at `~/.inkshell/config.json` (`main/config.ts`)
 — the recent-projects list, default model, and the editable model picker list.
 
 ## Conventions

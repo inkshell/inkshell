@@ -18,15 +18,15 @@ body:
     attributes:
       label: Steps to reproduce
       placeholder: |
-        1. Open VibeBox
+        1. Open InkShell
         2. Select a project
         3. …
     validations:
       required: true
   - type: input
-    id: vibebox-version
+    id: inkshell-version
     attributes:
-      label: VibeBox version
+      label: InkShell version
       placeholder: 0.1.0 (or commit SHA)
     validations:
       required: true

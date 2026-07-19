@@ -5,7 +5,7 @@ import { overrideConfigDir } from './claude-history'
 
 /**
  * Drives the locally-installed `git` binary for the project panel. Like the rest
- * of VibeBox this never reimplements git — every read (status, diff, log, show)
+ * of InkShell this never reimplements git — every read (status, diff, log, show)
  * and every write (stage, commit, push) shells out to the real command in the
  * project's own working tree, so results always match what a plain terminal sees.
  *
