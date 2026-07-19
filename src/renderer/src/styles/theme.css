@@ -117,10 +117,26 @@ button {
   width: 100%;
   background: var(--bg-app);
 
-  /* The active model's colour. Overridden inline per active tab; falls back to
-     the iris brand accent. Soft/tint/line/glow are derived once here so every
-     rule just reads a token. */
+  /* The app-wide accent: the active tab's project colour, set inline by
+     App.tsx, falling back to the iris brand accent. */
   --session: var(--accent);
+}
+
+/* Every element that may carry its own --session, plus the app root that sets
+   the default. A subtree wanting its own colour sets --session inline and reads
+   the same tokens as everywhere else — there is no second accent variable.
+
+   The derived tokens must be re-declared per scope, not just on .app: a
+   custom property computes where it is declared, so a --session set on a
+   descendant would otherwise leave tint/line/glow still holding the root's
+   colour. This is an explicit list rather than `*` on purpose — xterm runs its
+   DOM renderer here, and declaring four color-mix values on every terminal
+   span would be paid on each repaint. Add a selector here when a new scope
+   starts overriding --session. */
+.app,
+.project-row,
+.tab,
+.history-list {
   --session-tint: color-mix(in srgb, var(--session) 15%, var(--bg-card));
   --session-line: color-mix(in srgb, var(--session) 52%, var(--border));
   --session-glow: color-mix(in srgb, var(--session) 40%, transparent);
@@ -467,7 +483,7 @@ button {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--row-accent, var(--session));
+  background: var(--session);
   flex-shrink: 0;
   opacity: 0.75;
   transition:
@@ -483,12 +499,12 @@ button {
   opacity: 1;
 }
 .project-row.active {
-  background: color-mix(in srgb, var(--row-accent, var(--session)) 15%, var(--bg-card));
+  background: var(--session-tint);
   color: var(--text-primary);
 }
 .project-row.active::before {
   opacity: 1;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--row-accent, var(--session)) 40%, transparent);
+  box-shadow: 0 0 8px var(--session-glow);
 }
 .project-row .name {
   overflow: hidden;
@@ -504,10 +520,6 @@ button {
   padding-right: 2px;
   flex: 1;
   min-height: 0;
-  /* Sidebar.tsx overrides --session here with the sidebar-selected project's
-     colour; the derived line var must be re-mixed locally or it would keep the
-     value computed at .app from the active tab's colour. */
-  --session-line: color-mix(in srgb, var(--session) 52%, var(--border));
 }
 .history-card {
   border: 1px solid transparent;
@@ -819,8 +831,9 @@ button {
 }
 /* Every tab carries its own project's accent — a faint translucent tint and a
    matching hairline — so an inactive tab still reads as "belonging to" its
-   project rather than fading into the toolbar. Only the tab itself is tinted;
-   the surrounding chrome keeps the *active* tab's colour (via --session). */
+   project rather than fading into the toolbar. It gets there by overriding
+   --session on itself (TabBar.tsx), which re-tints only its own subtree; the
+   surrounding chrome keeps the root --session, i.e. the active tab's colour. */
 .tab {
   display: flex;
   align-items: center;
@@ -828,8 +841,8 @@ button {
   height: 32px;
   padding: 0 6px 0 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--tab-accent, var(--session)) 30%, transparent);
-  background: color-mix(in srgb, var(--tab-accent, var(--session)) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--session) 30%, transparent);
+  background: color-mix(in srgb, var(--session) 16%, transparent);
   color: var(--text-muted);
   font-size: 12.5px;
   max-width: 210px;
@@ -841,7 +854,7 @@ button {
   flex-shrink: 0;
 }
 .tab:hover {
-  background: color-mix(in srgb, var(--tab-accent, var(--session)) 24%, var(--bg-card));
+  background: color-mix(in srgb, var(--session) 24%, var(--bg-card));
   color: var(--text-primary);
 }
 /* Active tab — a seated segment carrying its project's accent: a tinted fill,
@@ -849,7 +862,7 @@ button {
    that grounds the tab so its bottom no longer fades into empty space. */
 .tab.active {
   background: var(--session-tint);
-  border-color: color-mix(in srgb, var(--tab-accent, var(--session)) 30%, var(--border));
+  border-color: color-mix(in srgb, var(--session) 30%, var(--border));
   color: var(--text-primary);
 }
 .tab.active::after {
@@ -860,8 +873,8 @@ button {
   bottom: 0;
   height: 2px;
   border-radius: 2px;
-  background: var(--tab-accent, var(--session));
-  box-shadow: 0 0 9px color-mix(in srgb, var(--tab-accent, var(--session)) 55%, transparent);
+  background: var(--session);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--session) 55%, transparent);
 }
 .tab .title {
   overflow: hidden;
@@ -875,8 +888,8 @@ button {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--tab-accent, var(--session));
-  box-shadow: 0 0 8px color-mix(in srgb, var(--tab-accent, var(--session)) 40%, transparent);
+  background: var(--session);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--session) 40%, transparent);
   flex-shrink: 0;
   opacity: 0.75;
   position: relative;
@@ -894,8 +907,8 @@ button {
   inset: -3.5px;
   border-radius: 50%;
   border: 1.3px solid transparent;
-  border-top-color: var(--tab-accent, var(--session));
-  border-left-color: color-mix(in srgb, var(--tab-accent, var(--session)) 45%, transparent);
+  border-top-color: var(--session);
+  border-left-color: color-mix(in srgb, var(--session) 45%, transparent);
   opacity: 0.8;
   animation: dot-spin 0.85s linear infinite;
 }
@@ -914,7 +927,7 @@ button {
 .tab-glyph {
   display: grid;
   place-items: center;
-  color: var(--tab-accent, var(--session));
+  color: var(--session);
   opacity: 0.8;
   flex-shrink: 0;
   transition: opacity var(--dur) var(--ease);

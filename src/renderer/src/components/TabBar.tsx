@@ -256,7 +256,7 @@ export function TabBar({
                 offset = drag.slot
             }
             const tabStyle: CSSProperties = {
-              ...(accent ? ({ ['--tab-accent' as string]: accent } as CSSProperties) : {}),
+              ...(accent ? ({ ['--session' as string]: accent } as CSSProperties) : {}),
               ...(drag ? { transform: `translateX(${isSource ? drag.dx : offset}px)` } : {})
             }
             return (

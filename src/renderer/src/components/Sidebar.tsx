@@ -87,9 +87,9 @@ export function Sidebar({
   // remembered between launches.
   const layout = useDefaultLayout({ id: 'inkshell:sidebar-sections' })
 
-  // The history cards tint on hover with the colour of the project selected
-  // *here* in the sidebar — not the active tab's, which drives the app-wide
-  // --session and would bleed through otherwise.
+  // The history belongs to the project selected *here* in the sidebar, so it
+  // wears that project's colour rather than the active tab's (which is what the
+  // app-wide --session carries).
   const currentColor = projects.find((p) => p.path === currentProject)?.color
   const historyStyle = currentColor
     ? ({ ['--session' as string]: currentColor } as CSSProperties)
@@ -136,7 +136,7 @@ export function Sidebar({
           <div className="project-list">
             {projects.map((p) => {
               const rowStyle = p.color
-                ? ({ ['--row-accent' as string]: p.color } as CSSProperties)
+                ? ({ ['--session' as string]: p.color } as CSSProperties)
                 : undefined
               return (
                 <button
