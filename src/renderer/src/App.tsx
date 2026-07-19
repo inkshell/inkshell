@@ -680,7 +680,6 @@ export function App() {
         <SettingsModal
           config={config}
           onChange={persistConfig}
-          onEditProject={editProject}
           onClose={() => setShowSettings(false)}
         />
       )}

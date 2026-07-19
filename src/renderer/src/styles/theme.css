@@ -1502,62 +1502,10 @@ button {
   background: none;
   cursor: pointer;
 }
-.project-color-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 .project-color-row {
   display: flex;
   align-items: center;
   gap: 11px;
-}
-/* A project in the settings list: a row that opens the project screen. */
-.project-setting-row {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  width: 100%;
-  padding: 9px 11px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-extreme);
-  color: var(--text-primary);
-  text-align: left;
-  transition:
-    border-color var(--dur) var(--ease),
-    background var(--dur) var(--ease);
-}
-.project-setting-row:hover {
-  border-color: var(--accent);
-}
-.project-setting-row .project-color-name {
-  flex: none;
-  max-width: 40%;
-}
-.project-setting-path {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  direction: rtl;
-  text-align: left;
-  color: var(--text-faint);
-  font-size: 11.5px;
-}
-.project-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex: none;
-}
-.project-color-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-primary);
-  font-size: 12.5px;
 }
 .del-btn {
   width: 28px;
