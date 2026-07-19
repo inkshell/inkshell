@@ -1,10 +1,10 @@
-/** Short relative time in Portuguese: `agora`, `há 5min`, `há 3h`, `há 2d`. */
+/** Short relative time: `now`, `5min ago`, `3h ago`, `2d ago`. */
 export function relativeTime(epochMs: number): string {
   const secs = Math.max(0, Math.floor((Date.now() - epochMs) / 1000))
-  if (secs < 60) return 'agora'
-  if (secs < 3600) return `há ${Math.floor(secs / 60)}min`
-  if (secs < 86_400) return `há ${Math.floor(secs / 3600)}h`
-  return `há ${Math.floor(secs / 86_400)}d`
+  if (secs < 60) return 'now'
+  if (secs < 3600) return `${Math.floor(secs / 60)}min ago`
+  if (secs < 86_400) return `${Math.floor(secs / 3600)}h ago`
+  return `${Math.floor(secs / 86_400)}d ago`
 }
 
 /** Compact token count for the meter: `40142 → "40k"`, `950 → "950"`. */

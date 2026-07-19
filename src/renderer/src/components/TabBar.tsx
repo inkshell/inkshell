@@ -215,23 +215,19 @@ export function TabBar({
     <div className={`tabbar drag ${reserveTrafficLights ? 'mac-inset' : ''}`}>
       <button
         className="sidebar-toggle no-drag"
-        title="Mostrar/ocultar a barra lateral"
+        title="Show/hide the sidebar"
         onClick={onToggleSidebar}
       >
         <SidebarIcon size={16} />
       </button>
 
-      <button className="new-chat no-drag" onClick={onNewChat} title="Novo chat (⌘T)">
+      <button className="new-chat no-drag" onClick={onNewChat} title="New chat (⌘T)">
         <PlusIcon size={15} />
-        Novo chat
+        New chat
       </button>
 
       <div className={`tab-rail ${overflow.left ? 'ovl-l' : ''} ${overflow.right ? 'ovl-r' : ''}`}>
-        <button
-          className="rail-nudge left no-drag"
-          title="Abas anteriores"
-          onClick={() => nudge(-1)}
-        >
+        <button className="rail-nudge left no-drag" title="Previous tabs" onClick={() => nudge(-1)}>
           <DoubleChevronIcon size={15} />
         </button>
 
@@ -293,7 +289,7 @@ export function TabBar({
                 <span className="title">{tab.title}</span>
                 <button
                   className="tab-close"
-                  title="Fechar aba (⌘W · botão do meio)"
+                  title="Close tab (⌘W · middle click)"
                   onClick={(e) => {
                     e.stopPropagation()
                     onCloseTab(tab.id)
@@ -306,14 +302,14 @@ export function TabBar({
           })}
         </div>
 
-        <button className="rail-nudge right no-drag" title="Próximas abas" onClick={() => nudge(1)}>
+        <button className="rail-nudge right no-drag" title="Next tabs" onClick={() => nudge(1)}>
           <DoubleChevronIcon size={15} />
         </button>
       </div>
 
       <button
         className="sidebar-toggle no-drag"
-        title="Mostrar/ocultar o painel do projeto"
+        title="Show/hide the project panel"
         onClick={onTogglePanel}
       >
         <PanelRightIcon size={16} />

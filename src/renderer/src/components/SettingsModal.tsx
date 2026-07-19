@@ -33,24 +33,24 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
     <div className="overlay" onMouseDown={onClose}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <span className="modal-title">Configurações</span>
-          <button className="del-btn" onClick={onClose} title="Fechar">
+          <span className="modal-title">Settings</span>
+          <button className="del-btn" onClick={onClose} title="Close">
             <CloseIcon size={13} />
           </button>
         </div>
 
         <div className="modal-body">
           <p className="modal-desc">
-            A lista que aparece no seletor de modelo. Quando a Anthropic lançar ou renomear um
-            modelo, edite aqui — sem recompilar.
+            The list that shows up in the model picker. When Anthropic ships or renames a model,
+            edit it here — no rebuild needed.
           </p>
 
           <div className="model-table">
             <div className="model-row">
-              <span className="col-head">Nome</span>
+              <span className="col-head">Name</span>
               <span className="col-head">Alias</span>
-              <span className="col-head">Prefixo do ID</span>
-              <span className="col-head">Janela</span>
+              <span className="col-head">ID prefix</span>
+              <span className="col-head">Window</span>
               <span />
             </div>
 
@@ -77,13 +77,13 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
                 <input
                   type="number"
                   className="field"
-                  title="Janela de contexto em tokens (denominador do medidor)"
+                  title="Context window in tokens (the meter's denominator)"
                   min={1}
                   step={1000}
                   value={m.contextWindow}
                   onChange={(e) => updateModel(i, { contextWindow: Number(e.target.value) || 0 })}
                 />
-                <button className="del-btn" title="Remover modelo" onClick={() => removeModel(i)}>
+                <button className="del-btn" title="Remove model" onClick={() => removeModel(i)}>
                   <CloseIcon size={12} />
                 </button>
               </div>
@@ -91,13 +91,13 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
           </div>
 
           <button className="btn add-model" onClick={addModel}>
-            <PlusIcon size={14} /> Adicionar modelo
+            <PlusIcon size={14} /> Add model
           </button>
 
           <div className="settings-divider" />
 
           <div className="setting-row">
-            <span style={{ color: 'var(--text-muted)' }}>Modelo padrão de novos chats</span>
+            <span style={{ color: 'var(--text-muted)' }}>Default model for new chats</span>
             <select
               className="select"
               value={config.defaultModel}
@@ -114,13 +114,13 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
           </div>
 
           <div className="setting-row">
-            <span style={{ color: 'var(--text-muted)' }}>Effort padrão de novos chats</span>
+            <span style={{ color: 'var(--text-muted)' }}>Default effort for new chats</span>
             <select
               className="select"
               value={config.defaultEffort}
               onChange={(e) => onChange({ ...config, defaultEffort: e.target.value })}
             >
-              <option value="">Padrão do Claude Code</option>
+              <option value="">Claude Code default</option>
               {EFFORT_LEVELS.map((level) => (
                 <option key={level} value={level}>
                   {level}
@@ -132,13 +132,13 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
           <div className="settings-divider" />
 
           <div className="setting-row">
-            <span style={{ color: 'var(--text-muted)' }}>Modelo da mensagem de commit</span>
+            <span style={{ color: 'var(--text-muted)' }}>Commit message model</span>
             <select
               className="select"
               value={config.commitMessageModel}
               onChange={(e) => onChange({ ...config, commitMessageModel: e.target.value })}
             >
-              <option value="">Padrão do Claude Code</option>
+              <option value="">Claude Code default</option>
               {config.models
                 .filter((m) => m.alias)
                 .map((m) => (
@@ -149,9 +149,9 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
             </select>
           </div>
           <span className="form-hint">
-            O botão <strong>Gerar mensagem com o Claude</strong>, no painel de git, roda{' '}
-            <code>claude -p</code> sobre o diff preparado — fora do chat, sem consumir o contexto da
-            aba.
+            The <strong>Generate message with Claude</strong> button, in the git panel, runs{' '}
+            <code>claude -p</code> over the staged diff — outside the chat, without spending the
+            tab's context.
           </span>
         </div>
       </div>

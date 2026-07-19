@@ -25,7 +25,7 @@ export function ContextMeter({ tokens, contextWindow }: Props) {
   const pct = tokens === null ? 0 : Math.min(100, Math.floor((tokens * 100) / contextWindow))
   const level = fraction === null ? 'var(--text-faint)' : meterColor(fraction)
 
-  const label = tokens === null ? 'contexto —' : `${fmtK(tokens)}/${fmtK(contextWindow)} · ${pct}%`
+  const label = tokens === null ? 'context —' : `${fmtK(tokens)}/${fmtK(contextWindow)} · ${pct}%`
 
   const labelClass =
     fraction !== null && fraction >= 0.85
@@ -36,8 +36,8 @@ export function ContextMeter({ tokens, contextWindow }: Props) {
 
   const tip =
     tokens === null
-      ? 'Contexto da sessão — ainda sem resposta do Claude'
-      : `Contexto da sessão: ${tokens} de ${contextWindow} tokens`
+      ? 'Session context — no reply from Claude yet'
+      : `Session context: ${tokens} of ${contextWindow} tokens`
 
   return (
     <div className="meter" title={tip}>

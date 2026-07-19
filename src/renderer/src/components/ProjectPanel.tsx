@@ -38,7 +38,7 @@ const fileDir = (p: string): string => p.split('/').slice(0, -1).join('/')
 /**
  * The right dock: two lenses on the active project's directory. **Git** shows
  * the working tree (staged / unstaged, with stage + commit + push) and the
- * branch history; **Arquivos** shows the file tree. Both are navigation only —
+ * branch history; **Files** shows the file tree. Both are navigation only —
  * anything that needs width (a diff, a file, a commit) opens as a viewer tab in
  * the centre. Every git action drives the real binary through `window.inkshell.git`.
  */
@@ -237,7 +237,7 @@ export function ProjectPanel({
   if (!project) {
     return (
       <aside className="panel">
-        <div className="panel-empty">Selecione um projeto para ver o git e os arquivos.</div>
+        <div className="panel-empty">Select a project to see its git and files.</div>
       </aside>
     )
   }
@@ -293,7 +293,7 @@ export function ProjectPanel({
               <FileTextIcon size={13} />
             </span>
             <span className="nm2">{e.name}</span>
-            {modified.has(e.path) && <span className="mod" title="Modificado" />}
+            {modified.has(e.path) && <span className="mod" title="Modified" />}
           </button>
         )
       })
@@ -319,7 +319,7 @@ export function ProjectPanel({
         <span
           className="op"
           role="button"
-          title={staged ? 'Tirar do stage' : 'Preparar'}
+          title={staged ? 'Unstage' : 'Stage'}
           onClick={(ev) => {
             ev.stopPropagation()
             if (staged) unstage(c.path)
@@ -350,7 +350,7 @@ export function ProjectPanel({
             aria-selected={mode === 'files'}
             onClick={() => setMode('files')}
           >
-            <FolderIcon size={13} /> Arquivos
+            <FolderIcon size={13} /> Files
           </button>
         </div>
       </div>
@@ -358,7 +358,7 @@ export function ProjectPanel({
       {mode === 'git' ? (
         <div className="pview">
           {status && !status.isRepo ? (
-            <div className="panel-empty">Este projeto não é um repositório git.</div>
+            <div className="panel-empty">This project is not a git repository.</div>
           ) : (
             <>
               <div className="branch-row">
@@ -371,7 +371,7 @@ export function ProjectPanel({
                     className="mini"
                     title="Pull"
                     disabled={busy}
-                    onClick={() => onError('Pull ainda não disponível — use o terminal por ora.')}
+                    onClick={() => onError('Pull is not available yet — use the terminal for now.')}
                   >
                     <ArrowDownIcon size={12} />
                   </button>
@@ -380,7 +380,7 @@ export function ProjectPanel({
                   </button>
                   <button
                     className="mini"
-                    title="Atualizar"
+                    title="Refresh"
                     disabled={busy}
                     onClick={() => refreshStatus()}
                   >
@@ -396,7 +396,7 @@ export function ProjectPanel({
                   aria-selected={gitTab === 'changes'}
                   onClick={() => setGitTab('changes')}
                 >
-                  Mudanças <span className="grp-n">{changeCount}</span>
+                  Changes <span className="grp-n">{changeCount}</span>
                 </button>
                 <button
                   className={`gtab ${gitTab === 'history' ? 'on' : ''}`}
@@ -407,7 +407,7 @@ export function ProjectPanel({
                     if (log === null) refreshLog()
                   }}
                 >
-                  Histórico
+                  History
                 </button>
               </div>
 
@@ -415,12 +415,12 @@ export function ProjectPanel({
                 <>
                   <div className="plist">
                     {changeCount === 0 && (
-                      <div className="panel-empty sm">Nada alterado — tudo em dia.</div>
+                      <div className="panel-empty sm">Nothing changed — all up to date.</div>
                     )}
                     {status && status.staged.length > 0 && (
                       <>
                         <div className="grp">
-                          PREPARADAS <span className="grp-n">{status.staged.length}</span>
+                          STAGED <span className="grp-n">{status.staged.length}</span>
                         </div>
                         {status.staged.map((c) => changeRow(c, true))}
                       </>
@@ -428,7 +428,7 @@ export function ProjectPanel({
                     {status && status.unstaged.length > 0 && (
                       <>
                         <div className="grp">
-                          ALTERAÇÕES <span className="grp-n">{status.unstaged.length}</span>
+                          CHANGES <span className="grp-n">{status.unstaged.length}</span>
                         </div>
                         {status.unstaged.map((c) => changeRow(c, false))}
                       </>
@@ -439,12 +439,12 @@ export function ProjectPanel({
                     <textarea
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="feat: mensagem do commit (Conventional Commits)…"
-                      aria-label="Mensagem do commit"
+                      placeholder="feat: commit message (Conventional Commits)…"
+                      aria-label="Commit message"
                     />
                     <button className="gen" onClick={generate} disabled={generating || busy}>
                       <SparklesIcon size={12} />
-                      <span>{generating ? 'Gerando…' : 'Gerar mensagem com o Claude'}</span>
+                      <span>{generating ? 'Generating…' : 'Generate message with Claude'}</span>
                     </button>
                     <div className="crow-actions">
                       <button
@@ -459,7 +459,7 @@ export function ProjectPanel({
                         onClick={commitAndPush}
                         disabled={busy || !message.trim() || (status?.staged.length ?? 0) === 0}
                       >
-                        Commit e push
+                        Commit and push
                         <ArrowUpIcon size={11} />
                       </button>
                     </div>
@@ -468,9 +468,9 @@ export function ProjectPanel({
               ) : (
                 <div className="clist">
                   {log === null ? (
-                    <div className="panel-empty sm">Carregando histórico…</div>
+                    <div className="panel-empty sm">Loading history…</div>
                   ) : log.length === 0 ? (
-                    <div className="panel-empty sm">Nenhum commit ainda.</div>
+                    <div className="panel-empty sm">No commits yet.</div>
                   ) : (
                     log.map((c, i) => (
                       <button
@@ -501,13 +501,13 @@ export function ProjectPanel({
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filtrar arquivos…"
-              aria-label="Filtrar arquivos"
+              placeholder="Filter files…"
+              aria-label="Filter files"
             />
           </div>
           <div className="tree">
             {root === null ? (
-              <div className="panel-empty sm">Carregando…</div>
+              <div className="panel-empty sm">Loading…</div>
             ) : (
               renderEntries(root, 0)
             )}

@@ -255,7 +255,7 @@ export function listSessions(projectPath: string, claudeConfigDir?: string): Ses
       sessionId,
       // The CLI's title describes what a chat became; the opening message only
       // shows where it started, so it stands in just for untitled sessions.
-      preview: readAiTitle(path) ?? firstMessage ?? '(sem mensagens)',
+      preview: readAiTitle(path) ?? firstMessage ?? '(no messages)',
       createdMs: created ?? mtimeMs
     })
   }

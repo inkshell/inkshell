@@ -119,15 +119,15 @@ export function Sidebar({
         <div className="brand-badge">◈</div>
         <div>
           <div className="brand-name">InkShell</div>
-          <div className="brand-tag">Claude Code, com estilo</div>
+          <div className="brand-tag">Claude Code, with style</div>
         </div>
       </div>
 
       <div className="sidebar-actions">
         <button className="btn grow" onClick={onNewProject}>
-          <FolderIcon size={15} /> Novo projeto…
+          <FolderIcon size={15} /> New project…
         </button>
-        <button className="btn square" onClick={onOpenSettings} title="Configurações">
+        <button className="btn square" onClick={onOpenSettings} title="Settings">
           <GearIcon size={16} />
         </button>
       </div>
@@ -138,7 +138,7 @@ export function Sidebar({
         defaultLayout={layout.defaultLayout}
         onLayoutChanged={layout.onLayoutChanged}
       >
-        <Section id="projects" title="PROJETOS" count={projects.length} defaultSize="42%">
+        <Section id="projects" title="PROJECTS" count={projects.length} defaultSize="42%">
           <div className="project-list">
             {projects.map((p) => {
               const rowStyle = p.color
@@ -165,15 +165,11 @@ export function Sidebar({
 
         <Separator className="sep sep-v" />
 
-        <Section
-          id="history"
-          title="HISTÓRICO"
-          count={currentProject === null ? 0 : sessions.length}
-        >
+        <Section id="history" title="HISTORY" count={currentProject === null ? 0 : sessions.length}>
           {currentProject === null ? (
-            <div className="empty-note">Selecione um projeto para ver o histórico.</div>
+            <div className="empty-note">Select a project to see its history.</div>
           ) : sessions.length === 0 ? (
-            <div className="empty-note">Nenhuma conversa ainda neste projeto.</div>
+            <div className="empty-note">No conversations in this project yet.</div>
           ) : (
             <div className="history-list" style={historyStyle}>
               {sessions.map((s) => (
@@ -222,7 +218,7 @@ export function Sidebar({
                 }}
               >
                 <GearIcon size={14} />
-                Configurações do projeto
+                Project settings
               </button>
             ) : (
               <button
@@ -233,7 +229,7 @@ export function Sidebar({
                 }}
               >
                 <TrashIcon size={14} />
-                Apagar chat
+                Delete chat
               </button>
             )}
           </div>

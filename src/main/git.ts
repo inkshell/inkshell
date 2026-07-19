@@ -45,7 +45,7 @@ function git(cwd: string, args: string[], opts: RunOptions = {}): Promise<RunRes
         if (err) {
           const e = err as NodeJS.ErrnoException
           if (e.code === 'ENOENT') {
-            reject(new Error('git não encontrado no PATH'))
+            reject(new Error('git not found on PATH'))
             return
           }
           if (!opts.allowNonZero) {
@@ -78,9 +78,9 @@ async function repoRoot(projectPath: string): Promise<string> {
  * over IPC, so they are re-checked before reaching a filesystem-touching arg.
  */
 function assertWithin(root: string, relPath: string): void {
-  if (isAbsolute(relPath)) throw new Error('Caminho inválido')
+  if (isAbsolute(relPath)) throw new Error('Invalid path')
   const rel = relative(root, resolve(root, relPath))
-  if (rel.startsWith('..') || isAbsolute(rel)) throw new Error('Caminho fora do projeto')
+  if (rel.startsWith('..') || isAbsolute(rel)) throw new Error('Path outside the project')
 }
 
 /** Reads the first `n` space-separated fields, returning them plus the remainder. */
@@ -216,7 +216,7 @@ export async function gitUnstage(projectPath: string, filePath: string): Promise
 
 /** Commits the staged changes; git's own error surfaces if nothing is staged. */
 export async function gitCommit(projectPath: string, message: string): Promise<void> {
-  if (!message.trim()) throw new Error('Mensagem de commit vazia')
+  if (!message.trim()) throw new Error('Empty commit message')
   const root = await repoRoot(projectPath)
   await git(root, ['commit', '-m', message])
 }
@@ -296,7 +296,7 @@ function countDiff(diff: string): { insertions: number; deletions: number } {
 
 /** A single commit's metadata, changed-file list, and full patch. */
 export async function gitShow(projectPath: string, hash: string): Promise<GitCommitDetail> {
-  if (!/^[0-9a-fA-F]{4,40}$/.test(hash)) throw new Error('Hash de commit inválido')
+  if (!/^[0-9a-fA-F]{4,40}$/.test(hash)) throw new Error('Invalid commit hash')
   const root = await repoRoot(projectPath)
   const fmt = ['%H', '%h', '%s', '%an', '%at'].join(US)
   const meta = await git(root, ['show', '-s', `--format=${fmt}`, hash])
@@ -343,15 +343,15 @@ export async function suggestCommitMessage(
 ): Promise<string> {
   const root = await repoRoot(projectPath)
   const { stdout: diff } = await git(root, ['diff', '--staged', '--no-color'])
-  if (!diff.trim()) throw new Error('Nada preparado — prepare arquivos antes de gerar a mensagem.')
+  if (!diff.trim()) throw new Error('Nothing staged — stage files before generating a message.')
 
   const MAX = 12_000
-  const clipped = diff.length > MAX ? `${diff.slice(0, MAX)}\n\n[diff truncado]` : diff
+  const clipped = diff.length > MAX ? `${diff.slice(0, MAX)}\n\n[diff truncated]` : diff
   const prompt =
-    'Você gera mensagens de commit. Com base no diff preparado (git diff --staged) ' +
-    'abaixo, escreva UMA mensagem de commit no padrão Conventional Commits ' +
-    '(ex.: "feat: ...", "fix: ...", "refactor: ..."), em português, no imperativo. ' +
-    'Responda APENAS com a mensagem — sem crases, sem aspas, sem explicação.\n\n' +
+    'You write commit messages. Based on the staged diff (git diff --staged) ' +
+    'below, write ONE commit message in the Conventional Commits format ' +
+    '(e.g. "feat: ...", "fix: ...", "refactor: ..."), in English, in the imperative. ' +
+    'Reply with the message ONLY — no backticks, no quotes, no explanation.\n\n' +
     clipped
 
   const bin = process.platform === 'win32' ? 'claude.cmd' : 'claude'
@@ -372,7 +372,7 @@ export async function suggestCommitMessage(
           const e = err as NodeJS.ErrnoException
           reject(
             new Error(
-              e.code === 'ENOENT' ? 'claude não encontrado no PATH' : stderr.trim() || err.message
+              e.code === 'ENOENT' ? 'claude not found on PATH' : stderr.trim() || err.message
             )
           )
           return

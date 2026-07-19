@@ -4,7 +4,7 @@ interface Props {
   title: string
   /** The body prompt; a string or richer markup (e.g. the chat's preview). */
   message: ReactNode
-  /** Label of the confirming button (e.g. "Apagar"). */
+  /** Label of the confirming button (e.g. "Delete"). */
   confirmLabel: string
   /** Tints the confirm button as a destructive action. */
   danger?: boolean
@@ -37,7 +37,7 @@ export function ConfirmModal({ title, message, confirmLabel, danger, onConfirm, 
           <p className="confirm-message">{message}</p>
           <div className="confirm-actions">
             <button className="btn" onClick={onCancel}>
-              Cancelar
+              Cancel
             </button>
             <button
               className={`btn ${danger ? 'danger' : 'primary'}`}

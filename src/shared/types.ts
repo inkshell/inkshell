@@ -89,7 +89,7 @@ export interface AppConfig {
   defaultEffort: string
   /**
    * `/model` alias (or full id) passed via `--model` to the headless
-   * `claude -p` run behind "Gerar mensagem com o Claude", or `''` to let the
+   * `claude -p` run behind "Generate message with Claude", or `''` to let the
    * CLI pick. Separate from `defaultModel` because summarising a diff is a
    * cheap one-shot job — worth pointing at a smaller model than the one you
    * chat with.

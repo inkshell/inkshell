@@ -142,7 +142,7 @@ export function ViewerView({ tab, active, onError }: Props) {
         setCommit(await window.inkshell.git.show(ref.project, ref.hash))
       }
     } catch (err) {
-      onError(`Não foi possível abrir: ${err instanceof Error ? err.message : err}`)
+      onError(`Couldn't open: ${err instanceof Error ? err.message : err}`)
     } finally {
       setLoading(false)
     }
@@ -183,7 +183,7 @@ export function ViewerView({ tab, active, onError }: Props) {
               {commit.author} · {relativeTime(commit.dateMs)}
             </span>
           )}
-          <button className="vw-btn" title="Recarregar" onClick={load}>
+          <button className="vw-btn" title="Reload" onClick={load}>
             <RefreshIcon size={13} />
           </button>
         </div>
@@ -199,11 +199,11 @@ export function ViewerView({ tab, active, onError }: Props) {
           {ref.kind === 'diff' ? (
             <StatChips ins={ins} del={del} />
           ) : (
-            <span className="chip ro">Somente leitura</span>
+            <span className="chip ro">Read only</span>
           )}
           <span className="vw-spacer" />
           {ref.kind === 'diff' && (
-            <button className="vw-btn" title="Recarregar" onClick={load}>
+            <button className="vw-btn" title="Reload" onClick={load}>
               <RefreshIcon size={13} />
             </button>
           )}
@@ -212,10 +212,10 @@ export function ViewerView({ tab, active, onError }: Props) {
 
       <div className="vw-body">
         {loading ? (
-          <div className="vw-note">Carregando…</div>
+          <div className="vw-note">Loading…</div>
         ) : ref.kind === 'file' ? (
           file?.tooLarge ? (
-            <div className="vw-note">Arquivo binário ou grande demais para exibir.</div>
+            <div className="vw-note">Binary file, or too large to display.</div>
           ) : (
             <table className="code">
               <tbody>
@@ -234,7 +234,7 @@ export function ViewerView({ tab, active, onError }: Props) {
           )
         ) : ref.kind === 'diff' ? (
           rows.length === 0 ? (
-            <div className="vw-note">Sem alterações para mostrar.</div>
+            <div className="vw-note">No changes to show.</div>
           ) : (
             <DiffTable rows={rows} />
           )
@@ -243,7 +243,7 @@ export function ViewerView({ tab, active, onError }: Props) {
             {commit && (
               <div className="commit-files">
                 <div className="grp">
-                  ARQUIVOS ALTERADOS <span className="grp-n">{commit.files.length}</span>
+                  CHANGED FILES <span className="grp-n">{commit.files.length}</span>
                 </div>
                 {commit.files.map((f) => (
                   <div className="frow static" key={f.path}>

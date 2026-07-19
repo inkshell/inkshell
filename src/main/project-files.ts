@@ -4,7 +4,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { FileContent, TreeEntry } from '@shared/types'
 
 /**
- * Read-only reflection of a project's own files, backing the panel's "Arquivos"
+ * Read-only reflection of a project's own files, backing the panel's "Files"
  * mode and its file viewer. InkShell never writes here — editing is the `claude`
  * process's job in the terminal, not this app's. Every path coming over IPC is
  * re-checked to stay inside the project directory before it touches disk.
@@ -18,10 +18,10 @@ const IGNORED = new Set(['.git'])
 
 /** The absolute path for `relPath`, or throws if it escapes `root`. */
 function within(root: string, relPath: string): string {
-  if (isAbsolute(relPath)) throw new Error('Caminho inválido')
+  if (isAbsolute(relPath)) throw new Error('Invalid path')
   const abs = resolve(root, relPath)
   const rel = relative(root, abs)
-  if (rel.startsWith('..') || isAbsolute(rel)) throw new Error('Caminho fora do projeto')
+  if (rel.startsWith('..') || isAbsolute(rel)) throw new Error('Path outside the project')
   return abs
 }
 

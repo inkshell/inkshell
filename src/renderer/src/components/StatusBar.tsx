@@ -60,26 +60,26 @@ export function StatusBar({
         {project ? (
           <span className="name">{project}</span>
         ) : (
-          <span className="none">Nenhum projeto</span>
+          <span className="none">No project</span>
         )}
       </div>
 
       {active && (
         <>
           <span className="status-divider" />
-          <span className="swap-hint" title="Trocar o modelo do Claude Code">
+          <span className="swap-hint" title="Switch the Claude Code model">
             <SwapIcon size={15} />
           </span>
           <span className="switchers">
             <select
               className="pill-select"
               value={currentModel ?? ''}
-              title="Trocar o modelo do Claude Code"
+              title="Switch the Claude Code model"
               onChange={(e) => e.target.value && onPickModel(e.target.value)}
             >
               {!currentModel && (
                 <option value="" disabled>
-                  Modelo…
+                  Model…
                 </option>
               )}
               {models
@@ -93,14 +93,14 @@ export function StatusBar({
 
             <span
               className="swap-hint"
-              title="Effort — só reflete a última escolha, nunca confirmado"
+              title="Effort — only reflects the last pick, never confirmed"
             >
               <GaugeIcon size={15} />
             </span>
             <select
               className="pill-select"
               value={currentEffort ?? ''}
-              title="Trocar o effort do Claude Code (não confirmado pelo Claude Code)"
+              title="Switch the Claude Code effort (not confirmed by Claude Code)"
               onChange={(e) => e.target.value && onPickEffort(e.target.value)}
             >
               {!currentEffort && (
@@ -123,7 +123,7 @@ export function StatusBar({
       {active ? (
         <div className="status-right">
           <ContextMeter tokens={contextTokens} contextWindow={contextWindow} />
-          <button className="icon-btn" title="Visualizar a memória" onClick={onViewMemory}>
+          <button className="icon-btn" title="View memory" onClick={onViewMemory}>
             <BookmarkIcon size={14} />
           </button>
           <button className="icon-btn" title="Analytics (/stats)" onClick={onAnalytics}>
@@ -132,7 +132,7 @@ export function StatusBar({
         </div>
       ) : (
         <div className="status-hint">
-          <span className="kbd">⌘T</span> abrir um novo chat
+          <span className="kbd">⌘T</span> open a new chat
         </div>
       )}
     </div>

@@ -201,7 +201,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
         if (disposed) return
         cbRef.current.onError(
           tab.id,
-          `Não foi possível iniciar o Claude Code (binário "claude" no PATH?): ${err?.message ?? err}`
+          `Couldn't start Claude Code (is the "claude" binary on PATH?): ${err?.message ?? err}`
         )
       })
 

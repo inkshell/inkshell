@@ -34,7 +34,7 @@ let tabSeq = 0
  * what didn't happen and what to do about it.
  */
 const DRAFT_BLOCKED_NOTICE =
-  'Não foi possível trocar: o campo do chat tem texto escrito. Envie ou apague o texto e tente de novo.'
+  "Couldn't switch: the chat input has text in it. Send or clear the text and try again."
 
 export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null)
@@ -120,7 +120,7 @@ export function App() {
   )
 
   /**
-   * "Novo projeto…": opens the project screen straight away, with the folder as
+   * "New project…": opens the project screen straight away, with the folder as
    * one of its fields. Same screen as configuring an existing project, so the
    * name, colour and config dir are set in one place before anything is saved.
    */
@@ -179,7 +179,7 @@ export function App() {
       model: defaultModel() ?? null,
       effort: defaultEffort() ?? null,
       startedAtMs: Date.now(),
-      title: 'Novo chat',
+      title: 'New chat',
       processing: false
     }
     setTabs((prev) => [...prev, tab])
@@ -260,7 +260,7 @@ export function App() {
         // The history card's name for this chat carries over as the tab title,
         // so a resume opens already named instead of sitting on a placeholder
         // until the CLI re-emits its own (identical) title over OSC.
-        title: sessions.find((s) => s.sessionId === sessionId)?.preview ?? 'Resumindo…',
+        title: sessions.find((s) => s.sessionId === sessionId)?.preview ?? 'Resuming…',
         processing: false
       }
       setTabs((prev) => [...prev, tab])
@@ -291,7 +291,7 @@ export function App() {
     })
   }, [])
 
-  // Right-click "Apagar chat" only opens the confirmation modal; the actual
+  // Right-click "Delete chat" only opens the confirmation modal; the actual
   // deletion waits for `confirmDelete` below.
   const requestDelete = useCallback(
     (sessionId: string) => {
@@ -319,7 +319,7 @@ export function App() {
         claudeConfigDirFor(currentProject)
       )
     } catch (err) {
-      setError(`Não foi possível apagar o chat: ${err instanceof Error ? err.message : err}`)
+      setError(`Couldn't delete the chat: ${err instanceof Error ? err.message : err}`)
     }
     reloadSessions(currentProject)
   }, [pendingDelete, currentProject, tabs, closeTab, claudeConfigDirFor, reloadSessions])
@@ -604,7 +604,7 @@ export function App() {
                     contextWindow={activeContextWindow()}
                     onPickModel={requestModel}
                     onPickEffort={requestEffort}
-                    onViewMemory={() => setNotice('A visualização da memória chega em breve.')}
+                    onViewMemory={() => setNotice('Memory viewing is coming soon.')}
                     onAnalytics={requestStats}
                   />
                 )}
@@ -697,14 +697,14 @@ export function App() {
 
       {pendingDelete && (
         <ConfirmModal
-          title="Apagar chat"
+          title="Delete chat"
           message={
             <>
-              Isto remove permanentemente o histórico de <strong>“{pendingDelete.preview}”</strong>.
-              Não dá para desfazer.
+              This permanently removes the history of <strong>“{pendingDelete.preview}”</strong>. It
+              can't be undone.
             </>
           }
-          confirmLabel="Apagar"
+          confirmLabel="Delete"
           danger
           onConfirm={confirmDelete}
           onCancel={() => setPendingDelete(null)}

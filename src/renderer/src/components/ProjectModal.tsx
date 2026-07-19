@@ -52,16 +52,14 @@ export function ProjectModal({ mode, entry, existingPaths, onSubmit, onCancel }:
   const valid = path.trim() !== '' && name.trim() !== '' && !duplicate
 
   const browseProject = async () => {
-    const picked = await window.inkshell.dialog.pickFolder('Escolher a pasta do projeto')
+    const picked = await window.inkshell.dialog.pickFolder('Choose the project folder')
     if (!picked) return
     setPath(picked)
     if (!nameTouched) setName(baseName(picked))
   }
 
   const browseConfigDir = async () => {
-    const picked = await window.inkshell.dialog.pickFolder(
-      'Escolher o diretório de config do Claude'
-    )
+    const picked = await window.inkshell.dialog.pickFolder("Choose Claude's config directory")
     if (picked) setConfigDir(picked)
   }
 
@@ -83,28 +81,26 @@ export function ProjectModal({ mode, entry, existingPaths, onSubmit, onCancel }:
     <div className="overlay" onMouseDown={onCancel}>
       <div className="modal project-modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <span className="modal-title">
-            {mode === 'new' ? 'Novo projeto' : 'Configurações do projeto'}
-          </span>
-          <button className="del-btn" onClick={onCancel} title="Fechar">
+          <span className="modal-title">{mode === 'new' ? 'New project' : 'Project settings'}</span>
+          <button className="del-btn" onClick={onCancel} title="Close">
             <CloseIcon size={13} />
           </button>
         </div>
 
         <div className="modal-body">
           <label className="form-field">
-            <span className="form-label">Pasta</span>
+            <span className="form-label">Folder</span>
             {mode === 'new' ? (
               <div className="form-row">
                 <input
                   className="field"
-                  placeholder="Nenhuma pasta escolhida"
+                  placeholder="No folder chosen"
                   value={path}
                   readOnly
                   onClick={browseProject}
                 />
                 <button className="btn" onClick={browseProject}>
-                  <FolderIcon size={15} /> Escolher…
+                  <FolderIcon size={15} /> Choose…
                 </button>
               </div>
             ) : (
@@ -112,37 +108,37 @@ export function ProjectModal({ mode, entry, existingPaths, onSubmit, onCancel }:
                 {path}
               </div>
             )}
-            {duplicate && <span className="form-error">Este projeto já está na lista.</span>}
+            {duplicate && <span className="form-error">This project is already in the list.</span>}
             {mode === 'edit' && (
               <span className="form-hint">
-                A pasta identifica o projeto e o histórico que ele lê — para trocá-la, adicione
-                outro projeto.
+                The folder identifies the project and the history it reads — to change it, add
+                another project.
               </span>
             )}
           </label>
 
           <label className="form-field">
-            <span className="form-label">Nome</span>
+            <span className="form-label">Name</span>
             <input
               className="field"
-              placeholder={path ? baseName(path) : 'Nome do projeto'}
+              placeholder={path ? baseName(path) : 'Project name'}
               value={name}
               onChange={(e) => {
                 setName(e.target.value)
                 setNameTouched(true)
               }}
             />
-            <span className="form-hint">Como o projeto aparece na barra lateral e nas abas.</span>
+            <span className="form-hint">How the project appears in the sidebar and tabs.</span>
           </label>
 
           <div className="form-field">
-            <span className="form-label">Cor</span>
+            <span className="form-label">Color</span>
             <div className="form-row">
               <input
                 type="color"
                 className="color-input"
                 value={color}
-                title="Cor personalizada"
+                title="Custom color"
                 onChange={(e) => setColor(e.target.value)}
               />
               <div className="swatches">
@@ -158,35 +154,35 @@ export function ProjectModal({ mode, entry, existingPaths, onSubmit, onCancel }:
               </div>
             </div>
             <span className="form-hint">
-              Pinta as abas deste projeto e todo o cromo do app enquanto uma delas está ativa.
+              Tints this project's tabs, and the whole app chrome while one of them is active.
             </span>
           </div>
 
           <label className="form-field">
-            <span className="form-label">Diretório de config (CLAUDE_CONFIG_DIR)</span>
+            <span className="form-label">Config directory (CLAUDE_CONFIG_DIR)</span>
             <div className="form-row">
               <input
                 className="field"
-                placeholder="~/.claude (padrão)"
+                placeholder="~/.claude (default)"
                 value={configDir}
                 onChange={(e) => setConfigDir(e.target.value)}
               />
               <button className="btn" onClick={browseConfigDir}>
-                <FolderIcon size={15} /> Escolher…
+                <FolderIcon size={15} /> Choose…
               </button>
             </div>
             <span className="form-hint">
-              Aponte para um diretório separado para rodar este projeto em{' '}
-              <strong>outra conta do Claude</strong> — o login e o histórico ficam nele.
+              Point to a separate directory to run this project on{' '}
+              <strong>another Claude account</strong> — the login and history live there.
             </span>
           </label>
 
           <div className="confirm-actions">
             <button className="btn" onClick={onCancel}>
-              Cancelar
+              Cancel
             </button>
             <button className="btn primary" onClick={submit} disabled={!valid}>
-              {mode === 'new' ? 'Adicionar projeto' : 'Salvar'}
+              {mode === 'new' ? 'Add project' : 'Save'}
             </button>
           </div>
         </div>

@@ -85,6 +85,6 @@ InkShell's own config lives separately at `~/.inkshell/config.json` (`main/confi
   before finishing; `.prettierrc` (no semicolons, single quotes) governs style.
 - **Commits use Conventional Commits** (`feat:`, `fix:`, `docs:`, `refactor:`,
   `chore:`) — this drives the changelog.
-- **The renderer UI strings are in Portuguese** (`Novo chat`, `Resumindo…`,
-  `(sem mensagens)`, error banners). This is intentional, not a bug — don't
-  "correct" them to English unless asked.
+- **The renderer UI strings are in English** (`New chat`, `Resuming…`,
+  `(no messages)`, error banners). Keep new strings in English, including
+  main-process error messages that surface in the UI.
