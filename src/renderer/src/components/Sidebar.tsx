@@ -9,18 +9,23 @@ interface Props {
   currentProject: string | null
   projects: ProjectEntry[]
   sessions: SessionSummary[]
-  onBrowse: () => void
+  onNewProject: () => void
   onOpenSettings: () => void
   onSelectProject: (path: string) => void
+  onEditProject: (path: string) => void
   onOpenSession: (sessionId: string) => void
   onDeleteSession: (sessionId: string) => void
 }
 
-/** The right-click menu open over a history card, anchored at the cursor. */
-interface SessionMenu {
+/**
+ * A right-click menu anchored at the cursor, over either a history card or a
+ * project row — one piece of state, since only one can be open at a time.
+ */
+interface ContextMenu {
   x: number
   y: number
-  sessionId: string
+  sessionId?: string
+  projectPath?: string
 }
 
 /** Height the header occupies when its section is collapsed to just the label. */
@@ -77,9 +82,10 @@ export function Sidebar({
   currentProject,
   projects,
   sessions,
-  onBrowse,
+  onNewProject,
   onOpenSettings,
   onSelectProject,
+  onEditProject,
   onOpenSession,
   onDeleteSession
 }: Props) {
@@ -94,7 +100,7 @@ export function Sidebar({
   const historyStyle = currentColor
     ? ({ ['--session' as string]: currentColor } as CSSProperties)
     : undefined
-  const [menu, setMenu] = useState<SessionMenu | null>(null)
+  const [menu, setMenu] = useState<ContextMenu | null>(null)
 
   // Escape dismisses the context menu (clicks land on the overlay instead).
   useEffect(() => {
@@ -118,8 +124,8 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-actions">
-        <button className="btn grow" onClick={onBrowse}>
-          <FolderIcon size={15} /> Abrir projeto…
+        <button className="btn grow" onClick={onNewProject}>
+          <FolderIcon size={15} /> Novo projeto…
         </button>
         <button className="btn square" onClick={onOpenSettings} title="Configurações">
           <GearIcon size={16} />
@@ -145,6 +151,10 @@ export function Sidebar({
                   style={rowStyle}
                   title={p.path}
                   onClick={() => onSelectProject(p.path)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setMenu({ x: e.clientX, y: e.clientY, projectPath: p.path })
+                  }}
                 >
                   <span className="name">{p.name}</span>
                 </button>
@@ -198,21 +208,34 @@ export function Sidebar({
           <div
             className="ctx-menu"
             style={{
-              left: Math.min(menu.x, window.innerWidth - 190),
+              left: Math.min(menu.x, window.innerWidth - 230),
               top: Math.min(menu.y, window.innerHeight - 52)
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <button
-              className="ctx-item danger"
-              onClick={() => {
-                onDeleteSession(menu.sessionId)
-                setMenu(null)
-              }}
-            >
-              <TrashIcon size={14} />
-              Apagar chat
-            </button>
+            {menu.projectPath !== undefined ? (
+              <button
+                className="ctx-item"
+                onClick={() => {
+                  onEditProject(menu.projectPath!)
+                  setMenu(null)
+                }}
+              >
+                <GearIcon size={14} />
+                Configurações do projeto
+              </button>
+            ) : (
+              <button
+                className="ctx-item danger"
+                onClick={() => {
+                  onDeleteSession(menu.sessionId!)
+                  setMenu(null)
+                }}
+              >
+                <TrashIcon size={14} />
+                Apagar chat
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { IpcChannel } from '@shared/ipc'
 import type { AppConfig, PtyCreateOptions } from '@shared/types'
-import { addRecentProject, loadConfig, saveConfig } from './config'
+import { loadConfig, saveConfig } from './config'
 import {
   deleteSession,
   discoverKnownProjects,
@@ -35,16 +35,17 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
   ipcMain.handle(IpcChannel.ConfigSave, (_e, config: AppConfig) => saveConfig(config))
 
   // --- Projects & history -------------------------------------------------
-  ipcMain.handle(IpcChannel.DialogPickFolder, async () => {
+  // A plain folder picker with no side effects: adding a project is the
+  // renderer's job now, since the project screen lets the user set its name,
+  // colour and config dir before anything is written to disk. The same picker
+  // also serves the `CLAUDE_CONFIG_DIR` field, hence the caller-supplied title.
+  ipcMain.handle(IpcChannel.DialogPickFolder, async (_e, title?: string) => {
     const result = await dialog.showOpenDialog(window, {
-      title: 'Open a project folder',
+      title: title || 'Open a project folder',
       properties: ['openDirectory', 'createDirectory']
     })
     if (result.canceled || result.filePaths.length === 0) return null
-    const path = result.filePaths[0]
-    // Persist it as a recent project right away, mirroring the desktop app.
-    addRecentProject(loadConfig(), path)
-    return path
+    return result.filePaths[0]
   })
 
   ipcMain.handle(

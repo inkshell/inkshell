@@ -30,7 +30,9 @@ const api = {
   },
 
   dialog: {
-    pickFolder: (): Promise<string | null> => ipcRenderer.invoke(IpcChannel.DialogPickFolder)
+    /** Opens a directory chooser and returns the path, or null if cancelled. */
+    pickFolder: (title?: string): Promise<string | null> =>
+      ipcRenderer.invoke(IpcChannel.DialogPickFolder, title)
   },
 
   history: {

@@ -9,6 +9,8 @@ import type { Tab } from '../types'
 export interface TerminalViewHandle {
   /** True when the CLI's input box is on screen and verifiably empty. */
   promptIsEmpty: () => boolean
+  /** Puts the keyboard back in the terminal (the status bar steals it). */
+  focus: () => void
 }
 
 interface Props {
@@ -124,7 +126,8 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
   useImperativeHandle(
     ref,
     () => ({
-      promptIsEmpty: () => (termRef.current ? promptBoxIsEmpty(termRef.current) : false)
+      promptIsEmpty: () => (termRef.current ? promptBoxIsEmpty(termRef.current) : false),
+      focus: () => termRef.current?.focus()
     }),
     []
   )

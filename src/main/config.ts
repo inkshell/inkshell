@@ -1,31 +1,7 @@
 import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
-import type { AppConfig, ModelConfig, ProjectEntry } from '@shared/types'
-
-/** How many recent projects the config keeps. */
-const MAX_RECENT_PROJECTS = 20
-
-/**
- * Accent colors handed out to projects as they're added, cycled by index so a
- * fresh set of projects reads as visually distinct out of the box. Cool, jewel
- * hues with no browns — the user can override any of them in Settings.
- */
-export const PROJECT_PALETTE = [
-  '#6f9dff',
-  '#b98bff',
-  '#5fd8a4',
-  '#f472b6',
-  '#38bdf8',
-  '#c084fc',
-  '#2dd4bf',
-  '#fb7185'
-]
-
-/** The palette color for the nth project (wraps around the list). */
-export function paletteColor(index: number): string {
-  return PROJECT_PALETTE[index % PROJECT_PALETTE.length]
-}
+import { join } from 'node:path'
+import { paletteColor, type AppConfig, type ModelConfig, type ProjectEntry } from '@shared/types'
 
 /** The built-in models, used until the user edits the list. */
 export function defaultModels(): ModelConfig[] {
@@ -126,22 +102,4 @@ export function saveConfig(config: AppConfig): void {
   } catch (err) {
     console.error('[inkshell] failed to save config:', err)
   }
-}
-
-/**
- * Records `path` as the most recent project, unless it is already known. Known
- * projects are left in place so re-selecting one never reorders the list nor
- * overwrites a custom name the user set by hand. Returns the updated config.
- */
-export function addRecentProject(config: AppConfig, path: string): AppConfig {
-  if (config.projects.some((p) => p.path === path)) return config
-  const entry: ProjectEntry = {
-    name: basename(path) || path,
-    path,
-    color: paletteColor(config.projects.length)
-  }
-  const projects = [entry, ...config.projects].slice(0, MAX_RECENT_PROJECTS)
-  const next = { ...config, projects }
-  saveConfig(next)
-  return next
 }

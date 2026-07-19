@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import {
   CONTEXT_WINDOW,
+  paletteColor,
   type AppConfig,
+  type ProjectEntry,
   type SessionContext,
   type SessionSummary
 } from '@shared/types'
@@ -17,6 +19,7 @@ import { ViewerView } from './components/ViewerView'
 import { ProjectPanel } from './components/ProjectPanel'
 import { EmptyState } from './components/EmptyState'
 import { SettingsModal } from './components/SettingsModal'
+import { ProjectModal } from './components/ProjectModal'
 import { ConfirmModal } from './components/ConfirmModal'
 import { CloseIcon } from './components/Icons'
 
@@ -39,6 +42,12 @@ export function App() {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  // The project screen, open either on a folder just picked (`new`) or on a
+  // project being reconfigured (`edit`). Nothing is written until it's saved.
+  const [projectModal, setProjectModal] = useState<{
+    mode: 'new' | 'edit'
+    entry: ProjectEntry
+  } | null>(null)
   // The session a right-click asked to delete, held until the user confirms
   // (or dismisses) the modal. Carries the summary so the prompt can quote it.
   const [pendingDelete, setPendingDelete] = useState<SessionSummary | null>(null)
@@ -62,6 +71,15 @@ export function App() {
     []
   )
 
+  // Writes the config through to disk. The ref is updated here as well as on
+  // render, so a caller that reads it right after saving (e.g. reloading the
+  // history under a project's new config dir) sees the new values.
+  const persistConfig = useCallback((next: AppConfig) => {
+    configRef.current = next
+    setConfig(next)
+    window.inkshell.config.save(next)
+  }, [])
+
   // --- Init: load config, discover projects, select the first one ----------
   useEffect(() => {
     ;(async () => {
@@ -71,7 +89,7 @@ export function App() {
         const seen = new Set<string>()
         const projects = discovered
           .filter((p) => (seen.has(p) ? false : (seen.add(p), true)))
-          .map((p) => ({ name: p.split(/[/\\]/).pop() || p, path: p }))
+          .map((p, i) => ({ name: p.split(/[/\\]/).pop() || p, path: p, color: paletteColor(i) }))
         cfg = { ...cfg, projects }
         await window.inkshell.config.save(cfg)
       }
@@ -100,13 +118,43 @@ export function App() {
     [reloadSessions]
   )
 
-  const browse = useCallback(async () => {
-    const path = await window.inkshell.dialog.pickFolder()
-    if (!path) return
-    // Main persisted it as a recent project; reload config to pick that up.
-    setConfig(await window.inkshell.config.load())
-    selectProject(path)
-  }, [selectProject])
+  /**
+   * "Novo projeto…": opens the project screen straight away, with the folder as
+   * one of its fields. Same screen as configuring an existing project, so the
+   * name, colour and config dir are set in one place before anything is saved.
+   */
+  const newProject = useCallback(() => {
+    setProjectModal({
+      mode: 'new',
+      entry: { name: '', path: '', color: paletteColor(configRef.current?.projects.length ?? 0) }
+    })
+  }, [])
+
+  const editProject = useCallback((path: string) => {
+    const entry = configRef.current?.projects.find((p) => p.path === path)
+    if (entry) setProjectModal({ mode: 'edit', entry })
+  }, [])
+
+  /** Saves the project screen: adds a new project, or updates one in place. */
+  const saveProject = useCallback(
+    (entry: ProjectEntry) => {
+      const cfg = configRef.current
+      if (!cfg) return
+      const known = cfg.projects.some((p) => p.path === entry.path)
+      persistConfig({
+        ...cfg,
+        projects: known
+          ? cfg.projects.map((p) => (p.path === entry.path ? entry : p))
+          : [entry, ...cfg.projects]
+      })
+      setProjectModal(null)
+      // A new project is selected right away; an edited one may have changed
+      // config dir, which is the directory its history is read from.
+      if (!known) selectProject(entry.path)
+      else if (currentProject === entry.path) reloadSessions(entry.path)
+    },
+    [persistConfig, selectProject, reloadSessions, currentProject]
+  )
 
   const defaultModel = useCallback((): string | undefined => {
     const m = config?.defaultModel.trim()
@@ -337,6 +385,10 @@ export function App() {
         return false
       }
       window.inkshell.pty.write(activeTab.ptyId, `${command}\r`)
+      // The control that triggered this (a status-bar select or button) still
+      // holds the keyboard; hand it straight back to the terminal, on the next
+      // frame so the native picker has finished closing first.
+      requestAnimationFrame(() => handle.focus())
       return true
     },
     [activeTab, activeTabId]
@@ -443,11 +495,6 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
-  const persistConfig = useCallback((next: AppConfig) => {
-    setConfig(next)
-    window.inkshell.config.save(next)
-  }, [])
-
   // Resizable layout: the sidebar and the project panel each remember their
   // width between launches, and a panel ref lets a toolbar button toggle each.
   // (Layout id bumped to `-3col` so a saved two-panel layout can't misapply.)
@@ -518,9 +565,10 @@ export function App() {
             currentProject={currentProject}
             projects={config.projects}
             sessions={sessions}
-            onBrowse={browse}
+            onNewProject={newProject}
             onOpenSettings={() => setShowSettings(true)}
             onSelectProject={selectProject}
+            onEditProject={editProject}
             onOpenSession={openResume}
             onDeleteSession={requestDelete}
           />
@@ -647,7 +695,18 @@ export function App() {
         <SettingsModal
           config={config}
           onChange={persistConfig}
+          onEditProject={editProject}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {projectModal && (
+        <ProjectModal
+          mode={projectModal.mode}
+          entry={projectModal.entry}
+          existingPaths={config.projects.map((p) => p.path)}
+          onSubmit={saveProject}
+          onCancel={() => setProjectModal(null)}
         />
       )}
 

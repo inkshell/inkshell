@@ -1,9 +1,11 @@
-import { EFFORT_LEVELS, type AppConfig, type ModelConfig, type ProjectEntry } from '@shared/types'
-import { CloseIcon, PlusIcon } from './Icons'
+import { EFFORT_LEVELS, type AppConfig, type ModelConfig } from '@shared/types'
+import { ChevronIcon, CloseIcon, PlusIcon } from './Icons'
 
 interface Props {
   config: AppConfig
   onChange: (config: AppConfig) => void
+  /** Opens the per-project screen (name, colour, config dir) for a path. */
+  onEditProject: (path: string) => void
   onClose: () => void
 }
 
@@ -12,12 +14,13 @@ function blankModel(): ModelConfig {
 }
 
 /**
- * Settings, mirroring the desktop app: the model list shown in the toolbar
- * picker (editable so a newly released model is a config edit, not a release),
- * the accent colour each project wears, plus which model / effort new chats
- * start on. Every change is pushed up immediately and persisted by the caller.
+ * App-wide settings: the model list shown in the toolbar picker (editable so a
+ * newly released model is a config edit, not a release) and which model /
+ * effort new chats start on. Per-project settings live on their own screen —
+ * this only lists the projects and opens it. Every change is pushed up
+ * immediately and persisted by the caller.
  */
-export function SettingsModal({ config, onChange, onClose }: Props) {
+export function SettingsModal({ config, onChange, onEditProject, onClose }: Props) {
   const updateModel = (i: number, patch: Partial<ModelConfig>) => {
     const models = config.models.map((m, idx) => (idx === i ? { ...m, ...patch } : m))
     onChange({ ...config, models })
@@ -28,11 +31,6 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
   const addModel = () => {
     onChange({ ...config, models: [...config.models, blankModel()] })
   }
-  const updateProject = (i: number, patch: Partial<ProjectEntry>) => {
-    const projects = config.projects.map((p, idx) => (idx === i ? { ...p, ...patch } : p))
-    onChange({ ...config, projects })
-  }
-
   return (
     <div className="overlay" onMouseDown={onClose}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
@@ -101,27 +99,26 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
           <div className="settings-divider" />
 
           <p className="modal-desc">
-            A cor de cada projeto. Ela pinta as abas do projeto e todo o cromo do app enquanto uma
-            delas está ativa.
+            Cada projeto tem cor, nome e diretório de config próprios. Abra um para configurá-lo —
+            ou clique nele com o botão direito na barra lateral.
           </p>
 
           {config.projects.length === 0 ? (
-            <div className="empty-note">Abra um projeto para escolher a cor dele.</div>
+            <div className="empty-note">Abra um projeto para configurá-lo.</div>
           ) : (
             <div className="project-color-list">
-              {config.projects.map((p, i) => (
-                <div className="project-color-row" key={p.path}>
-                  <input
-                    type="color"
-                    className="color-input"
-                    value={p.color ?? '#6f9dff'}
-                    title={`Cor de ${p.name}`}
-                    onChange={(e) => updateProject(i, { color: e.target.value })}
-                  />
-                  <span className="project-color-name" title={p.path}>
-                    {p.name}
-                  </span>
-                </div>
+              {config.projects.map((p) => (
+                <button
+                  className="project-setting-row"
+                  key={p.path}
+                  title={p.path}
+                  onClick={() => onEditProject(p.path)}
+                >
+                  <span className="project-dot" style={{ background: p.color ?? '#6f9dff' }} />
+                  <span className="project-color-name">{p.name}</span>
+                  <span className="project-setting-path">{p.path}</span>
+                  <ChevronIcon size={12} />
+                </button>
               ))}
             </div>
           )}

@@ -6,6 +6,28 @@
  * Claude Code's own transcript store under `~/.claude/projects/`.
  */
 
+/**
+ * Accent colors handed out to projects as they're added, cycled by index so a
+ * fresh set of projects reads as visually distinct out of the box. Cool, jewel
+ * hues with no browns — the user can override any of them per project.
+ * Shared (not main-only) because the project screen offers them as swatches.
+ */
+export const PROJECT_PALETTE = [
+  '#6f9dff',
+  '#b98bff',
+  '#5fd8a4',
+  '#f472b6',
+  '#38bdf8',
+  '#c084fc',
+  '#2dd4bf',
+  '#fb7185'
+]
+
+/** The palette color for the nth project (wraps around the list). */
+export function paletteColor(index: number): string {
+  return PROJECT_PALETTE[index % PROJECT_PALETTE.length]
+}
+
 /** A folder the user has opened as a working directory for Claude Code. */
 export interface ProjectEntry {
   name: string
@@ -14,8 +36,8 @@ export interface ProjectEntry {
    * Hex accent color (e.g. "#6f9dff") for this project. It tints the app chrome
    * while one of this project's tabs is active and marks every tab that belongs
    * to it, so tabs from different projects stay visually distinct. Assigned from
-   * a palette when a project is first added, editable in Settings. Omitted means
-   * fall back to the brand accent.
+   * a palette when a project is first added, editable on the project screen.
+   * Omitted means fall back to the brand accent.
    */
   color?: string
   /**

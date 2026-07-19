@@ -586,13 +586,23 @@ button {
 }
 .ctx-menu {
   position: fixed;
-  min-width: 168px;
+  min-width: 190px;
   padding: 5px;
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px) saturate(1.3);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 18px 44px rgba(0, 0, 0, 0.55);
+  transform-origin: top left;
+  animation: ctx-pop 0.12s var(--ease);
+}
+@keyframes ctx-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-3px);
+  }
 }
 .ctx-item {
   display: flex;
@@ -600,6 +610,10 @@ button {
   gap: 9px;
   width: 100%;
   padding: 8px 10px;
+  /* The global button reset keeps the UA background/border, so zero them here
+     or the items render as native white buttons. */
+  background: none;
+  border: 0;
   border-radius: 6px;
   font-size: 12.5px;
   text-align: left;
@@ -608,14 +622,28 @@ button {
     background var(--dur) var(--ease),
     color var(--dur) var(--ease);
 }
+.ctx-item svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: color var(--dur) var(--ease);
+}
 .ctx-item:hover {
-  background: var(--bg-card-hover);
+  background: var(--session-tint);
+}
+.ctx-item:hover svg {
+  color: var(--text-primary);
 }
 .ctx-item.danger {
   color: var(--error);
 }
+.ctx-item.danger svg {
+  color: color-mix(in srgb, var(--error) 65%, var(--text-muted));
+}
 .ctx-item.danger:hover {
   background: color-mix(in srgb, var(--error) 14%, transparent);
+}
+.ctx-item.danger:hover svg {
+  color: var(--error);
 }
 
 /* =========================================================================
@@ -1554,6 +1582,46 @@ button {
   align-items: center;
   gap: 11px;
 }
+/* A project in the settings list: a row that opens the project screen. */
+.project-setting-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-extreme);
+  color: var(--text-primary);
+  text-align: left;
+  transition:
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+.project-setting-row:hover {
+  border-color: var(--accent);
+}
+.project-setting-row .project-color-name {
+  flex: none;
+  max-width: 40%;
+}
+.project-setting-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+.project-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
 .project-color-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1607,6 +1675,94 @@ button {
 .select:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* -------------------------------------------------------------------------
+   Project screen — the form behind both "Novo projeto" and a project's own
+   settings, so adding and configuring a project read as the same screen.
+   ------------------------------------------------------------------------- */
+
+.project-modal {
+  width: min(560px, 92vw);
+}
+.form-field {
+  display: block;
+  margin-bottom: 18px;
+}
+.form-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.form-row .btn {
+  flex: none;
+}
+/* A value that can't be edited here (the project's folder, once it exists). */
+.form-static {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 0 11px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border);
+  background: var(--bg-extreme);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+.form-hint {
+  display: block;
+  margin-top: 7px;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.form-hint strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.form-error {
+  display: block;
+  margin-top: 7px;
+  color: var(--error);
+  font-size: 11.5px;
+}
+.swatches {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px var(--border);
+  transition: transform var(--dur) var(--ease);
+}
+.swatch:hover {
+  transform: scale(1.12);
+}
+.swatch.active {
+  border-color: var(--bg-extreme);
+  box-shadow: 0 0 0 2px currentColor;
+  color: var(--text-primary);
+}
+.btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 /* =========================================================================
