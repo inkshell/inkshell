@@ -1254,9 +1254,6 @@ button {
   background: var(--bg-card);
   color: var(--text-primary);
 }
-/* Switchers sit out a turn while the chat holds a half-written draft: a typed
-   /command would land inside it. They stay legible (the live model is worth
-   reading while composing) and `.draft-note` answers for them. */
 /* No `min-width: 0` here, deliberately: it would let the group shrink past the
    pills inside it and slide them under the context meter. Left at `auto` it
    floors at its content, and the squeeze goes where it always went — the
@@ -1266,73 +1263,6 @@ button {
   align-items: center;
   gap: 12px;
 }
-.switchers.blocked {
-  cursor: not-allowed;
-}
-.pill-select:disabled {
-  opacity: 0.45;
-  /* Let the click through to `.switchers`, which explains itself. Disabled
-     controls neither fire events nor open their own tooltip. */
-  pointer-events: none;
-}
-.icon-btn:disabled {
-  pointer-events: none;
-}
-.blocked > .icon-btn:disabled {
-  cursor: not-allowed;
-}
-/* Sized like the glyph it stands in for, so it can never crowd the bar: the
-   sentence is what shrinks, down to nothing, leaving the icon holding the
-   explanation in its tooltip and one click from the banner. */
-.draft-note {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  /* Floors at the icon and its gap (14 + 6). Left to shrink freely the button
-     would collapse under its own icon, which cannot shrink, and the glyph would
-     be drawn over the model pill. */
-  min-width: 20px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--session);
-  font-family: inherit;
-  font-size: 11px;
-  white-space: nowrap;
-  cursor: pointer;
-  /* Reads as an answer to the greyed-out pills rather than an alarm: it is the
-     normal state of a chat mid-sentence, not an error the user has to fix. */
-  animation: draft-note-in var(--dur) var(--ease);
-}
-.draft-note svg {
-  flex-shrink: 0;
-}
-/* The sentence is the one thing in the strip that yields, so the note floors at
-   its icon — what the swap glyph it replaced cost anyway — and the pills and
-   the meter never have to move. Given room, it takes the sentence back. */
-.draft-note span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text-muted);
-}
-.draft-note:hover span {
-  color: var(--text-primary);
-}
-@keyframes draft-note-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .draft-note {
-    animation: none;
-  }
-}
-
 .icon-btn {
   width: 30px;
   height: 26px;

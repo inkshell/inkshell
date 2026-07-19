@@ -27,13 +27,14 @@ const isMac = window.inkshell.platform === 'darwin'
 let tabSeq = 0
 
 /**
- * Why the status bar's switchers are out of reach. They type `/commands` into
+ * Why a pick in the status bar was refused. The switchers type `/commands` into
  * the session, and bytes written to the pty land wherever the CLI's cursor is —
  * appended to a half-written prompt, the command would be submitted as part of
- * it rather than run.
+ * it rather than run. Shown only after the user actually picks, so it names
+ * what didn't happen and what to do about it.
  */
 const DRAFT_BLOCKED_NOTICE =
-  'O campo do chat tem texto escrito — envie ou apague antes de trocar o modelo ou o effort pela barra.'
+  'Não foi possível trocar: o campo do chat tem texto escrito. Envie ou apague o texto e tente de novo.'
 
 export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null)
@@ -352,35 +353,21 @@ export function App() {
   // whether its input box is empty (the draft exists only on the CLI's screen).
   const terminalRefs = useRef(new Map<string, TerminalViewHandle>())
   /**
-   * Whether the active tab's input box is verifiably empty. The status bar
-   * switchers are disabled while it isn't: bytes written to the pty append to
-   * whatever is half-written in the box, so a `/command` typed over a draft
-   * would submit the two as one prompt. Polled — the CLI never announces its
-   * input state, the screen is the only source of truth.
-   */
-  const [promptEmpty, setPromptEmpty] = useState(false)
-  useEffect(() => {
-    const check = (): void =>
-      setPromptEmpty(
-        (activeTabId ? terminalRefs.current.get(activeTabId)?.promptIsEmpty() : false) ?? false
-      )
-    check()
-    const id = window.setInterval(check, 300)
-    return () => window.clearInterval(id)
-  }, [activeTabId])
-
-  /**
    * Types a slash command into the active session — only when its input box is
-   * verifiably empty (see `promptEmpty` above). The switchers are disabled and
-   * say why while a draft is visible; this re-checks at call time to close the
-   * gap between two polls, where the state on screen is still the old one.
-   * Returns whether the command was actually sent.
+   * verifiably empty. Bytes written to the pty append to whatever is
+   * half-written in the box, so a `/command` typed over a draft would submit
+   * the two as one prompt.
+   *
+   * This is the *only* place the condition is evaluated, and it runs at the
+   * moment of the pick: the switchers stay enabled and explain themselves in a
+   * banner when a draft turns out to be in the way. Returns whether the command
+   * was actually sent — the switchers are controlled by state that only moves
+   * on success, so a refused pick snaps back on its own.
    */
   const writeCommandToActive = useCallback(
     (command: string): boolean => {
       const handle = activeTabId ? terminalRefs.current.get(activeTabId) : undefined
       if (activeTab?.ptyId == null || !handle?.promptIsEmpty()) {
-        setPromptEmpty(false)
         setNotice(DRAFT_BLOCKED_NOTICE)
         return false
       }
@@ -615,10 +602,8 @@ export function App() {
                     currentEffort={activeTab.effort}
                     contextTokens={liveSession?.tokens ?? null}
                     contextWindow={activeContextWindow()}
-                    promptEmpty={promptEmpty}
                     onPickModel={requestModel}
                     onPickEffort={requestEffort}
-                    onDraftBlocked={() => setNotice(DRAFT_BLOCKED_NOTICE)}
                     onViewMemory={() => setNotice('A visualização da memória chega em breve.')}
                     onAnalytics={requestStats}
                   />

@@ -56,11 +56,14 @@ function openUrl(uri: string): void {
  * booting, or a redesigned layout), a box taller than one row (the draft holds
  * a line break, even if no cell in it is visible), a marker other than `❯`
  * (the `!` bash and `#` memory modes only ever engage by typing), or any text
- * it can't classify. The failure mode is a needlessly disabled switcher —
- * never a corrupted prompt. The one text tolerated is the CLI's own
- * placeholder (`Try "…"`), which renders dim and only appears while the input
- * is empty; dim text that isn't the placeholder (a paste chip, ghost text)
- * still counts as content.
+ * it can't classify. The failure mode is a refused switch — never a corrupted
+ * prompt.
+ *
+ * Emptiness is read off the *rendering*, not the text: the CLI draws its own
+ * placeholder dim and anything the user typed in normal intensity, so a box
+ * holding nothing but dim cells is an empty box. Matching the placeholder's
+ * wording instead would tie this to a string the CLI rotates and translates,
+ * and refuse the switch every time it changed.
  */
 function promptBoxIsEmpty(term: Terminal): boolean {
   const buffer = term.buffer.active
@@ -93,15 +96,12 @@ function promptBoxIsEmpty(term: Terminal): boolean {
   const line = buffer.getLine(top + 1)
   if (!line) return false
   if (!line.translateToString(true).startsWith('❯')) return false
-  let dimText = ''
   for (let x = 1; x < line.length; x++) {
     const cell = line.getCell(x)
-    const chars = cell?.getChars() ?? ''
-    if (!chars.trim()) continue
+    if (!(cell?.getChars() ?? '').trim()) continue
     if (!cell!.isDim()) return false
-    dimText += chars
   }
-  return dimText === '' || dimText.startsWith('Try')
+  return true
 }
 
 /**
