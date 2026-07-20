@@ -33,6 +33,7 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+.envrc
 
 # Electron-builder cache
 .cache/
