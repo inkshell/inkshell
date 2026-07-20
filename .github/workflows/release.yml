@@ -1,0 +1,35 @@
+name: Release
+
+# Triggered by pushing a version tag, e.g.: git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write # required for electron-builder to create the Release and upload assets
+
+jobs:
+  release:
+    name: Build & publish (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS only for now. To add the other platforms later, include:
+        # ubuntu-latest, windows-latest
+        os: [macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build & publish to GitHub Releases
+        # electron-builder infers the GitHub provider from `repository` in
+        # package.json and creates/updates a draft Release with the artifacts.
+        run: npm run build && npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ github.token }}
