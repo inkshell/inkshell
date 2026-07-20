@@ -8,6 +8,8 @@
 [![Built with Electron](https://img.shields.io/badge/built%20with-Electron-47848F.svg)](https://www.electronjs.org/)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-98c379.svg)](./CONTRIBUTING.md)
 
+<img src="./docs/images/session.png" alt="A Claude Code session running in an InkShell tab, with the project sidebar on the left and the Git panel on the right" width="100%">
+
 </div>
 
 ---
@@ -55,6 +57,31 @@ you left it.
   controls elsewhere, and the "Midnight Ink" dark theme throughout: cool graphite
   chrome, an iris accent, and a per-model hue so you always know which Claude
   you're talking to.
+
+## 🖼️ A look around
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="./docs/images/projects.png" alt="Ten projects listed in the InkShell sidebar, with the past sessions of the selected one below them">
+      <sub><b>Projects &amp; history</b> — every project in one window, each with its own accent color, and the past sessions of whichever one is selected.</sub>
+    </td>
+    <td width="50%">
+      <img src="./docs/images/diff.png" alt="A diff of src/lib/format.ts open as a viewer tab next to the git panel">
+      <sub><b>Diffs as tabs</b> — open any changed file, commit, or diff from the git panel and read it beside the session that wrote it.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="./docs/images/project-settings.png" alt="The project settings screen showing folder, name, accent color and Claude config directory fields">
+      <sub><b>Per-project settings</b> — name, accent color, and the Claude config directory this project runs against.</sub>
+    </td>
+    <td width="50%">
+      <img src="./docs/images/settings.png" alt="The InkShell settings screen showing the editable model list">
+      <sub><b>Settings</b> — the model picker's list is editable, so a newly released model is a config edit rather than a new release.</sub>
+    </td>
+  </tr>
+</table>
 
 ## 📦 Requirements
 
