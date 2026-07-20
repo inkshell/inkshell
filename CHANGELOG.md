@@ -16,8 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `~/.claude/projects`.
 - Toolbar model switcher that types `/model <alias>` into the active session.
 - Live context meter mirroring the CLI's context-window indicator.
-- `/stats` shortcut and a placeholder memory viewer.
+- Project dock with a **Git** panel (stage, unstage, commit, push, branch
+  history, diff/file/commit viewer tabs, Claude-drafted commit messages) and a
+  **Files** tree.
+- `/stats` shortcut in the toolbar. (A memory viewer is stubbed but not yet
+  implemented.)
 - Editable model list and default model, persisted to `~/.inkshell/config.json`.
-- Frameless, coral-accented dark UI with per-platform window chrome.
+- Frameless "Midnight Ink" dark UI — cool graphite surfaces, iris accent, and a
+  per-model hue — with per-platform window chrome.
 
-[Unreleased]: https://github.com/your-org/inkshell/commits/main
+[Unreleased]: https://github.com/inkshell/inkshell/commits/main

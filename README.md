@@ -2,9 +2,9 @@
 
 # ◈ InkShell
 
-**A vibrant, tabbed desktop workspace for [Claude Code](https://docs.claude.com/en/docs/claude-code) — the CLI, with style.**
+**A tabbed desktop workspace for [Claude Code](https://docs.claude.com/en/docs/claude-code) — the CLI, with style.**
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-e8825c.svg)](./LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-7c8cff.svg)](./LICENSE)
 [![Built with Electron](https://img.shields.io/badge/built%20with-Electron-47848F.svg)](https://www.electronjs.org/)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-98c379.svg)](./CONTRIBUTING.md)
 
@@ -12,7 +12,7 @@
 
 ---
 
-InkShell wraps the `claude` command-line agent in a warm, modern GUI: open
+InkShell wraps the `claude` command-line agent in a cool, modern GUI: open
 multiple sessions in **tabs**, browse your **projects and history**, switch
 **models** on the fly, and watch your **context window** fill up — all without
 leaving a single, beautiful window.
@@ -37,10 +37,17 @@ does in your terminal — just nicer to look at.
   config edit, not a new release.
 - **Context meter** — a fuel gauge that mirrors the CLI's context indicator,
   reading the live token count from the active session's transcript.
+- **Git panel** — stage, unstage, commit, and push without leaving the window;
+  browse branch history and open any diff, file, or commit as a viewer tab.
+  Commit messages can be drafted by Claude with one click.
+- **File browser** — the project's tree in the same dock, with modified files
+  marked, so you can open a file next to the session that's editing it.
 - **Analytics & memory shortcuts** — quick access to `/stats` and (soon) a
   memory viewer.
 - **Seamless, frameless UI** — floating traffic lights on macOS, custom window
-  controls elsewhere, and a coral-accented dark theme throughout.
+  controls elsewhere, and the "Midnight Ink" dark theme throughout: cool graphite
+  chrome, an iris accent, and a per-model hue so you always know which Claude
+  you're talking to.
 
 ## 📦 Requirements
 
@@ -52,7 +59,7 @@ does in your terminal — just nicer to look at.
 
 ```bash
 # 1. Clone
-git clone https://github.com/your-org/inkshell.git
+git clone https://github.com/inkshell/inkshell.git
 cd inkshell
 
 # 2. Install (also rebuilds the native node-pty module for Electron)
@@ -92,7 +99,7 @@ Re-theming InkShell is a one-file edit.
 
 Contributions are very welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) and our
 [Code of Conduct](./CODE_OF_CONDUCT.md). Good first issues are labeled
-[`good first issue`](https://github.com/your-org/inkshell/labels/good%20first%20issue).
+[`good first issue`](https://github.com/inkshell/inkshell/labels/good%20first%20issue).
 
 ## 📄 License
 

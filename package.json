@@ -1,20 +1,20 @@
 {
   "name": "inkshell",
   "version": "0.1.0",
-  "description": "A vibrant, tabbed desktop workspace for Claude Code — the CLI, with style.",
+  "description": "A tabbed desktop workspace for Claude Code — the CLI, with style.",
   "type": "module",
   "main": "./out/main/index.js",
   "author": {
     "name": "InkShell contributors"
   },
   "license": "Apache-2.0",
-  "homepage": "https://github.com/your-org/inkshell#readme",
+  "homepage": "https://github.com/inkshell/inkshell#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/inkshell.git"
+    "url": "https://github.com/inkshell/inkshell.git"
   },
   "bugs": {
-    "url": "https://github.com/your-org/inkshell/issues"
+    "url": "https://github.com/inkshell/inkshell/issues"
   },
   "keywords": [
     "claude",

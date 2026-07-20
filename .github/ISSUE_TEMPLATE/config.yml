@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 💬 Discussions
-    url: https://github.com/your-org/inkshell/discussions
+    url: https://github.com/inkshell/inkshell/discussions
     about: Ask questions, share ideas, and talk with the community.
   - name: 🔐 Security issue
-    url: https://github.com/your-org/inkshell/security/advisories/new
+    url: https://github.com/inkshell/inkshell/security/advisories/new
     about: Please report vulnerabilities privately, not as a public issue.

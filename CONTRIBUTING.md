@@ -11,7 +11,7 @@ the channels listed there.
 
 ## Ways to contribute
 
-- 🐛 **Report a bug** — open a [bug report](https://github.com/your-org/inkshell/issues/new/choose).
+- 🐛 **Report a bug** — open a [bug report](https://github.com/inkshell/inkshell/issues/new/choose).
 - 💡 **Request a feature** — open a feature request and describe the use case.
 - 📝 **Improve the docs** — typos, clarifications, and examples are all welcome.
 - 🔧 **Send a pull request** — see below.
@@ -19,7 +19,7 @@ the channels listed there.
 ## Development setup
 
 ```bash
-git clone https://github.com/your-org/inkshell.git
+git clone https://github.com/inkshell/inkshell.git
 cd inkshell
 npm install      # rebuilds node-pty for Electron via the postinstall hook
 npm run dev      # launches the app with hot reload
@@ -90,5 +90,5 @@ InkShell stays a **thin, honest shell** around Claude Code:
 
 ## Questions?
 
-Open a [discussion](https://github.com/your-org/inkshell/discussions) or a draft
+Open a [discussion](https://github.com/inkshell/inkshell/discussions) or a draft
 PR — we're happy to help you find your footing.

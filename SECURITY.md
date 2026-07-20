@@ -15,8 +15,7 @@ recent tagged release.
 **Please do not open a public issue for security problems.**
 
 Instead, report vulnerabilities privately via GitHub's
-[private vulnerability reporting](https://github.com/your-org/inkshell/security/advisories/new)
-or by email to **security@inkshell.dev**.
+[private vulnerability reporting](https://github.com/inkshell/inkshell/security/advisories/new).
 
 Please include:
 
