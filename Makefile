@@ -35,7 +35,7 @@ fmt-check: ## Check formatting without writing
 
 check: typecheck lint fmt-check ## Run every CI check (typecheck + lint + format)
 
-pack-mac: ## Build a macOS distributable (.dmg + .zip)
+pack-mac: ## Build a macOS distributable (.zip)
 	npm run pack:mac
 
 pack-win: ## Build a Windows installer (NSIS)

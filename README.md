@@ -89,6 +89,40 @@ you left it.
   on your `PATH` (the `claude` command must run from a terminal).
 - **Node.js ≥ 20** and npm to build from source.
 
+## 📥 Install (macOS)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh | sh
+```
+
+That downloads the [latest release](https://github.com/inkshell/inkshell/releases/latest)
+for your Mac — Apple Silicon or Intel — and installs it into `/Applications`
+(or `~/Applications` when that isn't writable).
+
+Why a script and not a plain download? InkShell builds aren't code-signed yet,
+and macOS quarantines anything a **browser** downloads, so opening the app that
+way greets you with a misleading *"InkShell is damaged and can't be opened"*
+dialog. `curl` downloads are never quarantined, so the script installs an app
+that just opens. (You can [read the script](./install.sh) first — it's ~70
+lines of `sh`.)
+
+<details>
+<summary>Installing by hand instead</summary>
+
+Download the `.zip` for your architecture from the
+[Releases page](https://github.com/inkshell/inkshell/releases/latest), unzip it,
+move `InkShell.app` to `/Applications`, then clear the quarantine flag your
+browser attached to the download:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/InkShell.app
+```
+
+Without that last step, macOS shows the "damaged" dialog above — the file is
+fine; the message is Gatekeeper's way of saying "unsigned and quarantined".
+
+</details>
+
 ## 🚀 Getting started
 
 ```bash
@@ -106,7 +140,7 @@ npm run dev
 To produce a distributable app for your platform:
 
 ```bash
-npm run pack:mac     # .dmg + .zip
+npm run pack:mac     # .zip
 npm run pack:win     # NSIS installer
 npm run pack:linux   # AppImage + .deb
 ```

@@ -13,16 +13,28 @@ files:
   - '!{.eslintrc,.eslintignore,eslint.config.js,.prettierrc,.prettierignore,.editorconfig}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,package-lock.json,yarn.lock}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # Repo housekeeping that has no business inside the app bundle. `release` is
+  # the important one: electron-builder auto-excludes only the current output
+  # dir (release/<version>), so on a machine with earlier builds lying around
+  # the previous versions were being packed into the new app — a local-only
+  # problem (CI checkouts are clean), but it tripled the bundle.
+  - '!{release,docs,.github}'
+  - '!{install.sh,Makefile,CHANGELOG.md,CONTRIBUTING.md,CODE_OF_CONDUCT.md,SECURITY.md,NOTICE}'
 
 # node-pty is a native module — keep it unpacked so its prebuilt binary loads.
 asarUnpack:
   - '**/node_modules/node-pty/**'
 
+# zip is the only macOS target while builds are unsigned: install.sh consumes
+# it, and a .dmg would only offer a drag-install path that ends at Gatekeeper's
+# "InkShell is damaged" dialog. Bring the dmg back once builds are signed and
+# notarized. The arch is spelled out in the artifact name because install.sh
+# picks the asset by it.
 mac:
   category: public.app-category.developer-tools
   target:
-    - dmg
     - zip
+  artifactName: ${productName}-${version}-${arch}-mac.${ext}
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
@@ -41,8 +53,12 @@ linux:
 
 npmRebuild: true
 
-# Publish the Release outright. The default (`draft`) leaves the assets in a
-# draft that has to be released by hand in the GitHub UI.
+# Publish the Release outright — the default (`draft`) leaves the assets in a
+# draft that has to be released by hand in the GitHub UI. `publishAutoUpdate`
+# is off because the app has no auto-updater (and unsigned macOS builds
+# couldn't apply updates anyway), so electron-updater's metadata
+# (latest-mac.yml) stays out of the Release.
 publish:
   provider: github
   releaseType: release
+  publishAutoUpdate: false
