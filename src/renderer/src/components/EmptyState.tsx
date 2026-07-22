@@ -9,6 +9,7 @@ export function EmptyState() {
       <div className="empty-keys">
         <span className="kbd">⌘T</span> new chat
         <span className="kbd">⌘W</span> close tab
+        <span className="kbd">⌘P</span> search files
       </div>
     </div>
   )

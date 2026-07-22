@@ -38,6 +38,7 @@ export const IpcChannel = {
   FsList: 'fs:list',
   FsRead: 'fs:read',
   FsResolve: 'fs:resolve',
+  FsListAllFiles: 'fs:listAllFiles',
 
   // Window controls (frameless custom chrome; dragging is done via CSS regions)
   WindowMinimize: 'window:minimize',

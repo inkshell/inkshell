@@ -3,6 +3,7 @@ import type { GitCommit, GitFileChange, GitStatus, TreeEntry } from '@shared/typ
 import { type ViewerRef, viewerKey } from '../types'
 import { relativeTime } from '../lib/format'
 import { StatusBadge } from './git-format'
+import { TooltipHost, useTooltip } from './Tooltip'
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -66,6 +67,7 @@ export function ProjectPanel({
   const [children, setChildren] = useState<Map<string, TreeEntry[]>>(new Map())
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState('')
+  const { tip, bind } = useTooltip()
 
   const fail = useCallback(
     (err: unknown) => onError(err instanceof Error ? err.message : String(err)),
@@ -312,6 +314,7 @@ export function ProjectPanel({
         key={`${staged ? 's' : 'w'}:${c.path}`}
         className={`frow ${selected === key ? 'sel' : ''}`}
         onClick={() => openDiff(c, staged)}
+        {...bind(c.path)}
       >
         <StatusBadge status={c.status} />
         <span className="fn">{fileName(c.path)}</span>
@@ -514,6 +517,8 @@ export function ProjectPanel({
           </div>
         </div>
       )}
+
+      <TooltipHost tip={tip} />
     </aside>
   )
 }

@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync, type Dirent } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { FileContent, TreeEntry } from '@shared/types'
+import { listTrackedFiles } from './git'
 
 /**
  * Read-only reflection of a project's own files, backing the panel's "Files"
@@ -44,6 +45,59 @@ export function listDir(projectPath: string, relPath: string): TreeEntry[] {
     })
   }
   out.sort((a, b) => (a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1))
+  return out
+}
+
+/** Directories a recursive crawl (quick-open, outside a git repo) never descends into. */
+const WALK_IGNORED = new Set([
+  '.git',
+  'node_modules',
+  'dist',
+  'build',
+  'out',
+  '.next',
+  'target',
+  'coverage',
+  '.cache'
+])
+
+/** Safety valve so a huge non-git tree can't hang quick-open's file crawl. */
+const WALK_CAP = 20_000
+
+function walk(root: string, relPath: string, out: string[]): void {
+  if (out.length >= WALK_CAP) return
+  let entries: Dirent[]
+  try {
+    entries = readdirSync(resolve(root, relPath), { withFileTypes: true })
+  } catch {
+    return
+  }
+  for (const e of entries) {
+    if (out.length >= WALK_CAP) return
+    if (WALK_IGNORED.has(e.name)) continue
+    const rel = relPath ? `${relPath}/${e.name}` : e.name
+    if (e.isDirectory()) walk(root, rel, out)
+    else out.push(rel)
+  }
+}
+
+/**
+ * Every file in the project, for quick-open's fuzzy search. Prefers git's own
+ * tracked + untracked-not-ignored view (respects `.gitignore` for free); a
+ * project that isn't a git repo — or one where `git` itself fails (not on
+ * PATH, a corrupt work tree) — falls back to a bounded recursive walk that
+ * skips the usual noise directories. Either way the result is capped, so a
+ * huge repo can't hand the renderer's fuzzy filter more than it can chew.
+ */
+export async function listAllFiles(projectPath: string): Promise<string[]> {
+  try {
+    const tracked = await listTrackedFiles(projectPath)
+    if (tracked) return tracked.slice(0, WALK_CAP)
+  } catch {
+    // git failed outright (not just "not a repo") — fall through to the walk.
+  }
+  const out: string[] = []
+  walk(projectPath, '', out)
   return out
 }
 

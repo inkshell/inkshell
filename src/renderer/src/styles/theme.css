@@ -139,7 +139,8 @@ button {
 .app,
 .project-row,
 .tab,
-.history-list {
+.history-list,
+.qopen-modal {
   --session-tint: color-mix(in srgb, var(--session) 15%, var(--bg-card));
   --session-line: color-mix(in srgb, var(--session) 52%, var(--border));
   --session-glow: color-mix(in srgb, var(--session) 40%, transparent);
@@ -1682,6 +1683,134 @@ button {
 .btn:disabled {
   opacity: 0.45;
   pointer-events: none;
+}
+
+/* =========================================================================
+   Tooltip — a shared floating hint (Tooltip.tsx), used wherever a row truncates
+   something worth reading in full (a long path). Sits above modals and the
+   context menu; `pointer-events: none` keeps it from ever intercepting the
+   click meant for the row underneath.
+   ========================================================================= */
+
+.tooltip {
+  position: fixed;
+  z-index: 70;
+  max-width: 420px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  line-height: 1.4;
+  word-break: break-all;
+  pointer-events: none;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  animation: tooltip-in 0.1s var(--ease);
+}
+.tooltip.above {
+  transform: translateY(-100%);
+}
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    animation: none;
+  }
+}
+
+/* =========================================================================
+   Quick Open (⌘P) — a floating fuzzy file finder over the active project.
+   Sits on `.overlay`/`.modal` for its chrome and `.frow`/`.fn`/`.fp` for its
+   rows — the same look as the panel's changed-files list — so it reads as
+   this app's own search, not a bolted-on widget. Its own `--session` (the
+   active project's colour, set inline by QuickOpen.tsx) is registered above
+   in the shared token list, so `.frow.sel` and the match highlight pick it up
+   without touching the app-wide accent.
+   ========================================================================= */
+
+.qopen-overlay {
+  align-items: start;
+  padding-top: 11vh;
+}
+.qopen-modal {
+  width: min(560px, 90vw);
+  max-height: 58vh;
+  position: relative;
+}
+.qopen-modal::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--spectrum);
+  opacity: 0.8;
+}
+.qopen-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+.qopen-input input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+}
+.qopen-input input::placeholder {
+  color: var(--text-faint);
+}
+.qopen-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 8px;
+}
+.qopen-list .frow {
+  height: 32px;
+}
+.qopen-list .frow mark {
+  background: none;
+  color: var(--session);
+  font-weight: 700;
+}
+.qopen-empty {
+  padding: 34px 16px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+.qopen-empty strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.qopen-foot {
+  height: 34px;
+  padding: 0 14px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-app);
+  flex-shrink: 0;
+  margin-top: 0;
+}
+.qopen-foot .cnt {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 /* =========================================================================
