@@ -10,8 +10,43 @@ permissions:
   contents: write # required for electron-builder to create the Release and upload assets
 
 jobs:
+  # electron-builder uploads artifacts concurrently, and every upload that finds
+  # no Release for the tag creates one. On v0.1.0 and v0.1.1 two checks landed in
+  # the same instant, both saw "release doesn't exist", and GitHub ended up with
+  # two Releases sharing the tag and the assets split between them. Creating the
+  # Release here — in a job every build job waits on — means electron-builder
+  # only ever attaches to one that already exists.
+  create-release:
+    name: Create the Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Create the Release if it does not exist
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists — nothing to do."
+            exit 0
+          fi
+          # Body is this version's CHANGELOG section, falling back to the
+          # generated commit list if the section is missing or empty.
+          notes=$(awk -v v="${tag#v}" '
+            $0 ~ "^## \\[" v "\\]" { inside = 1; next }
+            inside && /^## \[/ { exit }
+            inside { print }
+          ' CHANGELOG.md)
+          if [ -n "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
+            gh release create "$tag" --verify-tag --title "$tag" --notes "$notes"
+          else
+            gh release create "$tag" --verify-tag --title "$tag" --generate-notes
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   release:
     name: Build & publish (${{ matrix.os }})
+    needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -29,7 +64,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build & publish to GitHub Releases
         # electron-builder infers the GitHub provider from `repository` in
-        # package.json and creates/updates a draft Release with the artifacts.
+        # package.json and uploads the artifacts to the Release create-release
+        # already made for this tag.
         run: npm run build && npx electron-builder --publish always
         env:
           GH_TOKEN: ${{ github.token }}
