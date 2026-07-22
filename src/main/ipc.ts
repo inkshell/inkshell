@@ -19,7 +19,7 @@ import {
   gitUnstage,
   suggestCommitMessage
 } from './git'
-import { listDir, readProjectFile, resolveProjectPath } from './project-files'
+import { listAllFiles, listDir, readProjectFile, resolveProjectPath } from './project-files'
 import { PtyManager } from './pty-manager'
 
 /**
@@ -112,6 +112,7 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
   ipcMain.handle(IpcChannel.FsResolve, (_e, projectPath: string, candidate: string) =>
     resolveProjectPath(projectPath, candidate)
   )
+  ipcMain.handle(IpcChannel.FsListAllFiles, (_e, projectPath: string) => listAllFiles(projectPath))
 
   // --- Window controls ----------------------------------------------------
   ipcMain.on(IpcChannel.WindowMinimize, () => window.minimize())

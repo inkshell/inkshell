@@ -17,6 +17,7 @@ import { StatusBar } from './components/StatusBar'
 import { TerminalView, type TerminalViewHandle } from './components/TerminalView'
 import { ViewerView } from './components/ViewerView'
 import { ProjectPanel } from './components/ProjectPanel'
+import { QuickOpen } from './components/QuickOpen'
 import { EmptyState } from './components/EmptyState'
 import { SettingsModal } from './components/SettingsModal'
 import { ProjectModal } from './components/ProjectModal'
@@ -43,6 +44,7 @@ export function App() {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showQuickOpen, setShowQuickOpen] = useState(false)
   // The project screen, open either on a folder just picked (`new`) or on a
   // project being reconfigured (`edit`). Nothing is written until it's saved.
   const [projectModal, setProjectModal] = useState<{
@@ -233,6 +235,22 @@ export function App() {
         line: target.line ?? undefined,
         label: target.path.split('/').pop() ?? target.path,
         dir: target.path.split('/').slice(0, -1).join('/') || undefined
+      })
+    },
+    [openViewerTab, claudeConfigDirFor]
+  )
+
+  // A file picked in Quick Open (⌘P). `path` is already project-relative —
+  // the picker read it straight off the same file list the project panel does.
+  const openFileFromQuickOpen = useCallback(
+    (project: string, path: string) => {
+      openViewerTab({
+        kind: 'file',
+        project,
+        claudeConfigDir: claudeConfigDirFor(project) ?? null,
+        path,
+        label: path.split('/').pop() ?? path,
+        dir: path.split('/').slice(0, -1).join('/') || undefined
       })
     },
     [openViewerTab, claudeConfigDirFor]
@@ -461,8 +479,8 @@ export function App() {
   }, [activeModelAlias, config])
 
   // --- Keyboard shortcuts (capture phase, to beat xterm's key handling) -----
-  const shortcutRef = useRef({ openNewChat, closeTab, activeTabId })
-  shortcutRef.current = { openNewChat, closeTab, activeTabId }
+  const shortcutRef = useRef({ openNewChat, closeTab, activeTabId, activeProject })
+  shortcutRef.current = { openNewChat, closeTab, activeTabId, activeProject }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = isMac ? e.metaKey : e.ctrlKey
@@ -476,6 +494,12 @@ export function App() {
         e.stopPropagation()
         const { activeTabId: id, closeTab: close } = shortcutRef.current
         if (id) close(id)
+      } else if (e.key === 'p' || e.key === 'P') {
+        // Nothing to search without a project — leave the shortcut alone.
+        if (!shortcutRef.current.activeProject) return
+        e.preventDefault()
+        e.stopPropagation()
+        setShowQuickOpen(true)
       }
     }
     window.addEventListener('keydown', onKey, true)
@@ -682,6 +706,19 @@ export function App() {
           config={config}
           onChange={persistConfig}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showQuickOpen && activeProject && (
+        <QuickOpen
+          project={activeProject}
+          projectName={projectName ?? activeProject}
+          accent={projectColor(activeProject)}
+          onOpenFile={(path) => {
+            openFileFromQuickOpen(activeProject, path)
+            setShowQuickOpen(false)
+          }}
+          onClose={() => setShowQuickOpen(false)}
         />
       )}
 

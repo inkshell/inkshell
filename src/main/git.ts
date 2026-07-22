@@ -178,6 +178,29 @@ export async function gitStatus(projectPath: string): Promise<GitStatus> {
 }
 
 /**
+ * Every file quick-open can jump to: git's own view of "files that matter" —
+ * tracked plus untracked-but-not-ignored — relative to `projectPath` (not the
+ * repo root, so a project opened on a subdirectory only sees its own files).
+ * `git ls-files` already reports paths relative to the cwd it runs in, so this
+ * gets `.gitignore` handling for free instead of reimplementing it. `null`
+ * outside a work tree, so the caller knows to fall back to a plain fs walk.
+ */
+export async function listTrackedFiles(projectPath: string): Promise<string[] | null> {
+  const inside = await git(projectPath, ['rev-parse', '--is-inside-work-tree'], {
+    allowNonZero: true
+  })
+  if (inside.code !== 0 || inside.stdout.trim() !== 'true') return null
+  const { stdout } = await git(projectPath, [
+    'ls-files',
+    '--cached',
+    '--others',
+    '--exclude-standard',
+    '-z'
+  ])
+  return stdout.split('\0').filter(Boolean)
+}
+
+/**
  * The unified diff for one path — staged (index vs HEAD) or unstaged (worktree
  * vs index). An untracked file has no tracked diff, so it falls back to
  * `--no-index` against /dev/null, which renders every line as an addition.

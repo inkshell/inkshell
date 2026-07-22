@@ -115,7 +115,10 @@ const api = {
       ipcRenderer.invoke(IpcChannel.FsRead, projectPath, relPath),
     /** The project-relative path for a path-shaped token, or null if it isn't one. */
     resolve: (projectPath: string, candidate: string): Promise<string | null> =>
-      ipcRenderer.invoke(IpcChannel.FsResolve, projectPath, candidate)
+      ipcRenderer.invoke(IpcChannel.FsResolve, projectPath, candidate),
+    /** Every file in the project (project-relative), for quick-open's fuzzy search. */
+    listAllFiles: (projectPath: string): Promise<string[]> =>
+      ipcRenderer.invoke(IpcChannel.FsListAllFiles, projectPath)
   },
 
   window: {
