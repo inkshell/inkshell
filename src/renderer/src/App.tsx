@@ -343,9 +343,17 @@ export function App() {
   }, [pendingDelete, currentProject, tabs, closeTab, claudeConfigDirFor, reloadSessions])
 
   // Callbacks from TerminalView.
-  const onTabReady = useCallback((tabId: string, ptyId: number, sessionId: string) => {
-    setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, ptyId, sessionId } : t)))
-  }, [])
+  const onTabReady = useCallback(
+    (tabId: string, ptyId: number, sessionId: string) => {
+      setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, ptyId, sessionId } : t)))
+      // A brand-new chat's session only exists in history from this point on.
+      // Refresh the sidebar so it shows up without a project switch — but only
+      // if it belongs to the project currently on screen.
+      const tab = tabs.find((t) => t.id === tabId)
+      if (tab && tab.cwd === currentProject) reloadSessions(currentProject)
+    },
+    [tabs, currentProject, reloadSessions]
+  )
   const onTabTitle = useCallback((tabId: string, title: string) => {
     // The CLI prefixes its OSC title with a status glyph: its "✳" brand mark
     // while idle, or a Braille spinner frame (U+2800–28FF) while it's working
