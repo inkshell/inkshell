@@ -40,3 +40,9 @@ linux:
   maintainer: InkShell contributors
 
 npmRebuild: true
+
+# Publish the Release outright. The default (`draft`) leaves the assets in a
+# draft that has to be released by hand in the GitHub UI.
+publish:
+  provider: github
+  releaseType: release

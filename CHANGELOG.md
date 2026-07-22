@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-22
+
+### Fixed
+
+- Resolve the `claude` binary to an absolute path instead of spawning it by bare
+  name. Launched from the Finder, InkShell inherits launchd's PATH — usually
+  just `/usr/bin:/bin:/usr/sbin:/sbin` — so an install under `~/.local/bin`,
+  Homebrew or bun was invisible and every new tab closed the instant it opened.
+  The lookup searches the process PATH, then the login shell's own PATH, then
+  the usual install locations, with `INKSHELL_CLAUDE_BIN` as an escape hatch.
+  (#19, closes #18)
+- A pty that dies without printing a byte now reports the failure instead of
+  silently closing its tab, and main-process errors reach the banner without
+  Electron's IPC wrapper around them. (#19)
+
+### Changed
+
+- Upgrade Electron from 33 to 43. (#20)
+- Publish GitHub Releases directly instead of leaving them as drafts.
+
+## [0.1.0] - 2026-07-20
+
 ### Added
 
 - Initial public release of InkShell, an Electron desktop front-end for Claude Code.
@@ -25,4 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frameless "Midnight Ink" dark UI — cool graphite surfaces, iris accent, and a
   per-model hue — with per-platform window chrome.
 
-[Unreleased]: https://github.com/inkshell/inkshell/commits/main
+[Unreleased]: https://github.com/inkshell/inkshell/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/inkshell/inkshell/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/inkshell/inkshell/tree/v0.1.0
