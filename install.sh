@@ -1,7 +1,7 @@
 #!/bin/sh
 # InkShell installer for macOS.
 #
-#   curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh | sh
 #
 # Downloads the latest release for this Mac's architecture and installs it into
 # /Applications. The point of installing this way is quarantine: macOS only
@@ -36,8 +36,12 @@ else
   api="https://api.github.com/repos/$REPO/releases/latest"
 fi
 
-url=$(curl -fsSL "$api" | grep -o "https://[^\"]*-${arch}-mac\.zip" | head -1) ||
-  fail "could not reach the GitHub releases API"
+# Fetch and parse in separate steps: in a pipeline the exit status is the last
+# command's, so a curl failure (offline, rate-limited, bad tag) would sail
+# through grep|head and get misreported as "no build for this arch".
+release_json=$(curl -fsSL "$api") ||
+  fail "could not fetch release info from GitHub (offline, rate-limited, or a bad INKSHELL_VERSION?)"
+url=$(printf '%s\n' "$release_json" | grep -o "https://[^\"]*-${arch}-mac\.zip" | head -1)
 [ -n "$url" ] || fail "no ${arch} build in the release — it may still be publishing, try again in a minute"
 
 # A running InkShell would keep executing from the bundle we're about to

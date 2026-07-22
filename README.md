@@ -92,11 +92,12 @@ you left it.
 ## 📥 Install (macOS)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh | sh
 ```
 
 That downloads the [latest release](https://github.com/inkshell/inkshell/releases/latest)
-for your Mac — Apple Silicon or Intel — and installs it into `/Applications`.
+for your Mac — Apple Silicon or Intel — and installs it into `/Applications`
+(or `~/Applications` when that isn't writable).
 
 Why a script and not a plain download? InkShell builds aren't code-signed yet,
 and macOS quarantines anything a **browser** downloads, so opening the app that

@@ -12,11 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `install.sh`: a one-line macOS installer
-  (`curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh | bash`)
+  (`curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh | sh`)
   that downloads the right build for the Mac's architecture into
-  `/Applications`. Because the download happens through `curl`, macOS never
-  quarantines it, so the unsigned app opens without the misleading
-  "InkShell is damaged" dialog that a browser download runs into.
+  `/Applications` (or `~/Applications` when that isn't writable). Because the
+  download happens through `curl`, macOS never quarantines it, so the unsigned
+  app opens without the misleading "InkShell is damaged" dialog that a browser
+  download runs into.
 - Intel builds: releases now ship an `x64` zip alongside the `arm64` one,
   built on a dedicated Intel runner.
 
