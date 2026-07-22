@@ -12,6 +12,7 @@
   --accent-soft: #a2acff;
   --accent-deep: #5b63e6;
   --accent-ink: #0b0d13; /* text that sits on a bright accent fill */
+  --accent-cyan: #4fd8e2; /* the spectrum's cool end, reused for numeric literals */
   --spectrum: linear-gradient(135deg, #8f8bff 0%, #6f9dff 46%, #4fd8e2 100%);
 
   /* Surfaces — near-black with a blue-slate undertone (deliberately not warm) */
@@ -2595,4 +2596,62 @@ button {
 }
 .code tr.hl .src {
   color: var(--text-primary);
+}
+
+/* Syntax highlighting (hljs token classes) — kept to the app's cool palette,
+   no warm hues, so a file view still reads as part of Midnight Ink. */
+.code .src .hljs-comment,
+.code .src .hljs-quote {
+  color: var(--text-faint);
+  font-style: italic;
+}
+.code .src .hljs-keyword,
+.code .src .hljs-selector-tag,
+.code .src .hljs-literal,
+.code .src .hljs-section,
+.code .src .hljs-doctag {
+  color: var(--accent-soft);
+  font-weight: 600;
+}
+.code .src .hljs-string,
+.code .src .hljs-regexp,
+.code .src .hljs-addition {
+  color: var(--ok);
+}
+.code .src .hljs-number,
+.code .src .hljs-symbol,
+.code .src .hljs-bullet,
+.code .src .hljs-link {
+  color: var(--accent-cyan);
+}
+.code .src .hljs-title,
+.code .src .hljs-built_in {
+  color: var(--hue-sonnet);
+}
+.code .src .hljs-title.class_,
+.code .src .hljs-type {
+  color: var(--hue-opus);
+}
+.code .src .hljs-attr,
+.code .src .hljs-attribute,
+.code .src .hljs-variable,
+.code .src .hljs-template-variable,
+.code .src .hljs-selector-attr,
+.code .src .hljs-selector-pseudo,
+.code .src .hljs-selector-class,
+.code .src .hljs-selector-id,
+.code .src .hljs-name {
+  color: var(--accent);
+}
+.code .src .hljs-meta {
+  color: var(--text-muted);
+}
+.code .src .hljs-deletion {
+  color: var(--error);
+}
+.code .src .hljs-emphasis {
+  font-style: italic;
+}
+.code .src .hljs-strong {
+  font-weight: 700;
 }
