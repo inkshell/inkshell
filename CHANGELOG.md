@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-22
+
+### Added
+
+- `install.sh`: a one-line macOS installer
+  (`curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh | bash`)
+  that downloads the right build for the Mac's architecture into
+  `/Applications`. Because the download happens through `curl`, macOS never
+  quarantines it, so the unsigned app opens without the misleading
+  "InkShell is damaged" dialog that a browser download runs into.
+- Intel builds: releases now ship an `x64` zip alongside the `arm64` one,
+  built on a dedicated Intel runner.
+
+### Changed
+
+- The zip is now the only macOS release artifact. An unsigned `.dmg` only
+  offered a drag-install path that ends at Gatekeeper's "damaged" dialog; it
+  will return once builds are signed and notarized. Auto-update metadata
+  (`latest-mac.yml`) is no longer published either — the app has no
+  auto-updater.
+
 ## [0.1.1] - 2026-07-22
 
 ### Fixed
