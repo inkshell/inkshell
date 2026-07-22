@@ -23,10 +23,13 @@
   --bg-terminal: #090b10;
   --bg-glass: rgba(22, 26, 35, 0.72);
 
-  /* Text */
-  --text-primary: #e8ebf4;
-  --text-muted: #8a93a8;
-  --text-faint: #565f73;
+  /* Text — three steps, all held above WCAG AA (4.5:1) on the darkest surface
+     they ever sit on. `faint` is the floor: it carries small 9.5–11px copy
+     (file paths, diff gutters, timestamps, hints), so it can't be dimmer than
+     this without becoming unreadable — dial down size or weight, not contrast. */
+  --text-primary: #e8ebf4; /* ~15:1 */
+  --text-muted: #99a3b8; /* ~7.4:1 */
+  --text-faint: #7c869e; /* ~5.1:1 */
 
   /* Lines & status */
   --border: #232a37;
@@ -1222,7 +1225,7 @@ button {
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6' fill='none'%3E%3Cpath d='M1 1.5L4.5 5L8 1.5' stroke='%238a93a8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6' fill='none'%3E%3Cpath d='M1 1.5L4.5 5L8 1.5' stroke='%2399a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
       no-repeat right 11px center / 9px 6px,
     var(--bg-card);
   color: var(--text-primary);
@@ -1919,9 +1922,11 @@ button {
   flex-shrink: 0;
   max-width: 55%;
 }
+/* The directory leading up to the file name. It's the most-read secondary
+   string in the panel, so it takes `muted` rather than the `faint` floor. */
 .frow .fp {
-  color: var(--text-faint);
-  font-size: 10.5px;
+  color: var(--text-muted);
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -18,7 +18,9 @@ export const terminalTheme: ITheme = {
   magenta: '#b98bff',
   cyan: '#4fd8e2',
   white: '#c7cdda',
-  brightBlack: '#565f73',
+  /* The CLI paints its dim text (paths, hints, box rules) in bright black, so
+     this tracks `--text-faint` and must stay legible, not decorative. */
+  brightBlack: '#7c869e',
   brightRed: '#ff8a9b',
   brightGreen: '#84e6bd',
   brightYellow: '#ffd68a',
