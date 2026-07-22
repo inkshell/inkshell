@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FileContent, GitCommitDetail } from '@shared/types'
 import type { Tab } from '../types'
 import { relativeTime } from '../lib/format'
+import { highlightLines, languageForPath } from '../lib/highlight'
 import { CommitIcon, FileTextIcon, RefreshIcon } from './Icons'
 import { StatusBadge } from './git-format'
 
@@ -130,6 +131,14 @@ export function ViewerView({ tab, active, onError }: Props) {
   const [loading, setLoading] = useState(true)
   const lineRef = useRef<HTMLTableRowElement>(null)
 
+  // Highlighting the whole file once per load (rather than per row) is what
+  // lets multi-line tokens — a block comment, a template literal — stay
+  // colored correctly across the row split below.
+  const fileLines = useMemo(() => {
+    if (!ref || ref.kind !== 'file') return []
+    return highlightLines(file?.content ?? '', languageForPath(ref.path ?? ''))
+  }, [ref, file])
+
   const load = useCallback(async () => {
     if (!ref) return
     setLoading(true)
@@ -219,14 +228,14 @@ export function ViewerView({ tab, active, onError }: Props) {
           ) : (
             <table className="code">
               <tbody>
-                {(file?.content ?? '').split('\n').map((line, i) => (
+                {fileLines.map((html, i) => (
                   <tr
                     key={i}
                     ref={ref.line === i + 1 ? lineRef : undefined}
                     className={ref.line === i + 1 ? 'hl' : undefined}
                   >
                     <td className="dln">{i + 1}</td>
-                    <td className="src">{line || ' '}</td>
+                    <td className="src" dangerouslySetInnerHTML={{ __html: html || ' ' }} />
                   </tr>
                 ))}
               </tbody>
