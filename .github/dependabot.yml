@@ -15,6 +15,40 @@ updates:
         update-types:
           - minor
           - patch
+    # Majors that cannot install or cannot pass CI today. Each is pinned to the
+    # exact blocked line rather than to "all majors", so the next major after it
+    # still arrives normally and none of these is suppressed forever. Drop an
+    # entry as soon as its note stops being true.
+    ignore:
+      # typescript-eslint 8 peers `typescript <6.1.0`, and 8.65 went as far as
+      # adding an explicit warning when TS 7 is detected. Nothing to do here
+      # until typescript-eslint ships TS 7 support.
+      - dependency-name: 'typescript'
+        versions: ['7.x']
+      # eslint-plugin-react is still on `eslint ^9.7` at its latest release
+      # (7.37.5), so ESLint 10 cannot resolve. eslint and @eslint/js must also
+      # move together — each alone conflicts with the other.
+      - dependency-name: 'eslint'
+        versions: ['10.x']
+      - dependency-name: '@eslint/js'
+        versions: ['10.x']
+      # v7 turns `configs.recommended` into the React Compiler ruleset — 2 rules
+      # become 16, and 10 of our call sites fail, including a deliberate
+      # write-ref-during-render in App.tsx. Needs a real refactor, not a bump.
+      - dependency-name: 'eslint-plugin-react-hooks'
+        versions: ['7.x']
+      # electron-vite 5 peers `vite ^5 || ^6 || ^7`, so vite 8 is unreachable;
+      # @vitejs/plugin-react 6 requires vite ^8, which is the same wall from the
+      # other side. See #32 for the vite 7 chain we run instead.
+      - dependency-name: 'vite'
+        versions: ['8.x']
+      - dependency-name: '@vitejs/plugin-react'
+        versions: ['6.x']
+      # @types/node is a claim about the runtime, not a package to keep current:
+      # main and preload run on Electron's Node 24. Bump this deliberately when
+      # Electron's bundled Node changes.
+      - dependency-name: '@types/node'
+        versions: ['>=25']
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
