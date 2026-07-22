@@ -105,6 +105,10 @@ const EXT_LANG: Record<string, string> = {
   graphql: 'graphql',
   gql: 'graphql',
   ini: 'ini',
+  // highlight.js has no separate TOML grammar — `ini` is it. Its module
+  // declares `aliases: ['toml']`, which `hljs.registerLanguage` picks up
+  // automatically, so `hljs.getLanguage('toml')` and highlighting under
+  // that name both already work without a second registration.
   toml: 'ini',
   cfg: 'ini'
 }
