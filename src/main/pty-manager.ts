@@ -3,6 +3,7 @@ import type { WebContents } from 'electron'
 import * as pty from 'node-pty'
 import { IpcChannel } from '@shared/ipc'
 import type { PtyCreateOptions, PtyCreateResult } from '@shared/types'
+import { claudeEnvPath, resolveClaudeBinary } from './claude-binary'
 import { overrideConfigDir } from './claude-history'
 
 /**
@@ -36,7 +37,7 @@ export class PtyManager {
    * a one-shot `/model` typed via the toolbar (effort has no such picker — see
    * `AppConfig.defaultEffort`).
    */
-  create(opts: PtyCreateOptions): PtyCreateResult {
+  async create(opts: PtyCreateOptions): Promise<PtyCreateResult> {
     const args: string[] = []
     let sessionId: string
     if (opts.resumeSessionId) {
@@ -60,9 +61,20 @@ export class PtyManager {
     delete env.CLAUDE_CONFIG_DIR
     const configDir = overrideConfigDir(opts.claudeConfigDir)
     if (configDir) env.CLAUDE_CONFIG_DIR = configDir
+    // The CLI shells out to `git`, `node` and friends, so it gets a
+    // terminal-like PATH rather than the truncated one a Finder-launched app
+    // inherits from launchd.
+    env.PATH = await claudeEnvPath()
 
-    const shell = process.platform === 'win32' ? 'claude.cmd' : 'claude'
-    const child = pty.spawn(shell, args, {
+    // Spawn by absolute path: relying on PATH resolution is what makes a chat
+    // die instantly when the app is opened from the Finder instead of a shell.
+    const command = await resolveClaudeBinary()
+    if (!command) {
+      throw new Error(
+        'Claude Code was not found. Install the `claude` CLI and make sure it runs in your terminal, then reopen InkShell.'
+      )
+    }
+    const child = pty.spawn(command, args, {
       name: 'xterm-256color',
       cols: opts.cols,
       rows: opts.rows,

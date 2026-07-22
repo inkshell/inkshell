@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from 'electron'
+import { resolveClaudeBinary } from './claude-binary'
 import { createMainWindow } from './window'
 import { registerIpcHandlers, unregisterIpcHandlers } from './ipc'
 import type { PtyManager } from './pty-manager'
@@ -41,6 +42,10 @@ function bootWindow(): void {
 
 app.whenReady().then(() => {
   app.setName('InkShell')
+  // Find the `claude` binary while the window is still loading: the lookup can
+  // cost a login-shell spawn, and doing it here means the first chat rarely
+  // waits for one. Failures are the spawn's to report, not this call's.
+  void resolveClaudeBinary()
   bootWindow()
 
   // macOS: re-open a window when the dock icon is clicked and none are open.

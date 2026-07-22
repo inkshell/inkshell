@@ -192,16 +192,41 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
         ptyIdRef.current = ptyId
         cbRef.current.onReady(tab.id, ptyId, sessionId)
 
-        unsubscribers.push(window.inkshell.pty.onData(ptyId, (data) => term.write(data)))
-        unsubscribers.push(window.inkshell.pty.onExit(ptyId, () => cbRef.current.onExit(tab.id)))
+        let sawOutput = false
+        unsubscribers.push(
+          window.inkshell.pty.onData(ptyId, (data) => {
+            sawOutput = true
+            term.write(data)
+          })
+        )
+        unsubscribers.push(
+          window.inkshell.pty.onExit(ptyId, (exitCode) => {
+            // A session that dies without printing a single byte never really
+            // started — closing its tab would look like the click did nothing.
+            // Say so instead; a session that ran and then left just closes.
+            if (!sawOutput && exitCode !== 0) {
+              cbRef.current.onError(
+                tab.id,
+                `Claude Code exited immediately (code ${exitCode}) without starting. Check that \`claude\` runs in your terminal.`
+              )
+              return
+            }
+            cbRef.current.onExit(tab.id)
+          })
+        )
         term.onData((data) => window.inkshell.pty.write(ptyId, data))
         term.onResize(({ cols, rows }) => window.inkshell.pty.resize(ptyId, cols, rows))
       })
       .catch((err) => {
         if (disposed) return
+        // Electron wraps a main-process throw as "Error invoking remote method
+        // '<channel>': Error: <message>" — only the tail was written for a
+        // person to read, so the plumbing is stripped off it here.
+        const raw = String(err?.message ?? err)
+        const message = raw.replace(/^Error invoking remote method '[^']*':\s*(Error:\s*)?/, '')
         cbRef.current.onError(
           tab.id,
-          `Couldn't start Claude Code (is the "claude" binary on PATH?): ${err?.message ?? err}`
+          message.includes('Claude Code') ? message : `Couldn't start Claude Code: ${message}`
         )
       })
 
