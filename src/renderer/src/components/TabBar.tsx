@@ -139,9 +139,15 @@ export function TabBar({
   const onPointerDown = useCallback(
     (e: React.PointerEvent, index: number) => {
       draggedRef.current = false
-      // Disarm first: a press we go on to ignore (right button, close button)
-      // must never leave an earlier gesture armed with a stale startX.
-      gestureRef.current = null
+      // Any gesture still armed here never got its release — the OS took the
+      // press, or a second pointer barged in. Drop it, along with any transform
+      // it stranded on screen, so its stale startX can't warp this press. This
+      // happens before the early returns below: a press we go on to ignore
+      // (right button, the close button) must still clear it.
+      if (gestureRef.current) {
+        gestureRef.current = null
+        setDrag(null)
+      }
       // Left button only, and never when the press lands on the close button.
       if (e.button !== 0 || (e.target as HTMLElement).closest('.tab-close')) return
       const strip = stripRef.current
@@ -166,10 +172,13 @@ export function TabBar({
   )
 
   const finishDrag = useCallback(
-    (commit: boolean) => {
+    (commit: boolean, pointerId: number) => {
       const g = gestureRef.current
+      // Only the pointer that started the gesture may end it: on a touchscreen
+      // a second finger's release would otherwise commit — or cancel — a drag
+      // it never took part in.
+      if (!g || pointerId !== g.pointerId) return
       gestureRef.current = null
-      if (!g) return
       if (!g.moved) return // a plain click — leave selection to onClick
       const { id, from } = g
       const target = commit ? g.target : from
@@ -199,7 +208,7 @@ export function TabBar({
       // user never asked for. A press we still own has the button down and the
       // capture in hand; anything else is not a drag, so disarm instead.
       if (!(e.buttons & 1) || !e.currentTarget.hasPointerCapture(e.pointerId)) {
-        finishDrag(false)
+        finishDrag(false, e.pointerId)
         return
       }
       const dx = e.clientX - g.startX
@@ -278,12 +287,12 @@ export function TabBar({
                 style={tabStyle}
                 onPointerDown={(e) => onPointerDown(e, index)}
                 onPointerMove={onPointerMove}
-                onPointerUp={() => finishDrag(true)}
-                onPointerCancel={() => finishDrag(false)}
+                onPointerUp={(e) => finishDrag(true, e.pointerId)}
+                onPointerCancel={(e) => finishDrag(false, e.pointerId)}
                 // The capture goes away when something else claims the pointer
                 // (a native window drag, the pointer leaving the window) — and
                 // with it any pointerup. Disarm here or the gesture stays live.
-                onLostPointerCapture={() => finishDrag(false)}
+                onLostPointerCapture={(e) => finishDrag(false, e.pointerId)}
                 onClick={() => {
                   if (draggedRef.current) {
                     draggedRef.current = false

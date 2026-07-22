@@ -651,14 +651,19 @@ button {
    ========================================================================= */
 
 .tabbar {
+  /* The height of everything seated on the row's baseline — tabs and both
+     toolbar buttons — and the gap below it. The drag strip is anchored off the
+     same two values, so the row and the strip can never drift apart. */
+  --tabbar-row-h: 32px;
+  --tabbar-pad-b: 5px;
   display: flex;
   align-items: flex-end;
   gap: 8px;
   height: 52px;
   /* Content seats low in the bar: generous air up top (so the row isn't glued
-     to the window ceiling / mac traffic lights) and a snug 5px gap down to the
+     to the window ceiling / mac traffic lights) and a snug gap down to the
      divider, so tabs neither float nor crowd the toolbar below. */
-  padding: 0 10px 5px;
+  padding: 0 10px var(--tabbar-pad-b);
   flex-shrink: 0;
   border-bottom: 1px solid var(--border-soft);
   position: relative;
@@ -668,16 +673,19 @@ button {
    caches those regions and they go stale as the subtree changes
    (electron/electron#17972), so the top of a tab could still be treated as
    title bar — a press there was hijacked by the OS, which then handed the
-   reorder gesture a bogus synthetic move and flung the tab sideways. This
-   fills only the breathing room above the tabs (52px bar − 5px padding − 32px
-   tab = 15px) and holds nothing, so it can neither overlap a tab nor go
-   stale. */
+   reorder gesture a bogus synthetic move and flung the tab sideways.
+
+   It fills only the breathing room above the row and holds nothing, so it can
+   neither overlap a tab nor go stale. Anchored by `bottom` rather than given a
+   height: `bottom` resolves against the padding box, which already accounts
+   for the border, so the strip ends exactly where the row begins no matter how
+   the bar is resized. */
 .tabbar-drag {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 15px;
+  bottom: calc(var(--tabbar-pad-b) + var(--tabbar-row-h));
   -webkit-app-region: drag;
 }
 /* macOS, sidebar collapsed: the main pane slides under the traffic lights, so
@@ -688,8 +696,8 @@ button {
 }
 
 .sidebar-toggle {
-  width: 32px;
-  height: 32px;
+  width: var(--tabbar-row-h);
+  height: var(--tabbar-row-h);
   display: grid;
   place-items: center;
   border-radius: var(--radius-sm);
@@ -710,7 +718,7 @@ button {
   display: flex;
   align-items: center;
   gap: 7px;
-  height: 32px;
+  height: var(--tabbar-row-h);
   padding: 0 15px 0 12px;
   border: none;
   border-radius: var(--radius-sm);
@@ -884,7 +892,7 @@ button {
   display: flex;
   align-items: center;
   gap: 9px;
-  height: 32px;
+  height: var(--tabbar-row-h);
   padding: 0 6px 0 12px;
   border-radius: var(--radius-sm);
   border: 1px solid color-mix(in srgb, var(--session) 30%, transparent);
