@@ -37,7 +37,7 @@ export class PtyManager {
    * a one-shot `/model` typed via the toolbar (effort has no such picker — see
    * `AppConfig.defaultEffort`).
    */
-  create(opts: PtyCreateOptions): PtyCreateResult {
+  async create(opts: PtyCreateOptions): Promise<PtyCreateResult> {
     const args: string[] = []
     let sessionId: string
     if (opts.resumeSessionId) {
@@ -64,11 +64,11 @@ export class PtyManager {
     // The CLI shells out to `git`, `node` and friends, so it gets a
     // terminal-like PATH rather than the truncated one a Finder-launched app
     // inherits from launchd.
-    env.PATH = claudeEnvPath()
+    env.PATH = await claudeEnvPath()
 
     // Spawn by absolute path: relying on PATH resolution is what makes a chat
     // die instantly when the app is opened from the Finder instead of a shell.
-    const command = resolveClaudeBinary()
+    const command = await resolveClaudeBinary()
     if (!command) {
       throw new Error(
         'Claude Code was not found. Install the `claude` CLI and make sure it runs in your terminal, then reopen InkShell.'
