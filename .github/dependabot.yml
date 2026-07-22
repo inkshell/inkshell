@@ -6,8 +6,15 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
+      # Only minors and patches are batched. Majors are deliberately left
+      # ungrouped so each one arrives as its own reviewable PR — a single
+      # group carrying ten majors at once (#17) could not even be installed,
+      # let alone reviewed.
       dev-dependencies:
         dependency-type: development
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
