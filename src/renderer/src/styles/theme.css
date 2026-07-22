@@ -661,6 +661,24 @@ button {
   padding: 0 10px 5px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border-soft);
+  position: relative;
+}
+/* The window-drag handle for the main pane. It is a dedicated element rather
+   than `drag` on `.tabbar` with `no-drag` punched out of every tab: macOS
+   caches those regions and they go stale as the subtree changes
+   (electron/electron#17972), so the top of a tab could still be treated as
+   title bar — a press there was hijacked by the OS, which then handed the
+   reorder gesture a bogus synthetic move and flung the tab sideways. This
+   fills only the breathing room above the tabs (52px bar − 5px padding − 32px
+   tab = 15px) and holds nothing, so it can neither overlap a tab nor go
+   stale. */
+.tabbar-drag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 15px;
+  -webkit-app-region: drag;
 }
 /* macOS, sidebar collapsed: the main pane slides under the traffic lights, so
    the tab row reserves room for them (added by the renderer only in that case;

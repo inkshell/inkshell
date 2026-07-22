@@ -125,6 +125,7 @@ export function TabBar({
   const gestureRef = useRef<{
     id: string
     from: number
+    pointerId: number
     startX: number
     centers: number[] // original viewport-X centre of each tab
     slots: number[] // each tab's footprint (width + gap)
@@ -138,6 +139,9 @@ export function TabBar({
   const onPointerDown = useCallback(
     (e: React.PointerEvent, index: number) => {
       draggedRef.current = false
+      // Disarm first: a press we go on to ignore (right button, close button)
+      // must never leave an earlier gesture armed with a stale startX.
+      gestureRef.current = null
       // Left button only, and never when the press lands on the close button.
       if (e.button !== 0 || (e.target as HTMLElement).closest('.tab-close')) return
       const strip = stripRef.current
@@ -149,6 +153,7 @@ export function TabBar({
       gestureRef.current = {
         id: tabs[index].id,
         from: index,
+        pointerId: e.pointerId,
         startX: e.clientX,
         centers: rects.map((r) => r.left + r.width / 2),
         slots: rects.map((r) => r.width + gap),
@@ -159,33 +164,6 @@ export function TabBar({
     },
     [tabs]
   )
-
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    const g = gestureRef.current
-    if (!g) return
-    const dx = e.clientX - g.startX
-    if (!g.moved && Math.abs(dx) < DRAG_THRESHOLD) return
-    g.moved = true
-    draggedRef.current = true
-
-    // Where the grabbed tab's centre now sits, and the slot that centre has
-    // slid into — walk outward from the origin only as far as it has crossed.
-    const c = g.centers[g.from] + dx
-    let target = g.from
-    if (dx > 0) {
-      for (let j = g.from + 1; j < g.centers.length; j++) {
-        if (c <= g.centers[j]) break
-        target = j
-      }
-    } else {
-      for (let j = g.from - 1; j >= 0; j--) {
-        if (c >= g.centers[j]) break
-        target = j
-      }
-    }
-    g.target = target
-    setDrag({ id: g.id, from: g.from, dx, target, slot: g.slots[g.from], settling: false })
-  }, [])
 
   const finishDrag = useCallback(
     (commit: boolean) => {
@@ -211,23 +189,60 @@ export function TabBar({
     [onReorderTab]
   )
 
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const g = gestureRef.current
+      if (!g || e.pointerId !== g.pointerId) return
+      // The OS can steal a press that lands in a window-drag region and then
+      // hand us a synthetic move whose clientX is nowhere near the cursor —
+      // enough, unguarded, to fling the tab sideways and commit a reorder the
+      // user never asked for. A press we still own has the button down and the
+      // capture in hand; anything else is not a drag, so disarm instead.
+      if (!(e.buttons & 1) || !e.currentTarget.hasPointerCapture(e.pointerId)) {
+        finishDrag(false)
+        return
+      }
+      const dx = e.clientX - g.startX
+      if (!g.moved && Math.abs(dx) < DRAG_THRESHOLD) return
+      g.moved = true
+      draggedRef.current = true
+
+      // Where the grabbed tab's centre now sits, and the slot that centre has
+      // slid into — walk outward from the origin only as far as it has crossed.
+      const c = g.centers[g.from] + dx
+      let target = g.from
+      if (dx > 0) {
+        for (let j = g.from + 1; j < g.centers.length; j++) {
+          if (c <= g.centers[j]) break
+          target = j
+        }
+      } else {
+        for (let j = g.from - 1; j >= 0; j--) {
+          if (c >= g.centers[j]) break
+          target = j
+        }
+      }
+      g.target = target
+      setDrag({ id: g.id, from: g.from, dx, target, slot: g.slots[g.from], settling: false })
+    },
+    [finishDrag]
+  )
+
   return (
-    <div className={`tabbar drag ${reserveTrafficLights ? 'mac-inset' : ''}`}>
-      <button
-        className="sidebar-toggle no-drag"
-        title="Show/hide the sidebar"
-        onClick={onToggleSidebar}
-      >
+    <div className={`tabbar ${reserveTrafficLights ? 'mac-inset' : ''}`}>
+      <div className="tabbar-drag drag" />
+
+      <button className="sidebar-toggle" title="Show/hide the sidebar" onClick={onToggleSidebar}>
         <SidebarIcon size={16} />
       </button>
 
-      <button className="new-chat no-drag" onClick={onNewChat} title="New chat (⌘T)">
+      <button className="new-chat" onClick={onNewChat} title="New chat (⌘T)">
         <PlusIcon size={15} />
         New chat
       </button>
 
       <div className={`tab-rail ${overflow.left ? 'ovl-l' : ''} ${overflow.right ? 'ovl-r' : ''}`}>
-        <button className="rail-nudge left no-drag" title="Previous tabs" onClick={() => nudge(-1)}>
+        <button className="rail-nudge left" title="Previous tabs" onClick={() => nudge(-1)}>
           <DoubleChevronIcon size={15} />
         </button>
 
@@ -259,12 +274,16 @@ export function TabBar({
               <div
                 key={tab.id}
                 data-tab-id={tab.id}
-                className={`tab no-drag ${isActive ? 'active' : ''} ${tab.processing ? 'processing' : ''} ${isSource ? (drag.settling ? 'grabbed settling' : 'grabbed') : ''}`}
+                className={`tab ${isActive ? 'active' : ''} ${tab.processing ? 'processing' : ''} ${isSource ? (drag.settling ? 'grabbed settling' : 'grabbed') : ''}`}
                 style={tabStyle}
                 onPointerDown={(e) => onPointerDown(e, index)}
                 onPointerMove={onPointerMove}
                 onPointerUp={() => finishDrag(true)}
                 onPointerCancel={() => finishDrag(false)}
+                // The capture goes away when something else claims the pointer
+                // (a native window drag, the pointer leaving the window) — and
+                // with it any pointerup. Disarm here or the gesture stays live.
+                onLostPointerCapture={() => finishDrag(false)}
                 onClick={() => {
                   if (draggedRef.current) {
                     draggedRef.current = false
@@ -302,13 +321,13 @@ export function TabBar({
           })}
         </div>
 
-        <button className="rail-nudge right no-drag" title="Next tabs" onClick={() => nudge(1)}>
+        <button className="rail-nudge right" title="Next tabs" onClick={() => nudge(1)}>
           <DoubleChevronIcon size={15} />
         </button>
       </div>
 
       <button
-        className="sidebar-toggle no-drag"
+        className="sidebar-toggle"
         title="Show/hide the project panel"
         onClick={onTogglePanel}
       >
