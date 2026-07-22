@@ -719,6 +719,7 @@ export function App() {
             setShowQuickOpen(false)
           }}
           onClose={() => setShowQuickOpen(false)}
+          onError={setError}
         />
       )}
 

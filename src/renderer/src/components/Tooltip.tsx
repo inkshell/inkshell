@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 
 interface TipState {
   text: string
@@ -22,7 +22,11 @@ const SHOW_DELAY_MS = 350
  */
 export function useTooltip() {
   const [tip, setTip] = useState<TipState | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // A pending show can outlive the row (list re-filtered, component unmounted)
+  // — drop it rather than let a stray `setTip` fire on the way out.
+  useEffect(() => () => clearTimeout(timer.current), [])
 
   const bind = useCallback(
     (text: string) => ({
@@ -34,7 +38,7 @@ export function useTooltip() {
           () =>
             setTip({
               text,
-              x: Math.min(rect.left, window.innerWidth - 420),
+              x: Math.max(0, Math.min(rect.left, window.innerWidth - 420)),
               y: below ? rect.bottom + 6 : rect.top - 6,
               placement: below ? 'below' : 'above'
             }),

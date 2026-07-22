@@ -84,12 +84,18 @@ function walk(root: string, relPath: string, out: string[]): void {
 /**
  * Every file in the project, for quick-open's fuzzy search. Prefers git's own
  * tracked + untracked-not-ignored view (respects `.gitignore` for free); a
- * project that isn't a git repo falls back to a bounded recursive walk that
- * skips the usual noise directories.
+ * project that isn't a git repo — or one where `git` itself fails (not on
+ * PATH, a corrupt work tree) — falls back to a bounded recursive walk that
+ * skips the usual noise directories. Either way the result is capped, so a
+ * huge repo can't hand the renderer's fuzzy filter more than it can chew.
  */
 export async function listAllFiles(projectPath: string): Promise<string[]> {
-  const tracked = await listTrackedFiles(projectPath)
-  if (tracked) return tracked
+  try {
+    const tracked = await listTrackedFiles(projectPath)
+    if (tracked) return tracked.slice(0, WALK_CAP)
+  } catch {
+    // git failed outright (not just "not a repo") — fall through to the walk.
+  }
   const out: string[] = []
   walk(projectPath, '', out)
   return out

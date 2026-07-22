@@ -12,6 +12,7 @@ interface Props {
   accent: string | null
   onOpenFile: (path: string) => void
   onClose: () => void
+  onError: (message: string) => void
 }
 
 interface FileHit {
@@ -41,7 +42,7 @@ function renderMarked(text: string, indices: number[], from: number): ReactNode 
  * the same viewer tabs the project panel's Files tab does; this is just a
  * keyboard-reachable shortcut to the same place, not a second file system.
  */
-export function QuickOpen({ project, projectName, accent, onOpenFile, onClose }: Props) {
+export function QuickOpen({ project, projectName, accent, onOpenFile, onClose, onError }: Props) {
   const [files, setFiles] = useState<string[] | null>(null)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
@@ -52,13 +53,21 @@ export function QuickOpen({ project, projectName, accent, onOpenFile, onClose }:
   useEffect(() => {
     let cancelled = false
     setFiles(null)
-    window.inkshell.fs.listAllFiles(project).then((list) => {
-      if (!cancelled) setFiles(list)
-    })
+    window.inkshell.fs.listAllFiles(project).then(
+      (list) => {
+        if (!cancelled) setFiles(list)
+      },
+      (err) => {
+        if (cancelled) return
+        // Falls through to the empty-results state instead of loading forever.
+        setFiles([])
+        onError(err instanceof Error ? err.message : String(err))
+      }
+    )
     return () => {
       cancelled = true
     }
-  }, [project])
+  }, [project, onError])
 
   useEffect(() => {
     inputRef.current?.focus()
