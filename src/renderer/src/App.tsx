@@ -346,11 +346,14 @@ export function App() {
   const onTabReady = useCallback(
     (tabId: string, ptyId: number, sessionId: string) => {
       setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, ptyId, sessionId } : t)))
-      // A brand-new chat's session only exists in history from this point on.
-      // Refresh the sidebar so it shows up without a project switch — but only
-      // if it belongs to the project currently on screen.
+      // A brand-new chat's session only exists in history from this point on
+      // (a resume already had its sessionId set at tab creation, so it's
+      // already in the sidebar and doesn't need this). Refresh the sidebar so
+      // it shows up without a project switch — but only if it belongs to the
+      // project currently on screen.
       const tab = tabs.find((t) => t.id === tabId)
-      if (tab && tab.cwd === currentProject) reloadSessions(currentProject)
+      if (tab && tab.sessionId === null && tab.cwd === currentProject)
+        reloadSessions(currentProject)
     },
     [tabs, currentProject, reloadSessions]
   )
