@@ -689,7 +689,11 @@ export function App() {
                       />
                     ) : (
                       <ViewerView
-                        key={tab.id}
+                        // A preview tab mutates `viewer` in place to peek at a new
+                        // target, so the key must include it — otherwise this stays
+                        // mounted across the swap and shows the previous target's
+                        // stale diff/file/commit state until its own fetch resolves.
+                        key={tab.viewer ? `${tab.id}:${viewerKey(tab.viewer)}` : tab.id}
                         tab={tab}
                         active={tab.id === activeTabId}
                         onError={setError}
