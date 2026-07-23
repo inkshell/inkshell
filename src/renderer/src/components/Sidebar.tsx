@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import type { ProjectEntry, SessionSummary } from '@shared/types'
 import { relativeTime } from '../lib/format'
-import { ChevronIcon, FolderIcon, GearIcon, GripIcon, TrashIcon } from './Icons'
+import { ChevronIcon, FolderIcon, GearIcon, GripIcon, InfoIcon, TrashIcon } from './Icons'
 
 interface Props {
   isMac: boolean
@@ -11,6 +11,7 @@ interface Props {
   sessions: SessionSummary[]
   onNewProject: () => void
   onOpenSettings: () => void
+  onOpenAbout: () => void
   onSelectProject: (path: string) => void
   onEditProject: (path: string) => void
   onReorderProjects: (projects: ProjectEntry[]) => void
@@ -97,6 +98,7 @@ export function Sidebar({
   sessions,
   onNewProject,
   onOpenSettings,
+  onOpenAbout,
   onSelectProject,
   onEditProject,
   onReorderProjects,
@@ -189,6 +191,9 @@ export function Sidebar({
         </button>
         <button className="btn square" onClick={onOpenSettings} title="Settings">
           <GearIcon size={16} />
+        </button>
+        <button className="btn square" onClick={onOpenAbout} title="About InkShell">
+          <InfoIcon size={16} />
         </button>
       </div>
 

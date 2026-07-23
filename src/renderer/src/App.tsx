@@ -22,6 +22,7 @@ import { EmptyState } from './components/EmptyState'
 import { SettingsModal } from './components/SettingsModal'
 import { ProjectModal } from './components/ProjectModal'
 import { ConfirmModal } from './components/ConfirmModal'
+import { AboutModal } from './components/AboutModal'
 import { CloseIcon } from './components/Icons'
 
 const isMac = window.inkshell.platform === 'darwin'
@@ -44,6 +45,7 @@ export function App() {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
   const [showQuickOpen, setShowQuickOpen] = useState(false)
   // The project screen, open either on a folder just picked (`new`) or on a
   // project being reconfigured (`edit`). Nothing is written until it's saved.
@@ -626,6 +628,7 @@ export function App() {
             sessions={sessions}
             onNewProject={newProject}
             onOpenSettings={() => setShowSettings(true)}
+            onOpenAbout={() => setShowAbout(true)}
             onSelectProject={selectProject}
             onEditProject={editProject}
             onReorderProjects={reorderProjects}
@@ -761,6 +764,8 @@ export function App() {
           onClose={() => setShowSettings(false)}
         />
       )}
+
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
 
       {showQuickOpen && activeProject && (
         <QuickOpen

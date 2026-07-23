@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IpcChannel } from '@shared/ipc'
 import type {
   AppConfig,
+  AppInfo,
   FileContent,
   GitCommit,
   GitCommitDetail,
@@ -23,6 +24,10 @@ import type {
  */
 const api = {
   platform: process.platform,
+
+  app: {
+    getInfo: (): Promise<AppInfo> => ipcRenderer.invoke(IpcChannel.AppGetInfo)
+  },
 
   config: {
     load: (): Promise<AppConfig> => ipcRenderer.invoke(IpcChannel.ConfigLoad),

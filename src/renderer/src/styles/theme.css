@@ -1518,6 +1518,93 @@ button {
   color: var(--text-primary);
 }
 
+/* About screen: brand hero, live environment facts, and external links. */
+.about-modal {
+  width: min(420px, 92vw);
+}
+.about-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 6px 0 4px;
+}
+.about-badge {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--spectrum);
+  color: var(--accent-ink);
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+.about-name {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.about-version {
+  color: var(--text-faint);
+  font-size: 11.5px;
+  margin-top: 3px;
+}
+.about-tagline {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin: 12px 0 0;
+  max-width: 320px;
+}
+.about-divider {
+  height: 1px;
+  background: var(--border-soft);
+  margin: 18px 0;
+}
+.about-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.about-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+}
+.about-row > span:first-child {
+  color: var(--text-muted);
+}
+.about-mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+}
+.about-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12.5px;
+}
+.about-links a {
+  color: var(--accent-soft);
+  text-decoration: none;
+}
+.about-links a:hover {
+  text-decoration: underline;
+}
+.about-license {
+  color: var(--text-faint);
+  margin-left: auto;
+}
+
 /* Compact confirmation dialog: a narrower modal with a prompt + two actions. */
 .confirm-modal {
   width: min(420px, 92vw);
