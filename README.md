@@ -50,7 +50,11 @@ you left it.
   browse branch history and open any diff, file, or commit as a viewer tab.
   Commit messages can be drafted by Claude with one click.
 - **File browser**: the project's tree in the same dock, with modified files
-  marked, so you can open a file next to the session that's editing it.
+  marked and syntax-highlighted contents, so you can open a file next to the
+  session that's editing it.
+- **Quick Open (`⌘P`)**: fuzzy-search every file in the active project — backed
+  by `git ls-files` in a repo, so it respects `.gitignore` for free — and open
+  it straight into the viewer.
 - **Analytics & memory shortcuts**: quick access to `/stats` and (soon) a
   memory viewer.
 - **Seamless, frameless UI**: floating traffic lights on macOS, custom window
