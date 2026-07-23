@@ -3,8 +3,8 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh | sh
 #
-# Downloads the latest release for this Mac's architecture and installs it into
-# /Applications. The point of installing this way is quarantine: macOS only
+# Downloads the latest release (a universal build, arm64 + x64) and installs
+# it into /Applications. The point of installing this way is quarantine: macOS only
 # gatekeeps files whose downloader marked them (browsers do, `curl` doesn't),
 # so an app fetched here opens with no "InkShell is damaged" dialog and no
 # `xattr` incantation — the block a browser download of an unsigned app runs
@@ -23,13 +23,6 @@ fail() {
 
 [ "$(uname -s)" = "Darwin" ] || fail "this installer is macOS-only — see the README for other platforms"
 
-# The release assets are named InkShell-<version>-<arch>-mac.zip.
-case "$(uname -m)" in
-  arm64) arch="arm64" ;;
-  x86_64) arch="x64" ;;
-  *) fail "unsupported architecture: $(uname -m)" ;;
-esac
-
 if [ -n "${INKSHELL_VERSION:-}" ]; then
   api="https://api.github.com/repos/$REPO/releases/tags/$INKSHELL_VERSION"
 else
@@ -38,11 +31,11 @@ fi
 
 # Fetch and parse in separate steps: in a pipeline the exit status is the last
 # command's, so a curl failure (offline, rate-limited, bad tag) would sail
-# through grep|head and get misreported as "no build for this arch".
+# through grep|head and get misreported as "no macOS build in the release".
 release_json=$(curl -fsSL "$api") ||
   fail "could not fetch release info from GitHub (offline, rate-limited, or a bad INKSHELL_VERSION?)"
-url=$(printf '%s\n' "$release_json" | grep -o "https://[^\"]*-${arch}-mac\.zip" | head -1)
-[ -n "$url" ] || fail "no ${arch} build in the release — it may still be publishing, try again in a minute"
+url=$(printf '%s\n' "$release_json" | grep -o 'https://[^"]*-mac\.zip' | head -1)
+[ -n "$url" ] || fail "no macOS build in the release — it may still be publishing, try again in a minute"
 
 # A running InkShell would keep executing from the bundle we're about to
 # replace; make the swap explicit instead of yanking it out from underneath.

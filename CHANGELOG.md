@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- macOS releases now build a single universal (arm64 + x64) zip on one
+  `macos-latest` runner instead of one zip per architecture built on a
+  dedicated runner per arch. GitHub retired its free Intel macOS runner
+  (`macos-13`) without a free replacement, which left the Intel half of the
+  v0.1.4 release stuck queued indefinitely. `install.sh` no longer needs to
+  pick an asset by architecture, since there's only one build now.
+
 ## [0.1.4] - 2026-07-22
 
 ### Added

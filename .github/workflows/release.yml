@@ -45,18 +45,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   release:
-    name: Build & publish (${{ matrix.os }})
+    name: Build & publish (macOS universal)
     needs: create-release
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # One runner per mac architecture: macos-latest is Apple Silicon,
-        # macos-13 is the last Intel image. Each uploads its own zip to the
-        # Release create-release made, and install.sh picks the asset by arch.
-        # To add the other platforms later, include: ubuntu-latest,
-        # windows-latest.
-        os: [macos-latest, macos-13]
+    # A single arm64 runner now builds both architectures: mac.target's
+    # `arch: universal` (electron-builder.yml) produces one lipo-merged zip
+    # covering arm64 and x64. This used to be two matrix jobs — macos-latest
+    # (Apple Silicon) and macos-13 (Intel) — but GitHub retired the free
+    # Intel macOS runner with no free replacement, so a per-arch runner is no
+    # longer an option. To add other platforms later, add jobs running on
+    # ubuntu-latest / windows-latest.
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

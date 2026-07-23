@@ -28,13 +28,24 @@ asarUnpack:
 # zip is the only macOS target while builds are unsigned: install.sh consumes
 # it, and a .dmg would only offer a drag-install path that ends at Gatekeeper's
 # "InkShell is damaged" dialog. Bring the dmg back once builds are signed and
-# notarized. The arch is spelled out in the artifact name because install.sh
-# picks the asset by it.
+# notarized.
+#
+# arch: universal builds one lipo-merged binary for arm64 + x64 on a single
+# arm64 runner, rather than a per-arch zip built on a dedicated arm64 and
+# Intel runner. GitHub retired its free Intel macOS hosted runner (macos-13)
+# without a free replacement, so a second runner is no longer an option.
 mac:
   category: public.app-category.developer-tools
   target:
-    - zip
+    - target: zip
+      arch: universal
   artifactName: ${productName}-${version}-${arch}-mac.${ext}
+  # node-pty bundles every platform's prebuilt binary inside the one npm
+  # package, so the x64 pass and the arm64 pass each end up with byte-identical
+  # copies of the *other* arch's prebuild too (only the darwin-${arch}
+  # subfolder name picks the right one at runtime). @electron/universal's merge
+  # step otherwise treats an identical Mach-O file across both passes as a bug.
+  x64ArchFiles: '{pty.node,spawn-helper}'
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist

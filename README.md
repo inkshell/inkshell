@@ -100,8 +100,8 @@ curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh |
 ```
 
 That downloads the [latest release](https://github.com/inkshell/inkshell/releases/latest)
-for your Mac — Apple Silicon or Intel — and installs it into `/Applications`
-(or `~/Applications` when that isn't writable).
+— a universal build that runs on Apple Silicon or Intel — and installs it into
+`/Applications` (or `~/Applications` when that isn't writable).
 
 Why a script and not a plain download? InkShell builds aren't code-signed yet,
 and macOS quarantines anything a **browser** downloads, so opening the app that
@@ -113,7 +113,7 @@ lines of `sh`.)
 <details>
 <summary>Installing by hand instead</summary>
 
-Download the `.zip` for your architecture from the
+Download the `.zip` from the
 [Releases page](https://github.com/inkshell/inkshell/releases/latest), unzip it,
 move `InkShell.app` to `/Applications`, then clear the quarantine flag your
 browser attached to the download:
