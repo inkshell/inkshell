@@ -510,6 +510,7 @@ button {
   transition: opacity var(--dur) var(--ease);
 }
 .project-row:hover .project-grip,
+.project-row:focus-visible .project-grip,
 .project-row.dragging .project-grip {
   opacity: 1;
 }

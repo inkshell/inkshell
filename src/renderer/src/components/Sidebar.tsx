@@ -139,31 +139,37 @@ export function Sidebar({
       ? null
       : clamp(dragIndex + Math.round(dragDeltaY / ROW_STEP), 0, projects.length - 1)
 
-  useEffect(() => {
-    if (dragIndex === null) return
-    const onMove = (e: MouseEvent) => setDragDeltaY(e.clientY - dragStartY.current)
-    const onUp = (e: MouseEvent) => {
-      const deltaY = e.clientY - dragStartY.current
-      const target = clamp(dragIndex + Math.round(deltaY / ROW_STEP), 0, projects.length - 1)
-      if (target !== dragIndex) onReorderProjects(moveItem(projects, dragIndex, target))
-      setDragIndex(null)
-      setDragDeltaY(0)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-  }, [dragIndex, projects, onReorderProjects])
-
-  const startDrag = (index: number) => (e: React.MouseEvent) => {
+  // Pointer capture (rather than window mouse listeners) keeps the drag live
+  // even if the pointer leaves the Electron window before it's released —
+  // move/up/cancel keep targeting the grip that captured it.
+  const startDrag = (index: number) => (e: React.PointerEvent<HTMLSpanElement>) => {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
     dragStartY.current = e.clientY
     setDragDeltaY(0)
     setDragIndex(index)
+  }
+
+  const dragMove = (index: number) => (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (dragIndex !== index) return
+    setDragDeltaY(e.clientY - dragStartY.current)
+  }
+
+  const dropDrag = (index: number) => (e: React.PointerEvent<HTMLSpanElement>) => {
+    if (dragIndex !== index) return
+    const deltaY = e.clientY - dragStartY.current
+    const target = clamp(index + Math.round(deltaY / ROW_STEP), 0, projects.length - 1)
+    if (target !== index) onReorderProjects(moveItem(projects, index, target))
+    setDragIndex(null)
+    setDragDeltaY(0)
+  }
+
+  const cancelDrag = (index: number) => () => {
+    if (dragIndex !== index) return
+    setDragIndex(null)
+    setDragDeltaY(0)
   }
 
   return (
@@ -227,7 +233,10 @@ export function Sidebar({
                   <span
                     className="project-grip"
                     title="Drag to reorder"
-                    onMouseDown={startDrag(i)}
+                    onPointerDown={startDrag(i)}
+                    onPointerMove={dragMove(i)}
+                    onPointerUp={dropDrag(i)}
+                    onPointerCancel={cancelDrag(i)}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <GripIcon size={12} />
