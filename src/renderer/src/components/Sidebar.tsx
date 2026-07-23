@@ -1,14 +1,32 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import type { ProjectEntry, SessionSummary } from '@shared/types'
+import { SESSION_DRAG_TYPE, TAB_DRAG_TYPE, type PaneLayout, type Tab } from '../types'
 import { relativeTime } from '../lib/format'
-import { ChevronIcon, FolderIcon, GearIcon, GripIcon, InfoIcon, TrashIcon } from './Icons'
+import {
+  ChevronIcon,
+  CloseIcon,
+  FolderIcon,
+  GearIcon,
+  GripIcon,
+  InfoIcon,
+  PlusIcon,
+  TrashIcon
+} from './Icons'
 
 interface Props {
   isMac: boolean
   currentProject: string | null
   projects: ProjectEntry[]
   sessions: SessionSummary[]
+  /** Every open tab (chats + viewers), grouped into the tree by working dir. */
+  tabs: Tab[]
+  /** Which tab sits in each of the four panes (null = empty pane). */
+  slots: (string | null)[]
+  /** How many panes are on screen — a tab in slot < layout is "in a pane". */
+  layout: PaneLayout
+  /** The tab holding the focused pane; rendered as the active session. */
+  activeTabId: string | null
   onNewProject: () => void
   onOpenSettings: () => void
   onOpenAbout: () => void
@@ -17,6 +35,13 @@ interface Props {
   onReorderProjects: (projects: ProjectEntry[]) => void
   onOpenSession: (sessionId: string) => void
   onDeleteSession: (sessionId: string) => void
+  /** Show an already-open tab in a pane (or focus the pane it's already in). */
+  onFocusTab: (tabId: string) => void
+  /** Close an open tab from the tree. */
+  onCloseTab: (tabId: string) => void
+  /** The project row's small "+" — starts a chat there without a trip through
+   *  the toolbar (which no longer carries a "New chat" button). */
+  onNewChat: (path: string) => void
 }
 
 /** `.project-row` height + `.project-list` gap (theme.css) — one vertical drag step. */
@@ -29,6 +54,32 @@ function moveItem<T>(arr: T[], from: number, to: number): T[] {
   const [item] = next.splice(from, 1)
   next.splice(to, 0, item)
   return next
+}
+
+/** A viewer's glyph in the tree, where a chat wears its project-colour dot. */
+function viewerGlyph(kind: Tab['kind']): string {
+  if (kind === 'diff') return '±'
+  if (kind === 'commit') return '◇'
+  return '◧'
+}
+
+/**
+ * The mini badge whose filled cell is the pane the item currently sits in.
+ * Its shape follows the actual split — a 2×2 grid only reads as "which
+ * quadrant" once there are four to choose from. At layout 2 it collapses to a
+ * single left/right bar, and at layout 1 there's only one possible pane, so
+ * the badge would carry no information and is omitted entirely.
+ */
+function QuadBadge({ slot, layout }: { slot: number; layout: PaneLayout }) {
+  if (layout === 1) return null
+  const cells = layout === 2 ? [0, 1] : [0, 1, 2, 3]
+  return (
+    <span className={`qbadge qbadge-${layout}`} aria-hidden>
+      {cells.map((i) => (
+        <i key={i} className={i === slot ? 'f' : ''} />
+      ))}
+    </span>
+  )
 }
 
 /**
@@ -96,6 +147,10 @@ export function Sidebar({
   currentProject,
   projects,
   sessions,
+  tabs,
+  slots,
+  layout,
+  activeTabId,
   onNewProject,
   onOpenSettings,
   onOpenAbout,
@@ -103,11 +158,14 @@ export function Sidebar({
   onEditProject,
   onReorderProjects,
   onOpenSession,
-  onDeleteSession
+  onDeleteSession,
+  onFocusTab,
+  onCloseTab,
+  onNewChat
 }: Props) {
   // The projects / history split (and each section's collapsed state) is
   // remembered between launches.
-  const layout = useDefaultLayout({ id: 'inkshell:sidebar-sections' })
+  const layout2 = useDefaultLayout({ id: 'inkshell:sidebar-sections' })
 
   // The history belongs to the project selected *here* in the sidebar, so it
   // wears that project's colour rather than the active tab's (which is what the
@@ -117,6 +175,16 @@ export function Sidebar({
     ? ({ ['--session' as string]: currentColor } as CSSProperties)
     : undefined
   const [menu, setMenu] = useState<ContextMenu | null>(null)
+
+  // Which project nodes are collapsed in the tree (default: all expanded).
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const toggleExpand = (path: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
 
   // Escape dismisses the context menu (clicks land on the overlay instead).
   useEffect(() => {
@@ -132,7 +200,8 @@ export function Sidebar({
   // being lifted, `dragDeltaY` its raw offset from the mouse-down point. The
   // target slot is derived from those two on every render rather than kept as
   // its own state, so there's one number driving both the row shift and the
-  // eventual drop.
+  // eventual drop. While a drag is live the open-item children are hidden, so
+  // every row is a uniform `ROW_STEP` tall and the step maths stays exact.
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dragDeltaY, setDragDeltaY] = useState(0)
   const dragStartY = useRef(0)
@@ -141,9 +210,6 @@ export function Sidebar({
       ? null
       : clamp(dragIndex + Math.round(dragDeltaY / ROW_STEP), 0, projects.length - 1)
 
-  // Pointer capture (rather than window mouse listeners) keeps the drag live
-  // even if the pointer leaves the Electron window before it's released —
-  // move/up/cancel keep targeting the grip that captured it.
   const startDrag = (index: number) => (e: React.PointerEvent<HTMLSpanElement>) => {
     if (e.button !== 0) return
     e.preventDefault()
@@ -200,10 +266,10 @@ export function Sidebar({
       <Group
         orientation="vertical"
         className="sidebar-groups"
-        defaultLayout={layout.defaultLayout}
-        onLayoutChanged={layout.onLayoutChanged}
+        defaultLayout={layout2.defaultLayout}
+        onLayoutChanged={layout2.onLayoutChanged}
       >
-        <Section id="projects" title="PROJECTS" count={projects.length} defaultSize="42%">
+        <Section id="projects" title="PROJECTS" count={projects.length} defaultSize="52%">
           <div className={`project-list ${dragIndex !== null ? 'dragging' : ''}`}>
             {projects.map((p, i) => {
               const isDragging = dragIndex === i
@@ -215,7 +281,7 @@ export function Sidebar({
                 if (dragIndex < overIndex && i > dragIndex && i <= overIndex) shift = -ROW_STEP
                 else if (dragIndex > overIndex && i >= overIndex && i < dragIndex) shift = ROW_STEP
               }
-              const rowStyle: CSSProperties = {
+              const wrapStyle: CSSProperties = {
                 ...(p.color ? { ['--session' as string]: p.color } : null),
                 transform: isDragging
                   ? `translateY(${dragDeltaY}px)`
@@ -223,31 +289,109 @@ export function Sidebar({
                     ? `translateY(${shift}px)`
                     : undefined
               }
+              const items = tabs.filter((t) => t.cwd === p.path)
+              const caretOpen = !collapsed.has(p.path)
+              const showKids = caretOpen && dragIndex === null && items.length > 0
               return (
-                <button
+                <div
                   key={p.path}
-                  className={`project-row ${currentProject === p.path ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
-                  style={rowStyle}
-                  title={p.path}
-                  onClick={() => onSelectProject(p.path)}
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    setMenu({ x: e.clientX, y: e.clientY, projectPath: p.path })
-                  }}
+                  className={`tree-project ${isDragging ? 'dragging' : ''}`}
+                  style={wrapStyle}
                 >
-                  <span
-                    className="project-grip"
-                    title="Drag to reorder"
-                    onPointerDown={startDrag(i)}
-                    onPointerMove={dragMove(i)}
-                    onPointerUp={dropDrag(i)}
-                    onPointerCancel={cancelDrag(i)}
-                    onClick={(e) => e.stopPropagation()}
+                  <button
+                    className={`project-row ${currentProject === p.path ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
+                    title={p.path}
+                    onClick={() => onSelectProject(p.path)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setMenu({ x: e.clientX, y: e.clientY, projectPath: p.path })
+                    }}
                   >
-                    <GripIcon size={12} />
-                  </span>
-                  <span className="name">{p.name}</span>
-                </button>
+                    <span
+                      className={`tree-caret ${caretOpen ? 'open' : ''}`}
+                      title={caretOpen ? 'Collapse' : 'Expand'}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleExpand(p.path)
+                      }}
+                    >
+                      <ChevronIcon size={11} />
+                    </span>
+                    <span
+                      className="project-grip"
+                      title="Drag to reorder"
+                      onPointerDown={startDrag(i)}
+                      onPointerMove={dragMove(i)}
+                      onPointerUp={dropDrag(i)}
+                      onPointerCancel={cancelDrag(i)}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <GripIcon size={12} />
+                    </span>
+                    <span className="name">{p.name}</span>
+                    <span
+                      className="project-new-chat"
+                      title="New chat"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onNewChat(p.path)
+                      }}
+                    >
+                      <PlusIcon size={12} />
+                    </span>
+                    {items.length > 0 && <span className="open-count">{items.length}</span>}
+                  </button>
+
+                  {showKids && (
+                    <div className="kids">
+                      {items.map((t) => {
+                        const slot = slots.indexOf(t.id)
+                        const inPane = slot !== -1 && slot < layout
+                        const isActive = t.id === activeTabId
+                        const isChat = t.kind === 'terminal'
+                        return (
+                          <div
+                            key={t.id}
+                            className={`knode ${isActive ? 'on' : ''} ${inPane ? 'in-pane' : ''}`}
+                            title={t.title}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData(TAB_DRAG_TYPE, t.id)
+                              e.dataTransfer.effectAllowed = 'move'
+                            }}
+                            onClick={() => onFocusTab(t.id)}
+                            onMouseDown={(e) => {
+                              // Middle click closes, same idiom as the pane header.
+                              if (e.button !== 1) return
+                              e.preventDefault()
+                              onCloseTab(t.id)
+                            }}
+                          >
+                            {isChat ? (
+                              <span
+                                className={`kd ${t.processing ? 'proc' : ''} ${!inPane ? 'idle' : ''}`}
+                              />
+                            ) : (
+                              <span className="gl">{viewerGlyph(t.kind)}</span>
+                            )}
+                            <span className="t">{t.title}</span>
+                            {inPane && <QuadBadge slot={slot} layout={layout} />}
+                            <button
+                              className="knode-close"
+                              title="Close"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onCloseTab(t.id)
+                              }}
+                            >
+                              <CloseIcon size={11} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               )
             })}
           </div>
@@ -267,6 +411,14 @@ export function Sidebar({
                   key={s.sessionId}
                   className="history-card"
                   title={s.preview}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(SESSION_DRAG_TYPE, s.sessionId)
+                    // Matches the drop target's fixed `dropEffect: 'move'` — a
+                    // mismatched effect (e.g. 'copy' here) makes the browser treat
+                    // the drag as disallowed and the pane's `drop` never fires.
+                    e.dataTransfer.effectAllowed = 'move'
+                  }}
                   onClick={() => onOpenSession(s.sessionId)}
                   onContextMenu={(e) => {
                     e.preventDefault()

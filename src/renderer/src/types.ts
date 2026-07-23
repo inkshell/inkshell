@@ -35,6 +35,21 @@ export function viewerKey(ref: ViewerRef): string {
   return `file:${ref.project}:${ref.path}`
 }
 
+/**
+ * How many panes the centre shows at once. The renderer keeps a fixed array of
+ * four slots and this decides how many of them are on screen — 1 (single),
+ * 2 (side by side) or 4 (quadrant).
+ */
+export type PaneLayout = 1 | 2 | 4
+
+/**
+ * `DataTransfer` payload types for dragging a sidebar item onto an empty pane:
+ * an open tab (`Sidebar`'s tree node) or a history session. Shared between
+ * `Sidebar` (drag source) and `App` (drop target) so the two can't drift.
+ */
+export const TAB_DRAG_TYPE = 'application/x-inkshell-tab'
+export const SESSION_DRAG_TYPE = 'application/x-inkshell-session'
+
 /** A single open tab in the renderer: a live Claude chat, or a git viewer. */
 export interface Tab {
   /** Stable local id (assigned by the renderer, independent of the OS pty id). */

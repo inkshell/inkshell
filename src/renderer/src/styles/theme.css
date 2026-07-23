@@ -547,6 +547,31 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* "New chat" for this project — revealed on hover next to the name, same idiom
+   as `.project-grip`. Replaces the toolbar's old standing "New chat" button. */
+.project-new-chat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 5px;
+  color: var(--text-faint);
+  opacity: 0;
+  transition:
+    opacity var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.project-row:hover .project-new-chat,
+.project-row:focus-visible .project-new-chat {
+  opacity: 1;
+}
+.project-new-chat:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
 
 .history-list {
   overflow-y: auto;
@@ -748,35 +773,6 @@ button {
 .sidebar-toggle:hover {
   background: var(--bg-card);
   color: var(--text-primary);
-}
-
-.new-chat {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  height: var(--tabbar-row-h);
-  padding: 0 15px 0 12px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--spectrum);
-  color: var(--accent-ink);
-  font-weight: 700;
-  font-size: 12.5px;
-  letter-spacing: -0.01em;
-  box-shadow: 0 4px 14px rgba(111, 130, 255, 0.32);
-  transition:
-    transform var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease),
-    filter var(--dur) var(--ease);
-  flex-shrink: 0;
-}
-.new-chat:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.06);
-  box-shadow: 0 7px 20px rgba(111, 130, 255, 0.42);
-}
-.new-chat:active {
-  transform: translateY(0);
 }
 
 /* The scrollable rail: strip + a nudge chevron on each overflowing side. */
@@ -1107,6 +1103,17 @@ button {
   min-height: 0;
   padding: 12px 14px;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* With no card wrapper anymore, the focused pane's status reads as its own
+   strip above the grid. */
+.stage > .statusbar {
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sidebar);
 }
 /* The unified card: the toolbar is its header row, the terminal is its body —
    one bordered, shadowed, rounded shape rather than two stacked pieces. */
@@ -2777,4 +2784,468 @@ button {
 }
 .code .src .hljs-strong {
   font-weight: 700;
+}
+
+/* =========================================================================
+   Split view — the toolbar's layout switcher and the pane grid
+   ========================================================================= */
+
+.tb-spacer {
+  flex: 1;
+}
+
+/* The 1 / 2 / 4 switcher — each button is a little map of its panes. */
+.layout-switcher {
+  display: inline-flex;
+  gap: 3px;
+  flex: none;
+  padding: 3px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+.layout-switcher .lay {
+  width: 28px;
+  height: 22px;
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  transition:
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+.layout-switcher .lay i {
+  display: block;
+  background: var(--text-faint);
+  border-radius: 2px;
+  transition: background var(--dur) var(--ease);
+}
+.layout-switcher .lay:hover:not(.on) {
+  background: var(--bg-card-hover);
+}
+.layout-switcher .lay.on {
+  background: color-mix(in srgb, var(--session) 20%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--session) 45%, var(--border));
+}
+.layout-switcher .lay.on i {
+  background: var(--session);
+}
+.layout-switcher .lay-1 {
+  grid-template-columns: 1fr;
+}
+.layout-switcher .lay-2 {
+  grid-template-columns: 1fr 1fr;
+}
+.layout-switcher .lay-4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+/* The grid of panes. `order` (set inline per tab) drives auto-placement, so a
+   tab can change pane without its DOM node — and its terminal — being moved. */
+.pane-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 10px;
+}
+.pane-grid[data-layout='1'] {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+.pane-grid[data-layout='2'] {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+.pane-grid[data-layout='4'] {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-terminal);
+  box-shadow: 0 10px 30px -18px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  transition:
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+.pane.focused {
+  border-color: color-mix(in srgb, var(--session) 55%, var(--border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--session) 40%, transparent),
+    0 16px 40px -20px color-mix(in srgb, var(--session) 45%, transparent);
+}
+/* A tab or history card dragged over any pane, empty or already occupied — an
+   outline layers over a running chat's own border/box-shadow without
+   disturbing them. `.pane.empty.drag-over` below adds a stronger fill since
+   there's no terminal content underneath it to fight for contrast. */
+.pane.drag-over {
+  outline: 2px solid var(--session);
+  outline-offset: -2px;
+}
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  flex: none;
+  padding: 0 6px 0 11px;
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--session) 7%, var(--bg-sidebar));
+  transition: background var(--dur) var(--ease);
+  /* Draggable onto another pane (or an empty one) to move this chat there. */
+  cursor: grab;
+}
+.pane-head:active {
+  cursor: grabbing;
+}
+.pane.focused .pane-head {
+  background: color-mix(in srgb, var(--session) 14%, var(--bg-sidebar));
+}
+.pane-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--session);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--session) 40%, transparent);
+  flex: none;
+}
+/* Same spinning "thinking" ring the tabs used, kept in the pane header. */
+.pane.processing .pane-dot::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.3px solid transparent;
+  border-top-color: var(--session);
+  border-left-color: color-mix(in srgb, var(--session) 45%, transparent);
+  opacity: 0.85;
+  animation: dot-spin 0.85s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pane.processing .pane-dot::before {
+    animation: none;
+  }
+}
+.pane-glyph {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-faint);
+}
+.pane-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--text-muted);
+}
+.pane.focused .pane-title {
+  color: var(--text-primary);
+}
+/* Live context-window usage for this pane's own session — colour comes from
+   `ContextPct`'s inline style (the same green→amber→red scale as the full
+   meter), this just sets size/weight/spacing. */
+.pane-context {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pane-close {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  opacity: 0;
+  transition:
+    opacity var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.pane:hover .pane-close,
+.pane.focused .pane-close {
+  opacity: 1;
+}
+.pane-close:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+.pane-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* An empty pane: a quiet drop target that opens a new chat where you click. */
+.pane.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  transition:
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+.pane.empty:hover {
+  border-color: color-mix(in srgb, var(--session) 45%, var(--border-strong));
+  background: color-mix(in srgb, var(--session) 5%, transparent);
+  color: var(--text-muted);
+}
+.pane.empty.focused {
+  border-color: color-mix(in srgb, var(--session) 55%, var(--border-strong));
+}
+/* A tab or history card dragged over this pane: the strongest of the three
+   empty-pane states, since it's about to accept a drop. */
+.pane.empty.drag-over {
+  border-style: solid;
+  border-color: var(--session);
+  background: color-mix(in srgb, var(--session) 10%, transparent);
+  color: var(--text-primary);
+}
+.empty-pane-plus {
+  font-size: 20px;
+  line-height: 1;
+}
+.empty-pane-hint {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+/* =========================================================================
+   Sidebar tree — projects with their open sessions/viewers nested underneath
+   ========================================================================= */
+
+.tree-project {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: transform var(--dur) var(--ease);
+}
+.tree-project.dragging {
+  z-index: 2;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+
+/* The expand/collapse chevron that leads each project row. */
+.tree-caret {
+  /* The project-colour dot is a ::before pseudo (order 0); keep the caret ahead. */
+  order: -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-left: -3px;
+  color: var(--text-faint);
+  transform: rotate(0deg);
+  transition:
+    transform var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.tree-caret.open {
+  transform: rotate(90deg);
+}
+.project-row:hover .tree-caret {
+  color: var(--text-muted);
+}
+/* The count of open items, trailing the project name. */
+.open-count {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  background: var(--bg-card);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+}
+.project-row.active .open-count {
+  color: var(--text-muted);
+}
+
+/* The nested open items, hung off a faint guide line. */
+.kids {
+  display: grid;
+  gap: 1px;
+  margin: 1px 0 5px 20px;
+  padding-left: 11px;
+  border-left: 1px solid var(--border);
+}
+.knode {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 8px 5px 9px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.knode::before {
+  content: '';
+  position: absolute;
+  left: -11px;
+  top: 50%;
+  width: 9px;
+  height: 1px;
+  background: var(--border);
+}
+.knode:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+/* Open in a visible pane: brighter than a background-open row. */
+.knode.in-pane {
+  color: var(--text-primary);
+}
+/* Active (the focused pane): accent bar + tint, unmistakable at a glance. */
+.knode.on {
+  background: color-mix(in srgb, var(--session) 16%, var(--bg-card));
+  color: var(--text-primary);
+  font-weight: 550;
+  box-shadow: inset 2px 0 0 var(--session);
+}
+
+/* A chat's dot: filled when open, hollow when off-screen, ringed when working. */
+.knode .kd {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--session);
+}
+.knode .kd.idle {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--session) 70%, var(--border));
+}
+.knode.on .kd {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--session) 22%, transparent);
+}
+.knode .kd.proc::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.3px solid transparent;
+  border-top-color: var(--session);
+  border-left-color: color-mix(in srgb, var(--session) 45%, transparent);
+  opacity: 0.85;
+  animation: dot-spin 0.85s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .knode .kd.proc::before {
+    animation: none;
+  }
+}
+/* A viewer's glyph, where a chat wears its dot. */
+.knode .gl {
+  width: 12px;
+  flex: none;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+.knode.in-pane .gl {
+  color: color-mix(in srgb, var(--session) 55%, var(--text-muted));
+}
+.knode .t {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The mini pane badge; the filled cell is the pane the item sits in. Shape
+   mirrors the actual split (`.pane-grid[data-layout]`) — a left/right bar at
+   layout 2, the full 2×2 grid at layout 4. Layout 1 renders no badge at all
+   (`QuadBadge` returns null), since there's only ever one pane to point at. */
+.qbadge {
+  display: grid;
+  gap: 1.5px;
+  width: 12px;
+  flex: none;
+}
+.qbadge-2 {
+  grid-template-columns: 1fr 1fr;
+  height: 6px;
+}
+.qbadge-4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  height: 12px;
+}
+.qbadge i {
+  background: var(--border-strong);
+  border-radius: 1px;
+}
+.qbadge i.f {
+  background: var(--session);
+}
+.knode.on .qbadge {
+  outline: 1.5px solid color-mix(in srgb, var(--session) 55%, transparent);
+  outline-offset: 1.5px;
+  border-radius: 2px;
+}
+
+.knode-close {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-faint);
+  opacity: 0;
+  transition:
+    opacity var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.knode:hover .knode-close {
+  opacity: 1;
+}
+.knode-close:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
 }
