@@ -941,6 +941,11 @@ button {
   white-space: nowrap;
   cursor: default;
 }
+/* A preview tab (single click from the file tree) wears an italic title until
+   it's pinned — the same "just looking" tell as VS Code's preview tabs. */
+.tab.preview .title {
+  font-style: italic;
+}
 /* Every tab wears a dot in its own project's colour, so tabs from different
    projects stay legible even when inactive. */
 .tab .dot {

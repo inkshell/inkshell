@@ -283,7 +283,7 @@ export function TabBar({
               <div
                 key={tab.id}
                 data-tab-id={tab.id}
-                className={`tab ${isActive ? 'active' : ''} ${tab.processing ? 'processing' : ''} ${isSource ? (drag.settling ? 'grabbed settling' : 'grabbed') : ''}`}
+                className={`tab ${isActive ? 'active' : ''} ${tab.processing ? 'processing' : ''} ${tab.preview ? 'preview' : ''} ${isSource ? (drag.settling ? 'grabbed settling' : 'grabbed') : ''}`}
                 style={tabStyle}
                 onPointerDown={(e) => onPointerDown(e, index)}
                 onPointerMove={onPointerMove}
