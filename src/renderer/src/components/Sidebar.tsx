@@ -1,8 +1,8 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import type { ProjectEntry, SessionSummary } from '@shared/types'
 import { relativeTime } from '../lib/format'
-import { ChevronIcon, FolderIcon, GearIcon, TrashIcon } from './Icons'
+import { ChevronIcon, FolderIcon, GearIcon, GripIcon, TrashIcon } from './Icons'
 
 interface Props {
   isMac: boolean
@@ -13,8 +13,21 @@ interface Props {
   onOpenSettings: () => void
   onSelectProject: (path: string) => void
   onEditProject: (path: string) => void
+  onReorderProjects: (projects: ProjectEntry[]) => void
   onOpenSession: (sessionId: string) => void
   onDeleteSession: (sessionId: string) => void
+}
+
+/** `.project-row` height + `.project-list` gap (theme.css) — one vertical drag step. */
+const ROW_STEP = 32
+
+const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
+
+function moveItem<T>(arr: T[], from: number, to: number): T[] {
+  const next = arr.slice()
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  return next
 }
 
 /**
@@ -86,6 +99,7 @@ export function Sidebar({
   onOpenSettings,
   onSelectProject,
   onEditProject,
+  onReorderProjects,
   onOpenSession,
   onDeleteSession
 }: Props) {
@@ -111,6 +125,46 @@ export function Sidebar({
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [menu])
+
+  // Vertical-only drag reorder of the project list: `dragIndex` is the row
+  // being lifted, `dragDeltaY` its raw offset from the mouse-down point. The
+  // target slot is derived from those two on every render rather than kept as
+  // its own state, so there's one number driving both the row shift and the
+  // eventual drop.
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dragDeltaY, setDragDeltaY] = useState(0)
+  const dragStartY = useRef(0)
+  const overIndex =
+    dragIndex === null
+      ? null
+      : clamp(dragIndex + Math.round(dragDeltaY / ROW_STEP), 0, projects.length - 1)
+
+  useEffect(() => {
+    if (dragIndex === null) return
+    const onMove = (e: MouseEvent) => setDragDeltaY(e.clientY - dragStartY.current)
+    const onUp = (e: MouseEvent) => {
+      const deltaY = e.clientY - dragStartY.current
+      const target = clamp(dragIndex + Math.round(deltaY / ROW_STEP), 0, projects.length - 1)
+      if (target !== dragIndex) onReorderProjects(moveItem(projects, dragIndex, target))
+      setDragIndex(null)
+      setDragDeltaY(0)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [dragIndex, projects, onReorderProjects])
+
+  const startDrag = (index: number) => (e: React.MouseEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragStartY.current = e.clientY
+    setDragDeltaY(0)
+    setDragIndex(index)
+  }
 
   return (
     <aside className="sidebar">
@@ -139,15 +193,29 @@ export function Sidebar({
         onLayoutChanged={layout.onLayoutChanged}
       >
         <Section id="projects" title="PROJECTS" count={projects.length} defaultSize="42%">
-          <div className="project-list">
-            {projects.map((p) => {
-              const rowStyle = p.color
-                ? ({ ['--session' as string]: p.color } as CSSProperties)
-                : undefined
+          <div className={`project-list ${dragIndex !== null ? 'dragging' : ''}`}>
+            {projects.map((p, i) => {
+              const isDragging = dragIndex === i
+              // Rows the lifted one is currently passing over slide aside by one
+              // step to open its landing slot; the lifted row itself tracks the
+              // cursor's raw Y offset (never X, so the drag stays vertical-only).
+              let shift = 0
+              if (dragIndex !== null && overIndex !== null && !isDragging) {
+                if (dragIndex < overIndex && i > dragIndex && i <= overIndex) shift = -ROW_STEP
+                else if (dragIndex > overIndex && i >= overIndex && i < dragIndex) shift = ROW_STEP
+              }
+              const rowStyle: CSSProperties = {
+                ...(p.color ? { ['--session' as string]: p.color } : null),
+                transform: isDragging
+                  ? `translateY(${dragDeltaY}px)`
+                  : shift
+                    ? `translateY(${shift}px)`
+                    : undefined
+              }
               return (
                 <button
                   key={p.path}
-                  className={`project-row ${currentProject === p.path ? 'active' : ''}`}
+                  className={`project-row ${currentProject === p.path ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
                   style={rowStyle}
                   title={p.path}
                   onClick={() => onSelectProject(p.path)}
@@ -156,6 +224,14 @@ export function Sidebar({
                     setMenu({ x: e.clientX, y: e.clientY, projectPath: p.path })
                   }}
                 >
+                  <span
+                    className="project-grip"
+                    title="Drag to reorder"
+                    onMouseDown={startDrag(i)}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <GripIcon size={12} />
+                  </span>
                   <span className="name">{p.name}</span>
                 </button>
               )
