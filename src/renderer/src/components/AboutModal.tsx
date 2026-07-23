@@ -16,9 +16,14 @@ export function AboutModal({ onClose }: Props) {
 
   useEffect(() => {
     let cancelled = false
-    window.inkshell.app.getInfo().then((i) => {
-      if (!cancelled) setInfo(i)
-    })
+    window.inkshell.app
+      .getInfo()
+      .then((i) => {
+        if (!cancelled) setInfo(i)
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Failed to load app info:', err)
+      })
     return () => {
       cancelled = true
     }
