@@ -54,6 +54,17 @@ export const SidebarIcon = ({ size = 16 }: IconProps) =>
     </>
   )
 
+export const GripIcon = ({ size = 14 }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="9" cy="6" r="1.6" />
+    <circle cx="9" cy="12" r="1.6" />
+    <circle cx="9" cy="18" r="1.6" />
+    <circle cx="15" cy="6" r="1.6" />
+    <circle cx="15" cy="12" r="1.6" />
+    <circle cx="15" cy="18" r="1.6" />
+  </svg>
+)
+
 export const SwapIcon = ({ size = 16 }: IconProps) =>
   svg(size, <path d="M4 8h13l-3-3M20 16H7l3 3" />)
 

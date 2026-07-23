@@ -159,6 +159,16 @@ export function App() {
     [persistConfig, selectProject, reloadSessions, currentProject]
   )
 
+  /** Persists a drag-drop reorder of the sidebar's project list. */
+  const reorderProjects = useCallback(
+    (projects: ProjectEntry[]) => {
+      const cfg = configRef.current
+      if (!cfg) return
+      persistConfig({ ...cfg, projects })
+    },
+    [persistConfig]
+  )
+
   const defaultModel = useCallback((): string | undefined => {
     const m = config?.defaultModel.trim()
     return m ? m : undefined
@@ -618,6 +628,7 @@ export function App() {
             onOpenSettings={() => setShowSettings(true)}
             onSelectProject={selectProject}
             onEditProject={editProject}
+            onReorderProjects={reorderProjects}
             onOpenSession={openResume}
             onDeleteSession={requestDelete}
           />

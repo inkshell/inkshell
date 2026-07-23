@@ -467,7 +467,7 @@ button {
 .project-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   height: 31px;
   flex-shrink: 0;
   padding: 0 10px;
@@ -480,8 +480,39 @@ button {
   text-align: left;
   transition:
     background var(--dur) var(--ease),
-    color var(--dur) var(--ease);
+    color var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
   position: relative;
+}
+.project-row.dragging {
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+  background: var(--bg-card-hover);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+  z-index: 2;
+}
+.project-list.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+.project-grip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-left: -4px;
+  color: var(--text-faint);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity var(--dur) var(--ease);
+}
+.project-row:hover .project-grip,
+.project-row:focus-visible .project-grip,
+.project-row.dragging .project-grip {
+  opacity: 1;
 }
 .project-row::before {
   content: '';
