@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react'
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import {
   CONTEXT_WINDOW,
@@ -8,14 +8,22 @@ import {
   type SessionContext,
   type SessionSummary
 } from '@shared/types'
-import { type Tab, type ViewerRef, viewerKey } from './types'
+import {
+  SESSION_DRAG_TYPE,
+  TAB_DRAG_TYPE,
+  type PaneLayout,
+  type Tab,
+  type ViewerRef,
+  viewerKey
+} from './types'
 import type { FileLinkTarget } from './lib/file-links'
 import { Sidebar } from './components/Sidebar'
-import { TabBar } from './components/TabBar'
+import { Toolbar } from './components/Toolbar'
 import { TitleBar } from './components/TitleBar'
 import { StatusBar } from './components/StatusBar'
 import { TerminalView, type TerminalViewHandle } from './components/TerminalView'
 import { ViewerView } from './components/ViewerView'
+import { ContextPct } from './components/ContextMeter'
 import { ProjectPanel } from './components/ProjectPanel'
 import { QuickOpen } from './components/QuickOpen'
 import { EmptyState } from './components/EmptyState'
@@ -23,10 +31,60 @@ import { SettingsModal } from './components/SettingsModal'
 import { ProjectModal } from './components/ProjectModal'
 import { ConfirmModal } from './components/ConfirmModal'
 import { AboutModal } from './components/AboutModal'
-import { CloseIcon } from './components/Icons'
+import { CloseIcon, CommitIcon, DiffIcon, FileTextIcon } from './components/Icons'
 
 const isMac = window.inkshell.platform === 'darwin'
 let tabSeq = 0
+
+/** The glyph a viewer pane wears in its header where a chat wears its dot. */
+function paneGlyph(kind: Tab['kind']) {
+  if (kind === 'diff') return <DiffIcon size={12} />
+  if (kind === 'commit') return <CommitIcon size={12} />
+  return <FileTextIcon size={12} />
+}
+
+/**
+ * A pane's own context-window usage, polled independently of every other
+ * pane — the app-wide `liveSession` effect below only ever tracks the
+ * focused tab, but with 2 or 4 panes on screen each quadrant needs its own
+ * reading in its title bar. Mirrors the model-resolution rule `activeModelAlias`
+ * uses (a stale transcript line predating this tab's own launch doesn't count),
+ * just scoped to one tab instead of the app's single active one.
+ */
+function PaneContext({ tab, visible, config }: { tab: Tab; visible: boolean; config: AppConfig }) {
+  const [ctx, setCtx] = useState<SessionContext | null>(null)
+  useEffect(() => {
+    if (!visible || tab.kind !== 'terminal' || !tab.cwd || !tab.sessionId) {
+      setCtx(null)
+      return
+    }
+    const cwd = tab.cwd
+    const sessionId = tab.sessionId
+    const configDir = tab.claudeConfigDir ?? undefined
+    let cancelled = false
+    const read = async () => {
+      const c = await window.inkshell.history.sessionContext(cwd, sessionId, configDir)
+      if (!cancelled) setCtx(c)
+    }
+    read()
+    const timer = setInterval(read, 2000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [visible, tab.kind, tab.cwd, tab.sessionId, tab.claudeConfigDir])
+
+  if (!ctx) return null
+  const isFresh = ctx.timestampMs != null && ctx.timestampMs >= tab.startedAtMs
+  const modelId = isFresh ? ctx.model : null
+  const alias =
+    (modelId && config.models.find((m) => m.idPrefix && modelId.startsWith(m.idPrefix))?.alias) ??
+    tab.model ??
+    null
+  const contextWindow =
+    config.models.find((m) => m.alias === alias)?.contextWindow ?? CONTEXT_WINDOW
+  return <ContextPct tokens={ctx.tokens} contextWindow={contextWindow} />
+}
 
 /**
  * Why a pick in the status bar was refused. The switchers type `/commands` into
@@ -43,7 +101,16 @@ export function App() {
   const [currentProject, setCurrentProject] = useState<string | null>(null)
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [tabs, setTabs] = useState<Tab[]>([])
-  const [activeTabId, setActiveTabId] = useState<string | null>(null)
+  // Split-view state: `slots` places up to four tabs into the panes, `layout`
+  // is how many of those panes show at once (1 / 2 / 4), and `focusedSlot` is
+  // the pane driving the status bar, project dock and keyboard. The active tab
+  // is simply whatever sits in the focused slot — there is no separate state.
+  const [layout, setLayout] = useState<PaneLayout>(1)
+  const [slots, setSlots] = useState<(string | null)[]>([null, null, null, null])
+  const [focusedSlot, setFocusedSlot] = useState(0)
+  // The empty pane currently under a drag, for its hover highlight — cleared
+  // on drop/leave and never persisted beyond the gesture.
+  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
   const [showQuickOpen, setShowQuickOpen] = useState(false)
@@ -63,7 +130,17 @@ export function App() {
   // reserve space for the macOS traffic lights it would otherwise slide under.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
+  const activeTabId = slots[focusedSlot] ?? null
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null
+
+  // Latest split-view state, read from refs so the placement helpers below can
+  // stay stable ([]-dep) and never go stale between a click and its setState.
+  const slotsRef = useRef(slots)
+  slotsRef.current = slots
+  const layoutRef = useRef(layout)
+  layoutRef.current = layout
+  const focusedSlotRef = useRef(focusedSlot)
+  focusedSlotRef.current = focusedSlot
 
   // The `CLAUDE_CONFIG_DIR` override for a project path, read from a ref so the
   // lookup helper stays stable and doesn't need to be in every dependency list.
@@ -180,87 +257,164 @@ export function App() {
     return e ? e : undefined
   }, [config])
 
-  // --- Tab lifecycle -------------------------------------------------------
-  const openNewChat = useCallback(() => {
-    const tab: Tab = {
-      id: `tab-${tabSeq++}`,
-      kind: 'terminal',
-      ptyId: null,
-      sessionId: null,
-      resumeSessionId: null,
-      cwd: currentProject,
-      claudeConfigDir: claudeConfigDirFor(currentProject) ?? null,
-      model: defaultModel() ?? null,
-      effort: defaultEffort() ?? null,
-      startedAtMs: Date.now(),
-      title: 'New chat',
-      processing: false
+  // --- Panes: placing tabs into the split layout ---------------------------
+  /**
+   * Ensures a tab is showing in a visible pane and focuses that pane. With no
+   * `slot`, reuses the pane it already sits in; otherwise takes the first empty
+   * visible pane, and failing that replaces the focused one — the displaced tab
+   * stays open (and listed in the sidebar), just off-screen. An explicit `slot`
+   * (a drop onto a specific empty pane) always lands the tab there instead,
+   * vacating whatever pane it previously held.
+   */
+  const showTab = useCallback((id: string, slot?: number) => {
+    const cur = slotsRef.current
+    const lay = layoutRef.current
+    const existing = cur.indexOf(id)
+    if (slot === undefined && existing !== -1 && existing < lay) {
+      setFocusedSlot(existing)
+      return
     }
-    setTabs((prev) => [...prev, tab])
-    setActiveTabId(tab.id)
-  }, [currentProject, defaultModel, defaultEffort, claudeConfigDirFor])
+    let target = slot
+    if (target === undefined) {
+      // Prefer the focused pane when it's free, then any empty pane, then
+      // replace the focused one (its tab stays open, just off-screen).
+      const focused = Math.min(focusedSlotRef.current, lay - 1)
+      target = cur[focused] === null ? focused : -1
+      if (target === -1) {
+        for (let i = 0; i < lay; i++) {
+          if (cur[i] === null) {
+            target = i
+            break
+          }
+        }
+      }
+      if (target === -1) target = focused
+    }
+    const next = cur.slice()
+    if (existing !== -1) next[existing] = null
+    next[target] = id
+    setSlots(next)
+    setFocusedSlot(target)
+  }, [])
+
+  const focusSlot = useCallback((i: number) => setFocusedSlot(i), [])
+
+  // The layout buttons. Growing reveals panes that already hold off-screen tabs;
+  // shrinking keeps the focused tab in view by sliding it into the first pane.
+  const changeLayout = useCallback((n: PaneLayout) => {
+    setLayout(n)
+    if (focusedSlotRef.current >= n) {
+      const next = slotsRef.current.slice()
+      const held = next[focusedSlotRef.current]
+      next[focusedSlotRef.current] = next[0]
+      next[0] = held
+      setSlots(next)
+      setFocusedSlot(0)
+    }
+  }, [])
+
+  // --- Tab lifecycle -------------------------------------------------------
+  /** `project` defaults to the sidebar's current selection — pass it explicitly
+   *  to start a chat in a project without first selecting it (the sidebar's
+   *  per-project "new chat" icon does this). */
+  const openNewChat = useCallback(
+    (slot?: number, project?: string) => {
+      const cwd = project ?? currentProject
+      const tab: Tab = {
+        id: `tab-${tabSeq++}`,
+        kind: 'terminal',
+        ptyId: null,
+        sessionId: null,
+        resumeSessionId: null,
+        cwd,
+        claudeConfigDir: claudeConfigDirFor(cwd) ?? null,
+        model: defaultModel() ?? null,
+        effort: defaultEffort() ?? null,
+        startedAtMs: Date.now(),
+        title: 'New chat',
+        processing: false
+      }
+      setTabs((prev) => [...prev, tab])
+      showTab(tab.id, slot)
+    },
+    [currentProject, defaultModel, defaultEffort, claudeConfigDirFor, showTab]
+  )
+
+  /** The sidebar's per-project "new chat" icon: selects the project (so the
+   *  history section and highlight follow it, same as clicking the row) and
+   *  starts a chat there, regardless of whatever project was current before. */
+  const newChatForProject = useCallback(
+    (path: string) => {
+      selectProject(path)
+      openNewChat(undefined, path)
+    },
+    [selectProject, openNewChat]
+  )
 
   // A diff / file / commit opened from the project panel. Re-opening the same
   // one focuses its existing tab instead of stacking a duplicate. A `preview`
   // open (a single click in the file tree) reuses the one preview tab's slot
   // instead of stacking a new tab; any non-preview open pins it in place.
-  const openViewerTab = useCallback((ref: ViewerRef, opts?: { preview?: boolean }) => {
-    const preview = opts?.preview ?? false
-    setTabs((prev) => {
-      const key = viewerKey(ref)
-      const existing = prev.find((t) => t.viewer && viewerKey(t.viewer) === key)
-      if (existing) {
-        setActiveTabId(existing.id)
-        const pinning = existing.preview && !preview
-        // Same file, new line (a second click in the terminal): keep the tab and
-        // let the viewer move to it. A non-preview open also pins a preview tab.
-        if (existing.viewer!.line !== ref.line || pinning) {
+  const openViewerTab = useCallback(
+    (ref: ViewerRef, opts?: { preview?: boolean }) => {
+      const preview = opts?.preview ?? false
+      setTabs((prev) => {
+        const key = viewerKey(ref)
+        const existing = prev.find((t) => t.viewer && viewerKey(t.viewer) === key)
+        if (existing) {
+          showTab(existing.id)
+          const pinning = existing.preview && !preview
+          // Same file, new line (a second click in the terminal): keep the tab and
+          // let the viewer move to it. A non-preview open also pins a preview tab.
+          if (existing.viewer!.line !== ref.line || pinning) {
+            return prev.map((t) =>
+              t.id === existing.id ? { ...t, viewer: ref, preview: pinning ? false : t.preview } : t
+            )
+          }
+          return prev
+        }
+
+        // A preview open reuses the existing preview tab's slot — only one
+        // "just looked at" file is ever open at a time.
+        const previewTab = preview ? prev.find((t) => t.preview) : undefined
+        if (previewTab) {
+          showTab(previewTab.id)
           return prev.map((t) =>
-            t.id === existing.id ? { ...t, viewer: ref, preview: pinning ? false : t.preview } : t
+            t.id === previewTab.id
+              ? {
+                  ...t,
+                  kind: ref.kind,
+                  viewer: ref,
+                  cwd: ref.project,
+                  claudeConfigDir: ref.claudeConfigDir,
+                  title: ref.label
+                }
+              : t
           )
         }
-        return prev
-      }
 
-      // A preview open reuses the existing preview tab's slot — only one
-      // "just looked at" file is ever open at a time.
-      const previewTab = preview ? prev.find((t) => t.preview) : undefined
-      if (previewTab) {
-        setActiveTabId(previewTab.id)
-        return prev.map((t) =>
-          t.id === previewTab.id
-            ? {
-                ...t,
-                kind: ref.kind,
-                viewer: ref,
-                cwd: ref.project,
-                claudeConfigDir: ref.claudeConfigDir,
-                title: ref.label
-              }
-            : t
-        )
-      }
-
-      const tab: Tab = {
-        id: `tab-${tabSeq++}`,
-        kind: ref.kind,
-        viewer: ref,
-        preview,
-        ptyId: null,
-        sessionId: null,
-        resumeSessionId: null,
-        cwd: ref.project,
-        claudeConfigDir: ref.claudeConfigDir,
-        model: null,
-        effort: null,
-        startedAtMs: Date.now(),
-        title: ref.label,
-        processing: false
-      }
-      setActiveTabId(tab.id)
-      return [...prev, tab]
-    })
-  }, [])
+        const tab: Tab = {
+          id: `tab-${tabSeq++}`,
+          kind: ref.kind,
+          viewer: ref,
+          preview,
+          ptyId: null,
+          sessionId: null,
+          resumeSessionId: null,
+          cwd: ref.project,
+          claudeConfigDir: ref.claudeConfigDir,
+          model: null,
+          effort: null,
+          startedAtMs: Date.now(),
+          title: ref.label,
+          processing: false
+        }
+        showTab(tab.id)
+        return [...prev, tab]
+      })
+    },
+    [showTab]
+  )
 
   // A file path clicked in a terminal's output. The path arrives already
   // resolved against the project, so this only has to name the tab.
@@ -296,11 +450,11 @@ export function App() {
   )
 
   const openResume = useCallback(
-    (sessionId: string) => {
+    (sessionId: string, slot?: number) => {
       // Focus an already-open tab for this session instead of duplicating it.
       const existing = tabs.find((t) => t.sessionId === sessionId)
       if (existing) {
-        setActiveTabId(existing.id)
+        showTab(existing.id, slot)
         return
       }
       const tab: Tab = {
@@ -321,31 +475,68 @@ export function App() {
         processing: false
       }
       setTabs((prev) => [...prev, tab])
-      setActiveTabId(tab.id)
+      showTab(tab.id, slot)
     },
-    [tabs, sessions, currentProject, defaultModel, defaultEffort, claudeConfigDirFor]
+    [tabs, sessions, currentProject, defaultModel, defaultEffort, claudeConfigDirFor, showTab]
+  )
+
+  /**
+   * Drag-and-drop props shared by every pane tile (empty or occupied): dropping
+   * a sidebar tab or history card here always lands it in this exact slot,
+   * displacing whatever tab already sat there (it stays open, just off-screen —
+   * same as any other `showTab`/`openResume` placement).
+   */
+  const paneDropTarget = useCallback(
+    (slot: number) => ({
+      onDragOver: (e: DragEvent<HTMLElement>) => {
+        const types = e.dataTransfer.types
+        if (!types.includes(TAB_DRAG_TYPE) && !types.includes(SESSION_DRAG_TYPE)) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        setDragOverSlot(slot)
+      },
+      onDragLeave: (e: DragEvent<HTMLElement>) => {
+        // `dragleave` also fires when the pointer moves onto a child (the
+        // pane head, body, close button…) — only clear the highlight once
+        // it's actually left the pane, or it flickers on every inner move.
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+        setDragOverSlot((s) => (s === slot ? null : s))
+      },
+      onDrop: (e: DragEvent<HTMLElement>) => {
+        e.preventDefault()
+        setDragOverSlot(null)
+        const tabId = e.dataTransfer.getData(TAB_DRAG_TYPE)
+        if (tabId) {
+          showTab(tabId, slot)
+          return
+        }
+        const sessionId = e.dataTransfer.getData(SESSION_DRAG_TYPE)
+        if (sessionId) openResume(sessionId, slot)
+      }
+    }),
+    [showTab, openResume]
   )
 
   const closeTab = useCallback((id: string) => {
-    setTabs((prev) => {
-      const next = prev.filter((t) => t.id !== id)
-      setActiveTabId((active) => (active === id ? (next[next.length - 1]?.id ?? null) : active))
-      return next
-    })
-  }, [])
-
-  // Drag-to-reorder: move `tabId` to final position `toIndex` in the list.
-  const reorderTab = useCallback((tabId: string, toIndex: number) => {
-    setTabs((prev) => {
-      const from = prev.findIndex((t) => t.id === tabId)
-      if (from === -1) return prev
-      const to = Math.max(0, Math.min(toIndex, prev.length - 1))
-      if (to === from) return prev
-      const next = [...prev]
-      const [moved] = next.splice(from, 1)
-      next.splice(to, 0, moved)
-      return next
-    })
+    setTabs((prev) => prev.filter((t) => t.id !== id))
+    const cur = slotsRef.current
+    const at = cur.indexOf(id)
+    if (at === -1) return
+    const next = cur.slice()
+    next[at] = null
+    setSlots(next)
+    // If the closed tab held the focused pane, move focus to another pane that
+    // still has something in it (otherwise the now-empty pane stays focused).
+    if (at === focusedSlotRef.current) {
+      let nf = focusedSlotRef.current
+      for (let i = 0; i < layoutRef.current; i++) {
+        if (next[i] !== null) {
+          nf = i
+          break
+        }
+      }
+      setFocusedSlot(nf)
+    }
   }, [])
 
   // Right-click "Delete chat" only opens the confirmation modal; the actual
@@ -562,7 +753,7 @@ export function App() {
   const sidebarPanel = usePanelRef()
   const projectPanel = usePanelRef()
   const [panelCollapsed, setPanelCollapsed] = useState(false)
-  const layout = useDefaultLayout({ id: 'inkshell:layout-3col' })
+  const colLayout = useDefaultLayout({ id: 'inkshell:layout-3col' })
   const toggleSidebar = useCallback(() => {
     const p = sidebarPanel.current
     if (!p) return
@@ -606,8 +797,8 @@ export function App() {
         orientation="horizontal"
         className="app"
         style={appStyle}
-        defaultLayout={layout.defaultLayout}
-        onLayoutChanged={layout.onLayoutChanged}
+        defaultLayout={colLayout.defaultLayout}
+        onLayoutChanged={colLayout.onLayoutChanged}
       >
         <Panel
           id="sidebar"
@@ -626,6 +817,10 @@ export function App() {
             currentProject={currentProject}
             projects={config.projects}
             sessions={sessions}
+            tabs={tabs}
+            slots={slots}
+            layout={layout}
+            activeTabId={activeTabId}
             onNewProject={newProject}
             onOpenSettings={() => setShowSettings(true)}
             onOpenAbout={() => setShowAbout(true)}
@@ -634,6 +829,9 @@ export function App() {
             onReorderProjects={reorderProjects}
             onOpenSession={openResume}
             onDeleteSession={requestDelete}
+            onFocusTab={showTab}
+            onCloseTab={closeTab}
+            onNewChat={newChatForProject}
           />
         </Panel>
 
@@ -643,15 +841,10 @@ export function App() {
           <div className="main">
             {!isMac && <TitleBar />}
 
-            <TabBar
-              tabs={tabs}
-              activeTabId={activeTabId}
-              projectColor={projectColor}
+            <Toolbar
               reserveTrafficLights={isMac && sidebarCollapsed}
-              onNewChat={openNewChat}
-              onSelectTab={setActiveTabId}
-              onCloseTab={closeTab}
-              onReorderTab={reorderTab}
+              layout={layout}
+              onSetLayout={changeLayout}
               onToggleSidebar={toggleSidebar}
               onTogglePanel={togglePanel}
             />
@@ -668,55 +861,133 @@ export function App() {
             )}
 
             <div className="stage">
-              <div className="workspace">
-                {activeTab && activeTab.kind === 'terminal' && (
-                  <StatusBar
-                    project={projectName}
-                    active
-                    models={config.models}
-                    currentModel={activeModelAlias()}
-                    currentEffort={activeTab.effort}
-                    contextTokens={liveSession?.tokens ?? null}
-                    contextWindow={activeContextWindow()}
-                    onPickModel={requestModel}
-                    onPickEffort={requestEffort}
-                    onViewMemory={() => setNotice('Memory viewing is coming soon.')}
-                    onAnalytics={requestStats}
-                  />
-                )}
-                <div className="terminals">
-                  {tabs.map((tab) =>
-                    tab.kind === 'terminal' ? (
-                      <TerminalView
-                        key={tab.id}
-                        ref={(handle) => {
-                          if (handle) terminalRefs.current.set(tab.id, handle)
-                          else terminalRefs.current.delete(tab.id)
-                        }}
-                        tab={tab}
-                        active={tab.id === activeTabId}
-                        onReady={onTabReady}
-                        onOpenFile={openFileFromTerminal}
-                        onTitle={onTabTitle}
-                        onExit={closeTab}
-                        onError={onTabError}
-                      />
-                    ) : (
-                      <ViewerView
-                        // A preview tab mutates `viewer` in place to peek at a new
-                        // target, so the key must include it — otherwise this stays
-                        // mounted across the swap and shows the previous target's
-                        // stale diff/file/commit state until its own fetch resolves.
-                        key={tab.viewer ? `${tab.id}:${viewerKey(tab.viewer)}` : tab.id}
-                        tab={tab}
-                        active={tab.id === activeTabId}
-                        onError={setError}
-                      />
-                    )
+              {tabs.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <>
+                  {activeTab && activeTab.kind === 'terminal' && (
+                    <StatusBar
+                      project={projectName}
+                      active
+                      models={config.models}
+                      currentModel={activeModelAlias()}
+                      currentEffort={activeTab.effort}
+                      contextTokens={liveSession?.tokens ?? null}
+                      contextWindow={activeContextWindow()}
+                      onPickModel={requestModel}
+                      onPickEffort={requestEffort}
+                      onViewMemory={() => setNotice('Memory viewing is coming soon.')}
+                      onAnalytics={requestStats}
+                    />
                   )}
-                  {tabs.length === 0 && <EmptyState />}
-                </div>
-              </div>
+                  <div className="pane-grid" data-layout={layout}>
+                    {tabs.map((tab) => {
+                      // A tab keeps a stable wrapper keyed by its id, so moving it
+                      // between panes only changes CSS `order` — the terminal's DOM
+                      // node (and its pty/scrollback) is never reparented or torn
+                      // down. Off-screen tabs stay mounted but hidden.
+                      const slot = slots.indexOf(tab.id)
+                      const visible = slot !== -1 && slot < layout
+                      const isFocused = visible && slot === focusedSlot
+                      const accent = projectColor(tab.cwd)
+                      const paneStyle: CSSProperties = {
+                        order: slot === -1 ? 99 : slot,
+                        display: visible ? undefined : 'none',
+                        ...(accent ? ({ ['--session']: accent } as CSSProperties) : {})
+                      }
+                      return (
+                        <div
+                          key={tab.id}
+                          className={`pane ${isFocused ? 'focused' : ''} ${tab.processing ? 'processing' : ''} ${dragOverSlot === slot ? 'drag-over' : ''}`}
+                          style={paneStyle}
+                          onMouseDown={(e) => {
+                            // Middle click closes the tab outright — same idiom as a
+                            // browser tab — without also focusing the pane it sat in.
+                            if (e.button === 1) {
+                              e.preventDefault()
+                              closeTab(tab.id)
+                              return
+                            }
+                            if (e.button === 0 && slot !== -1) focusSlot(slot)
+                          }}
+                          {...(visible ? paneDropTarget(slot) : {})}
+                        >
+                          <div
+                            className="pane-head"
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData(TAB_DRAG_TYPE, tab.id)
+                              e.dataTransfer.effectAllowed = 'move'
+                            }}
+                          >
+                            {tab.kind === 'terminal' ? (
+                              <span className="pane-dot" />
+                            ) : (
+                              <span className="pane-glyph">{paneGlyph(tab.kind)}</span>
+                            )}
+                            <span className="pane-title">{tab.title}</span>
+                            <PaneContext tab={tab} visible={visible} config={config} />
+                            <button
+                              className="pane-close"
+                              title="Close (⌘W)"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                closeTab(tab.id)
+                              }}
+                            >
+                              <CloseIcon size={12} />
+                            </button>
+                          </div>
+                          <div className="pane-body">
+                            {tab.kind === 'terminal' ? (
+                              <TerminalView
+                                ref={(handle) => {
+                                  if (handle) terminalRefs.current.set(tab.id, handle)
+                                  else terminalRefs.current.delete(tab.id)
+                                }}
+                                tab={tab}
+                                active={visible}
+                                focused={isFocused}
+                                onReady={onTabReady}
+                                onOpenFile={openFileFromTerminal}
+                                onTitle={onTabTitle}
+                                onExit={closeTab}
+                                onError={onTabError}
+                              />
+                            ) : (
+                              <ViewerView
+                                // A preview tab mutates `viewer` in place to peek at
+                                // a new target, so the key must include it — else it
+                                // stays mounted across the swap and shows the previous
+                                // target's stale state until its own fetch resolves.
+                                key={tab.viewer ? `${tab.id}:${viewerKey(tab.viewer)}` : tab.id}
+                                tab={tab}
+                                active={visible}
+                                onError={setError}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {Array.from({ length: layout }).map((_, i) =>
+                      slots[i] === null ? (
+                        <button
+                          key={`empty-${i}`}
+                          className={`pane empty ${i === focusedSlot ? 'focused' : ''} ${dragOverSlot === i ? 'drag-over' : ''}`}
+                          style={{ order: i }}
+                          onClick={() => openNewChat(i)}
+                          {...paneDropTarget(i)}
+                        >
+                          <span className="empty-pane-plus">＋</span>
+                          <span>New chat</span>
+                          <span className="empty-pane-hint">or drag a chat here</span>
+                        </button>
+                      ) : null
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             {notice && (

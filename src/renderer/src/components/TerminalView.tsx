@@ -15,7 +15,10 @@ export interface TerminalViewHandle {
 
 interface Props {
   tab: Tab
+  /** Whether this tab is placed in a visible pane (drives show/hide + refit). */
   active: boolean
+  /** Whether this tab holds the focused pane (drives the keyboard focus). */
+  focused: boolean
   /** Reports the spawned pty + session id back so the tab can be tracked. */
   onReady: (tabId: string, ptyId: number, sessionId: string) => void
   /** A file path in the output was clicked; it opens as a viewer tab. */
@@ -110,7 +113,7 @@ function promptBoxIsEmpty(term: Terminal): boolean {
  * hidden) so their scrollback and process keep running in the background.
  */
 export const TerminalView = forwardRef<TerminalViewHandle, Props>(function TerminalView(
-  { tab, active, onReady, onOpenFile, onTitle, onExit, onError }: Props,
+  { tab, active, focused, onReady, onOpenFile, onTitle, onExit, onError }: Props,
   ref
 ) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -255,7 +258,8 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Refit and grab focus whenever this tab becomes the active one.
+  // Refit whenever this tab becomes visible — its pane may have been hidden (so
+  // zero-sized) or just resized by a layout change, and xterm needs remeasuring.
   useEffect(() => {
     if (!active) return
     const id = requestAnimationFrame(() => {
@@ -264,10 +268,16 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
       } catch {
         /* ignore */
       }
-      termRef.current?.focus()
     })
     return () => cancelAnimationFrame(id)
   }, [active])
+
+  // Grab the keyboard when this tab's pane becomes the focused one.
+  useEffect(() => {
+    if (!focused) return
+    const id = requestAnimationFrame(() => termRef.current?.focus())
+    return () => cancelAnimationFrame(id)
+  }, [focused])
 
   return <div ref={hostRef} className="term-host" hidden={!active} />
 })
