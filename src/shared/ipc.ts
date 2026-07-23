@@ -4,6 +4,9 @@
  * handlers can never drift apart on a typo.
  */
 export const IpcChannel = {
+  // App
+  AppGetInfo: 'app:getInfo',
+
   // Config
   ConfigLoad: 'config:load',
   ConfigSave: 'config:save',

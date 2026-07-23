@@ -1,6 +1,7 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { IpcChannel } from '@shared/ipc'
-import type { AppConfig, PtyCreateOptions } from '@shared/types'
+import type { AppConfig, AppInfo, PtyCreateOptions } from '@shared/types'
+import { resolveClaudeBinary } from './claude-binary'
 import { loadConfig, saveConfig } from './config'
 import {
   deleteSession,
@@ -29,6 +30,15 @@ import { PtyManager } from './pty-manager'
  */
 export function registerIpcHandlers(window: BrowserWindow): PtyManager {
   const ptyManager = new PtyManager(window.webContents)
+
+  // --- App ------------------------------------------------------------------
+  ipcMain.handle(IpcChannel.AppGetInfo, async (): Promise<AppInfo> => ({
+    version: app.getVersion(),
+    electron: process.versions.electron,
+    chrome: process.versions.chrome,
+    node: process.versions.node,
+    claudePath: await resolveClaudeBinary()
+  }))
 
   // --- Config -------------------------------------------------------------
   ipcMain.handle(IpcChannel.ConfigLoad, () => loadConfig())

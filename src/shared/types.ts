@@ -28,6 +28,20 @@ export function paletteColor(index: number): string {
   return PROJECT_PALETTE[index % PROJECT_PALETTE.length]
 }
 
+/**
+ * Version and environment facts shown on the About screen. Read straight from
+ * the running process rather than duplicated in package.json at build time, so
+ * it can never drift from what's actually executing.
+ */
+export interface AppInfo {
+  version: string
+  electron: string
+  chrome: string
+  node: string
+  /** Absolute path to the resolved `claude` binary, or null if none was found. */
+  claudePath: string | null
+}
+
 /** A folder the user has opened as a working directory for Claude Code. */
 export interface ProjectEntry {
   name: string
