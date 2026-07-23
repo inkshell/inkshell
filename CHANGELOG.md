@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.3] - 2026-07-22
+## [0.1.4] - 2026-07-22
 
 ### Added
 
+- An "About InkShell" screen, opened from a new info-icon button next to the
+  sidebar's settings gear. It shows the app version, Electron/Chromium/Node
+  versions, and the resolved `claude` binary path — all read live from the
+  main process over a new `app:getInfo` IPC channel, plus links to the GitHub
+  repo and issue tracker.
 - `install.sh`: a one-line macOS installer
   (`curl -fsSL https://raw.githubusercontent.com/inkshell/inkshell/main/install.sh | sh`)
   that downloads the right build for the Mac's architecture into

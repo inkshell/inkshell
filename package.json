@@ -1,6 +1,6 @@
 {
   "name": "inkshell",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "A tabbed desktop workspace for Claude Code — the CLI, with style.",
   "type": "module",
   "main": "./out/main/index.js",
