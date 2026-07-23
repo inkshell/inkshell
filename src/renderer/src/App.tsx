@@ -189,24 +189,51 @@ export function App() {
   }, [currentProject, defaultModel, defaultEffort, claudeConfigDirFor])
 
   // A diff / file / commit opened from the project panel. Re-opening the same
-  // one focuses its existing tab instead of stacking a duplicate.
-  const openViewerTab = useCallback((ref: ViewerRef) => {
+  // one focuses its existing tab instead of stacking a duplicate. A `preview`
+  // open (a single click in the file tree) reuses the one preview tab's slot
+  // instead of stacking a new tab; any non-preview open pins it in place.
+  const openViewerTab = useCallback((ref: ViewerRef, opts?: { preview?: boolean }) => {
+    const preview = opts?.preview ?? false
     setTabs((prev) => {
       const key = viewerKey(ref)
       const existing = prev.find((t) => t.viewer && viewerKey(t.viewer) === key)
       if (existing) {
         setActiveTabId(existing.id)
+        const pinning = existing.preview && !preview
         // Same file, new line (a second click in the terminal): keep the tab and
-        // let the viewer move to it.
-        if (existing.viewer!.line !== ref.line) {
-          return prev.map((t) => (t.id === existing.id ? { ...t, viewer: ref } : t))
+        // let the viewer move to it. A non-preview open also pins a preview tab.
+        if (existing.viewer!.line !== ref.line || pinning) {
+          return prev.map((t) =>
+            t.id === existing.id ? { ...t, viewer: ref, preview: pinning ? false : t.preview } : t
+          )
         }
         return prev
       }
+
+      // A preview open reuses the existing preview tab's slot — only one
+      // "just looked at" file is ever open at a time.
+      const previewTab = preview ? prev.find((t) => t.preview) : undefined
+      if (previewTab) {
+        setActiveTabId(previewTab.id)
+        return prev.map((t) =>
+          t.id === previewTab.id
+            ? {
+                ...t,
+                kind: ref.kind,
+                viewer: ref,
+                cwd: ref.project,
+                claudeConfigDir: ref.claudeConfigDir,
+                title: ref.label
+              }
+            : t
+        )
+      }
+
       const tab: Tab = {
         id: `tab-${tabSeq++}`,
         kind: ref.kind,
         viewer: ref,
+        preview,
         ptyId: null,
         sessionId: null,
         resumeSessionId: null,

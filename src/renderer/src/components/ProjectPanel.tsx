@@ -26,7 +26,7 @@ interface Props {
   /** Whether the panel is expanded — gates the polling so a collapsed panel is idle. */
   visible: boolean
   /** Opens (or focuses) a diff / file / commit viewer tab in the centre. */
-  onOpenViewer: (ref: ViewerRef) => void
+  onOpenViewer: (ref: ViewerRef, opts?: { preview?: boolean }) => void
   onError: (message: string) => void
 }
 
@@ -184,36 +184,45 @@ export function ProjectPanel({
 
   // --- Openers -------------------------------------------------------------
   const open = useCallback(
-    (ref: ViewerRef) => {
+    (ref: ViewerRef, opts?: { preview?: boolean }) => {
       setSelected(viewerKey(ref))
-      onOpenViewer(ref)
+      onOpenViewer(ref, opts)
     },
     [onOpenViewer]
   )
 
-  const openDiff = (change: GitFileChange, staged: boolean) =>
-    open({
-      kind: 'diff',
-      project: project!,
-      claudeConfigDir,
-      path: change.path,
-      staged,
-      label: fileName(change.path),
-      dir: fileDir(change.path)
-    })
+  const openDiff = (change: GitFileChange, staged: boolean, opts?: { preview?: boolean }) =>
+    open(
+      {
+        kind: 'diff',
+        project: project!,
+        claudeConfigDir,
+        path: change.path,
+        staged,
+        label: fileName(change.path),
+        dir: fileDir(change.path)
+      },
+      opts
+    )
 
-  const openCommit = (c: GitCommit) =>
-    open({ kind: 'commit', project: project!, claudeConfigDir, hash: c.hash, label: c.shortHash })
+  const openCommit = (c: GitCommit, opts?: { preview?: boolean }) =>
+    open(
+      { kind: 'commit', project: project!, claudeConfigDir, hash: c.hash, label: c.shortHash },
+      opts
+    )
 
-  const openFile = (entry: TreeEntry) =>
-    open({
-      kind: 'file',
-      project: project!,
-      claudeConfigDir,
-      path: entry.path,
-      label: entry.name,
-      dir: fileDir(entry.path)
-    })
+  const openFile = (entry: TreeEntry, opts?: { preview?: boolean }) =>
+    open(
+      {
+        kind: 'file',
+        project: project!,
+        claudeConfigDir,
+        path: entry.path,
+        label: entry.name,
+        dir: fileDir(entry.path)
+      },
+      opts
+    )
 
   // --- Files tree ----------------------------------------------------------
   const toggleDir = useCallback(
@@ -289,7 +298,9 @@ export function ProjectPanel({
             key={e.path}
             className={`trow ${selected === key ? 'sel' : ''}`}
             style={{ paddingLeft: 8 + depth * 14 }}
-            onClick={() => openFile(e)}
+            title="Click to preview, double-click to keep open"
+            onClick={() => openFile(e, { preview: true })}
+            onDoubleClick={() => openFile(e, { preview: false })}
           >
             <span className="fi2">
               <FileTextIcon size={13} />
@@ -313,7 +324,8 @@ export function ProjectPanel({
       <button
         key={`${staged ? 's' : 'w'}:${c.path}`}
         className={`frow ${selected === key ? 'sel' : ''}`}
-        onClick={() => openDiff(c, staged)}
+        onClick={() => openDiff(c, staged, { preview: true })}
+        onDoubleClick={() => openDiff(c, staged, { preview: false })}
         {...bind(c.path)}
       >
         <StatusBadge status={c.status} />
@@ -479,7 +491,8 @@ export function ProjectPanel({
                       <button
                         key={c.hash}
                         className={`crow ${i === 0 ? 'first' : ''} ${i === log.length - 1 ? 'last' : ''} ${c.unpushed ? 'up' : ''}`}
-                        onClick={() => openCommit(c)}
+                        onClick={() => openCommit(c, { preview: true })}
+                        onDoubleClick={() => openCommit(c, { preview: false })}
                       >
                         <span className="rail" />
                         <span className="cbody">

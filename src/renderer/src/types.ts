@@ -68,4 +68,10 @@ export interface Tab {
   title: string
   /** Whether the CLI's title currently carries its Braille "thinking" spinner. */
   processing: boolean
+  /**
+   * A single-click "peek" from the file tree: reuses this tab's slot for the
+   * next preview open instead of stacking a new one, until a double-click (or
+   * any other open of the same file) pins it. Only ever set on viewer tabs.
+   */
+  preview?: boolean
 }
