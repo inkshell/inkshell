@@ -298,25 +298,34 @@ export function Sidebar({
                   className={`tree-project ${isDragging ? 'dragging' : ''}`}
                   style={wrapStyle}
                 >
-                  <button
+                  <div
                     className={`project-row ${currentProject === p.path ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
                     title={p.path}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => onSelectProject(p.path)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return
+                      e.preventDefault()
+                      onSelectProject(p.path)
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault()
                       setMenu({ x: e.clientX, y: e.clientY, projectPath: p.path })
                     }}
                   >
-                    <span
+                    <button
+                      type="button"
                       className={`tree-caret ${caretOpen ? 'open' : ''}`}
                       title={caretOpen ? 'Collapse' : 'Expand'}
+                      aria-label={caretOpen ? 'Collapse' : 'Expand'}
                       onClick={(e) => {
                         e.stopPropagation()
                         toggleExpand(p.path)
                       }}
                     >
                       <ChevronIcon size={11} />
-                    </span>
+                    </button>
                     <span
                       className="project-grip"
                       title="Drag to reorder"
@@ -329,18 +338,20 @@ export function Sidebar({
                       <GripIcon size={12} />
                     </span>
                     <span className="name">{p.name}</span>
-                    <span
+                    <button
+                      type="button"
                       className="project-new-chat"
                       title="New chat"
+                      aria-label={`New chat in ${p.name}`}
                       onClick={(e) => {
                         e.stopPropagation()
                         onNewChat(p.path)
                       }}
                     >
                       <PlusIcon size={12} />
-                    </span>
+                    </button>
                     {items.length > 0 && <span className="open-count">{items.length}</span>}
-                  </button>
+                  </div>
 
                   {showKids && (
                     <div className="kids">
@@ -354,12 +365,19 @@ export function Sidebar({
                             key={t.id}
                             className={`knode ${isActive ? 'on' : ''} ${inPane ? 'in-pane' : ''}`}
                             title={t.title}
+                            role="button"
+                            tabIndex={0}
                             draggable
                             onDragStart={(e) => {
                               e.dataTransfer.setData(TAB_DRAG_TYPE, t.id)
                               e.dataTransfer.effectAllowed = 'move'
                             }}
                             onClick={() => onFocusTab(t.id)}
+                            onKeyDown={(e) => {
+                              if (e.key !== 'Enter' && e.key !== ' ') return
+                              e.preventDefault()
+                              onFocusTab(t.id)
+                            }}
                             onMouseDown={(e) => {
                               // Middle click closes, same idiom as the pane header.
                               if (e.button !== 1) return

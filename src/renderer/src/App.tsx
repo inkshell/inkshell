@@ -495,7 +495,13 @@ export function App() {
         e.dataTransfer.dropEffect = 'move'
         setDragOverSlot(slot)
       },
-      onDragLeave: () => setDragOverSlot((s) => (s === slot ? null : s)),
+      onDragLeave: (e: DragEvent<HTMLElement>) => {
+        // `dragleave` also fires when the pointer moves onto a child (the
+        // pane head, body, close button…) — only clear the highlight once
+        // it's actually left the pane, or it flickers on every inner move.
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+        setDragOverSlot((s) => (s === slot ? null : s))
+      },
       onDrop: (e: DragEvent<HTMLElement>) => {
         e.preventDefault()
         setDragOverSlot(null)

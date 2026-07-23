@@ -478,6 +478,7 @@ button {
   font-size: 12.5px;
   width: 100%;
   text-align: left;
+  cursor: pointer;
   transition:
     background var(--dur) var(--ease),
     color var(--dur) var(--ease),
@@ -556,7 +557,11 @@ button {
   width: 18px;
   height: 18px;
   flex: none;
+  border: none;
+  padding: 0;
+  font: inherit;
   border-radius: 5px;
+  background: transparent;
   color: var(--text-faint);
   opacity: 0;
   transition:
@@ -3068,6 +3073,10 @@ button {
   height: 20px;
   flex-shrink: 0;
   margin-left: -3px;
+  border: none;
+  padding: 0;
+  font: inherit;
+  background: transparent;
   color: var(--text-faint);
   transform: rotate(0deg);
   transition:
