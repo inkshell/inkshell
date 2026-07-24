@@ -3263,6 +3263,7 @@ button {
 .knode-close {
   width: 18px;
   height: 18px;
+  padding: 0;
   flex: none;
   display: grid;
   place-items: center;
