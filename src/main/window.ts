@@ -41,6 +41,10 @@ export function createMainWindow(): BrowserWindow {
     minHeight: 520,
     show: false,
     backgroundColor: '#0c0e13',
+    // Packaged builds get their icon from the platform bundle (Info.plist /
+    // the .exe's embedded .ico); this only matters for Windows/Linux taskbars
+    // in dev, since macOS ignores BrowserWindow's icon in favor of the dock.
+    icon: join(app.getAppPath(), 'resources', 'icon.png'),
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
     trafficLightPosition: isMac ? { x: 18, y: 20 } : undefined,
     frame: isMac,
