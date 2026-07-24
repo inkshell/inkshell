@@ -31,7 +31,14 @@ import { SettingsModal } from './components/SettingsModal'
 import { ProjectModal } from './components/ProjectModal'
 import { ConfirmModal } from './components/ConfirmModal'
 import { AboutModal } from './components/AboutModal'
-import { CloseIcon, CommitIcon, DiffIcon, FileTextIcon, TerminalIcon } from './components/Icons'
+import {
+  CloseIcon,
+  CommitIcon,
+  DiffIcon,
+  FileTextIcon,
+  PlusIcon,
+  TerminalIcon
+} from './components/Icons'
 
 const isMac = window.inkshell.platform === 'darwin'
 let tabSeq = 0
@@ -1056,30 +1063,37 @@ export function App() {
                           key={`empty-${i}`}
                           className={`pane empty ${i === focusedSlot ? 'focused' : ''} ${dragOverSlot === i ? 'drag-over' : ''}`}
                           style={{ order: i }}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => openNewChat(i)}
-                          onKeyDown={(e) => {
-                            if (e.key !== 'Enter' && e.key !== ' ') return
-                            e.preventDefault()
-                            openNewChat(i)
-                          }}
+                          onClick={() => focusSlot(i)}
                           {...paneDropTarget(i)}
                         >
                           <span className="empty-pane-plus">＋</span>
-                          <span>New chat</span>
-                          <button
-                            type="button"
-                            className="empty-pane-terminal"
-                            title="Open a terminal here"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openNewTerminal(i)
-                            }}
-                          >
-                            <TerminalIcon size={12} />
-                            New terminal
-                          </button>
+                          <span>Empty pane</span>
+                          <div className="empty-pane-actions">
+                            <button
+                              type="button"
+                              className="empty-pane-action"
+                              title="Start a new chat here"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openNewChat(i)
+                              }}
+                            >
+                              <PlusIcon size={12} />
+                              New chat
+                            </button>
+                            <button
+                              type="button"
+                              className="empty-pane-action"
+                              title="Open a terminal here"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openNewTerminal(i)
+                              }}
+                            >
+                              <TerminalIcon size={12} />
+                              New terminal
+                            </button>
+                          </div>
                           <span className="empty-pane-hint">or drag a chat here</span>
                         </div>
                       ) : null
