@@ -1,5 +1,11 @@
-import { EFFORT_LEVELS, type AppConfig, type ModelConfig } from '@shared/types'
-import { CloseIcon, PlusIcon } from './Icons'
+import {
+  EFFORT_LEVELS,
+  TERMINAL_FONT_SIZE_MAX,
+  TERMINAL_FONT_SIZE_MIN,
+  type AppConfig,
+  type ModelConfig
+} from '@shared/types'
+import { CloseIcon, MinimizeIcon, PlusIcon } from './Icons'
 
 interface Props {
   config: AppConfig
@@ -40,6 +46,45 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
         </div>
 
         <div className="modal-body">
+          <div className="setting-row">
+            <span style={{ color: 'var(--text-muted)' }}>Terminal &amp; editor text size</span>
+            <div className="font-size-ctl" role="group" aria-label="Text size">
+              <button
+                title="Decrease text size"
+                aria-label="Decrease text size"
+                disabled={config.terminalFontSize <= TERMINAL_FONT_SIZE_MIN}
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    terminalFontSize: Math.max(TERMINAL_FONT_SIZE_MIN, config.terminalFontSize - 1)
+                  })
+                }
+              >
+                <MinimizeIcon size={12} />
+              </button>
+              <span className="fs-value">{config.terminalFontSize}</span>
+              <button
+                title="Increase text size"
+                aria-label="Increase text size"
+                disabled={config.terminalFontSize >= TERMINAL_FONT_SIZE_MAX}
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    terminalFontSize: Math.min(TERMINAL_FONT_SIZE_MAX, config.terminalFontSize + 1)
+                  })
+                }
+              >
+                <PlusIcon size={12} />
+              </button>
+            </div>
+          </div>
+          <span className="form-hint">
+            Sets xterm's font size for every terminal tab and scales the file/diff viewer's text by
+            the same ratio.
+          </span>
+
+          <div className="settings-divider" />
+
           <p className="modal-desc">
             The list that shows up in the model picker. When Anthropic ships or renames a model,
             edit it here — no rebuild needed.

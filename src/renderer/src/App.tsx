@@ -987,8 +987,6 @@ export function App() {
               onSetLayout={changeLayout}
               onToggleSidebar={toggleSidebar}
               onTogglePanel={togglePanel}
-              fontSize={config.terminalFontSize}
-              onSetFontSize={(size) => persistConfig({ ...config, terminalFontSize: size })}
             />
 
             {error && (
