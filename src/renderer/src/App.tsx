@@ -264,8 +264,9 @@ export function App() {
    * `slot`, reuses the pane it already sits in; otherwise takes the first empty
    * visible pane, and failing that replaces the focused one — the displaced tab
    * stays open (and listed in the sidebar), just off-screen. An explicit `slot`
-   * (a drop onto a specific empty pane) always lands the tab there instead,
-   * vacating whatever pane it previously held.
+   * (a drop onto a specific pane) lands the tab there; if that pane already held
+   * another tab and the dragged one came from a pane of its own, the two swap
+   * places instead of the target's tab vanishing off-screen.
    */
   const showTab = useCallback((id: string, slot?: number) => {
     const cur = slotsRef.current
@@ -292,7 +293,13 @@ export function App() {
       if (target === -1) target = focused
     }
     const next = cur.slice()
-    if (existing !== -1) next[existing] = null
+    if (existing !== -1) {
+      // A drop onto a pane that already holds a different tab swaps the two
+      // (the target's tab takes the dragged tab's old slot) rather than
+      // leaving the source slot empty and the target's tab orphaned off-screen.
+      next[existing] =
+        slot !== undefined && cur[target] !== null && cur[target] !== id ? cur[target] : null
+    }
     next[target] = id
     setSlots(next)
     setFocusedSlot(target)
@@ -554,6 +561,34 @@ export function App() {
     [showTab, openResume]
   )
 
+  /**
+   * Removes a tab from whichever pane shows it, without touching the tab
+   * itself — it stays alive (and listed in the sidebar), just off-screen.
+   * This is what the pane header's own close affordances (middle click, the
+   * `×` button) do: they close the *pane*, not the chat/terminal behind it.
+   * Only the sidebar's close controls (`closeTab` below) end the instance.
+   */
+  const closePane = useCallback((id: string) => {
+    const cur = slotsRef.current
+    const at = cur.indexOf(id)
+    if (at === -1) return
+    const next = cur.slice()
+    next[at] = null
+    setSlots(next)
+    // If the pane held focus, move it to another pane that still has
+    // something in it (otherwise the now-empty pane stays focused).
+    if (at === focusedSlotRef.current) {
+      let nf = focusedSlotRef.current
+      for (let i = 0; i < layoutRef.current; i++) {
+        if (next[i] !== null) {
+          nf = i
+          break
+        }
+      }
+      setFocusedSlot(nf)
+    }
+  }, [])
+
   const closeTab = useCallback((id: string) => {
     setTabs((prev) => prev.filter((t) => t.id !== id))
     const cur = slotsRef.current
@@ -757,8 +792,8 @@ export function App() {
   }, [activeModelAlias, config])
 
   // --- Keyboard shortcuts (capture phase, to beat xterm's key handling) -----
-  const shortcutRef = useRef({ openNewChat, closeTab, activeTabId, activeProject })
-  shortcutRef.current = { openNewChat, closeTab, activeTabId, activeProject }
+  const shortcutRef = useRef({ openNewChat, closePane, activeTabId, activeProject })
+  shortcutRef.current = { openNewChat, closePane, activeTabId, activeProject }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = isMac ? e.metaKey : e.ctrlKey
@@ -770,7 +805,8 @@ export function App() {
       } else if (e.key === 'w' || e.key === 'W') {
         e.preventDefault()
         e.stopPropagation()
-        const { activeTabId: id, closeTab: close } = shortcutRef.current
+        // Same action as the pane's own `×` — closes the pane, not the chat.
+        const { activeTabId: id, closePane: close } = shortcutRef.current
         if (id) close(id)
       } else if (e.key === 'p' || e.key === 'P') {
         // Nothing to search without a project — leave the shortcut alone.
@@ -939,11 +975,13 @@ export function App() {
                           className={`pane ${isFocused ? 'focused' : ''} ${tab.processing ? 'processing' : ''} ${dragOverSlot === slot ? 'drag-over' : ''}`}
                           style={paneStyle}
                           onMouseDown={(e) => {
-                            // Middle click closes the tab outright — same idiom as a
-                            // browser tab — without also focusing the pane it sat in.
+                            // Middle click closes the pane — same idiom as a browser
+                            // tab — without also focusing the pane it sat in. The tab
+                            // itself stays open; only the sidebar's close actually
+                            // ends it.
                             if (e.button === 1) {
                               e.preventDefault()
-                              closeTab(tab.id)
+                              closePane(tab.id)
                               return
                             }
                             if (e.button === 0 && slot !== -1) focusSlot(slot)
@@ -967,10 +1005,10 @@ export function App() {
                             <PaneContext tab={tab} visible={visible} config={config} />
                             <button
                               className="pane-close"
-                              title="Close (⌘W)"
+                              title="Close pane (⌘W)"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                closeTab(tab.id)
+                                closePane(tab.id)
                               }}
                             >
                               <CloseIcon size={12} />
