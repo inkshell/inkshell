@@ -206,6 +206,25 @@ export const CommitIcon = ({ size = 14 }: IconProps) =>
     </>
   )
 
+export const SaveIcon = ({ size = 14 }: IconProps) =>
+  svg(
+    size,
+    <>
+      <path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+      <path d="M8 3v5h7V3" />
+      <path d="M8 21v-6h8v6" />
+    </>
+  )
+
+export const EditIcon = ({ size = 14 }: IconProps) =>
+  svg(
+    size,
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </>
+  )
+
 export const MinimizeIcon = ({ size = 14 }: IconProps) => svg(size, <path d="M5 12h14" />)
 
 export const MaximizeIcon = ({ size = 12 }: IconProps) =>

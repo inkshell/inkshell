@@ -2609,10 +2609,55 @@ button {
   border-color: var(--session-line);
   color: var(--text-primary);
 }
+.vw-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.vw-btn:disabled:hover {
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+/* The file viewer's Save button reads as the pane's primary action once armed. */
+.vw-btn.save:not(:disabled) {
+  border-color: var(--session-line);
+  color: var(--session);
+}
+.vw-btn.save:not(:disabled):hover {
+  background: color-mix(in srgb, var(--session) 16%, var(--bg-card));
+}
+/* Unsaved-changes dot beside a file tab's name. */
+.vw-dirty {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  vertical-align: middle;
+}
 .vw-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+/* Monaco owns its own scrolling and paints its own theme background; it fills
+   the body and matches the app surface so no seam shows while it mounts. */
+.code-editor {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-app);
+}
+/* Commit viewer: a scrollable changed-file list stacked over the diff editor
+   for whichever file is selected. */
+.commit-body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.commit-body .cf-diff {
+  flex: 1;
+  min-height: 0;
 }
 .vw-note {
   padding: 18px 16px;
@@ -2655,154 +2700,14 @@ button {
   font-weight: 600;
 }
 
-/* Commit viewer's changed-file summary above its patch. */
+/* Commit viewer's changed-file list above its per-file diff. Capped and
+   scrollable so a big commit can't squeeze the diff editor out. */
 .commit-files {
   padding: 8px 10px 10px;
   border-bottom: 1px solid var(--border-soft);
-}
-
-/* The diff / file code table. */
-.code {
-  border-collapse: collapse;
-  width: 100%;
-  font-family: var(--font-mono);
-  font-size: var(--code-font-size, 11.5px);
-  line-height: 1.65;
-}
-.code td {
-  padding: 0;
-  vertical-align: top;
-}
-.code .dln {
-  width: 44px;
-  min-width: 44px;
-  text-align: right;
-  padding: 0 8px;
-  color: var(--text-faint);
-  font-size: 0.87em;
-  user-select: none;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.code .dln + .dln {
-  border-right: 1px solid var(--border-soft);
-}
-.code .src {
-  padding: 0 14px 0 10px;
-  color: var(--text-muted);
-  white-space: pre-wrap;
-  word-break: break-word;
-  user-select: text;
-}
-.code .src .sign {
-  display: inline-block;
-  width: 1ch;
-  color: var(--text-faint);
-}
-.code tr.add td {
-  background: color-mix(in srgb, var(--ok) 12%, transparent);
-}
-.code tr.add .dln {
-  color: color-mix(in srgb, var(--ok) 80%, var(--text-faint));
-}
-.code tr.add .src,
-.code tr.add .src .sign {
-  color: var(--text-primary);
-}
-.code tr.del td {
-  background: color-mix(in srgb, var(--error) 11%, transparent);
-}
-.code tr.del .dln {
-  color: color-mix(in srgb, var(--error) 75%, var(--text-faint));
-}
-.code tr.del .src,
-.code tr.del .src .sign {
-  color: color-mix(in srgb, var(--text-primary) 85%, var(--error));
-}
-.code tr.hunk td {
-  background: var(--bg-sidebar);
-  color: var(--session);
-  font-size: 10.5px;
-  padding: 3px 0;
-}
-.code tr.file-sep td {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-weight: 600;
-  padding: 6px 0;
-  border-top: 1px solid var(--border);
-}
-.code tr.file-sep .src {
-  color: var(--text-primary);
-}
-/* The line a terminal path link pointed at (`ipc.ts:82`). */
-.code tr.hl td {
-  background: color-mix(in srgb, var(--session) 16%, transparent);
-}
-.code tr.hl .dln {
-  color: var(--session);
-  box-shadow: inset 2px 0 0 var(--session);
-}
-.code tr.hl .src {
-  color: var(--text-primary);
-}
-
-/* Syntax highlighting (hljs token classes) — kept to the app's cool palette,
-   no warm hues, so a file view still reads as part of Midnight Ink. */
-.code .src .hljs-comment,
-.code .src .hljs-quote {
-  color: var(--text-faint);
-  font-style: italic;
-}
-.code .src .hljs-keyword,
-.code .src .hljs-selector-tag,
-.code .src .hljs-literal,
-.code .src .hljs-section,
-.code .src .hljs-doctag {
-  color: var(--accent-soft);
-  font-weight: 600;
-}
-.code .src .hljs-string,
-.code .src .hljs-regexp,
-.code .src .hljs-addition {
-  color: var(--ok);
-}
-.code .src .hljs-number,
-.code .src .hljs-symbol,
-.code .src .hljs-bullet,
-.code .src .hljs-link {
-  color: var(--accent-cyan);
-}
-.code .src .hljs-title,
-.code .src .hljs-built_in {
-  color: var(--hue-sonnet);
-}
-.code .src .hljs-title.class_,
-.code .src .hljs-type {
-  color: var(--hue-opus);
-}
-.code .src .hljs-attr,
-.code .src .hljs-attribute,
-.code .src .hljs-variable,
-.code .src .hljs-template-variable,
-.code .src .hljs-selector-attr,
-.code .src .hljs-selector-pseudo,
-.code .src .hljs-selector-class,
-.code .src .hljs-selector-id,
-.code .src .hljs-name {
-  color: var(--accent);
-}
-.code .src .hljs-meta {
-  color: var(--text-muted);
-}
-.code .src .hljs-deletion {
-  color: var(--error);
-}
-.code .src .hljs-emphasis {
-  font-style: italic;
-}
-.code .src .hljs-strong {
-  font-weight: 700;
+  flex-shrink: 0;
+  max-height: 38%;
+  overflow-y: auto;
 }
 
 /* =========================================================================

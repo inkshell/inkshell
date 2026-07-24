@@ -1,6 +1,13 @@
 import { execFile } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { isAbsolute, relative, resolve } from 'node:path'
-import type { GitCommit, GitCommitDetail, GitFileChange, GitStatus } from '@shared/types'
+import type {
+  DiffContent,
+  GitCommit,
+  GitCommitDetail,
+  GitFileChange,
+  GitStatus
+} from '@shared/types'
 import { overrideConfigDir } from './claude-history'
 
 /**
@@ -200,27 +207,81 @@ export async function listTrackedFiles(projectPath: string): Promise<string[] | 
   return stdout.split('\0').filter(Boolean)
 }
 
+/** Biggest blob Monaco's diff editor will render; larger/binary sides show a notice. */
+const DIFF_CAP = 512 * 1024
+
+/** Text of a blob, flagged binary when it's oversized or holds a NUL byte. */
+function classify(text: string): { text: string; binary: boolean } {
+  if (text.length > DIFF_CAP) return { text: '', binary: true }
+  // A NUL survives UTF-8 decoding as U+0000 — a good-enough binary sniff.
+  if (text.slice(0, 8000).includes('\u0000')) return { text: '', binary: true }
+  return { text, binary: false }
+}
+
 /**
- * The unified diff for one path — staged (index vs HEAD) or unstaged (worktree
- * vs index). An untracked file has no tracked diff, so it falls back to
- * `--no-index` against /dev/null, which renders every line as an addition.
+ * A blob's text at a revision, via `git show <rev>:<path>` — `rev` is `HEAD`, a
+ * commit hash, `<hash>^` (its parent), or `''` for the index (`git show :path`).
+ * Returns `null` when the path doesn't exist there (an added file has no parent
+ * blob, a deleted one no current blob), which the caller renders as an empty side.
  */
-export async function gitDiff(
+async function gitBlob(
+  root: string,
+  rev: string,
+  filePath: string
+): Promise<{ text: string; binary: boolean } | null> {
+  const res = await git(root, ['show', `${rev}:${filePath}`], { allowNonZero: true })
+  if (res.code !== 0) return null
+  return classify(res.stdout)
+}
+
+/** The working-tree file's text, or an empty side when it's gone from disk. */
+function worktreeBlob(root: string, filePath: string): { text: string; binary: boolean } {
+  try {
+    return classify(readFileSync(resolve(root, filePath), 'utf-8'))
+  } catch {
+    return { text: '', binary: false }
+  }
+}
+
+/**
+ * The before/after text of one changed path, for Monaco's diff editor. Staged
+ * compares the index against HEAD; unstaged compares the working tree against
+ * the index (an untracked file has no index side, so it reads as all-added).
+ */
+export async function gitFileDiff(
   projectPath: string,
   filePath: string,
   staged: boolean
-): Promise<string> {
+): Promise<DiffContent> {
   const root = await repoRoot(projectPath)
   assertWithin(root, filePath)
-  const args = ['diff', '--no-color']
-  if (staged) args.push('--staged')
-  args.push('--', filePath)
-  const { stdout } = await git(root, args)
-  if (stdout.trim() || staged) return stdout
-  const alt = await git(root, ['diff', '--no-color', '--no-index', '--', '/dev/null', filePath], {
-    allowNonZero: true
-  })
-  return alt.stdout
+  const empty = { text: '', binary: false }
+  // The empty rev is the index: `git show :<path>` reads staged content.
+  const o = staged
+    ? ((await gitBlob(root, 'HEAD', filePath)) ?? empty)
+    : ((await gitBlob(root, '', filePath)) ?? empty)
+  const m = staged ? ((await gitBlob(root, '', filePath)) ?? empty) : worktreeBlob(root, filePath)
+  return { original: o.text, modified: m.text, binary: o.binary || m.binary }
+}
+
+/**
+ * The before/after text of one file within a commit, for the commit viewer's
+ * per-file diff. `origPath` (a rename's old name) sources the parent side; the
+ * root commit or an added file simply has no parent blob (an empty side).
+ */
+export async function gitCommitFileDiff(
+  projectPath: string,
+  hash: string,
+  filePath: string,
+  origPath?: string
+): Promise<DiffContent> {
+  if (!/^[0-9a-fA-F]{4,40}$/.test(hash)) throw new Error('Invalid commit hash')
+  const root = await repoRoot(projectPath)
+  assertWithin(root, filePath)
+  if (origPath) assertWithin(root, origPath)
+  const o = (await gitBlob(root, `${hash}^`, origPath || filePath)) ?? { text: '', binary: false }
+  const m = (await gitBlob(root, hash, filePath)) ?? { text: '', binary: false }
+  return { original: o.text, modified: m.text, binary: o.binary || m.binary }
 }
 
 /** Stages one path (`git add`). */

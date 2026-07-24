@@ -11,7 +11,8 @@ import {
 } from './claude-history'
 import {
   gitCommit,
-  gitDiff,
+  gitCommitFileDiff,
+  gitFileDiff,
   gitLog,
   gitPush,
   gitShow,
@@ -20,7 +21,13 @@ import {
   gitUnstage,
   suggestCommitMessage
 } from './git'
-import { listAllFiles, listDir, readProjectFile, resolveProjectPath } from './project-files'
+import {
+  listAllFiles,
+  listDir,
+  readProjectFile,
+  resolveProjectPath,
+  writeProjectFile
+} from './project-files'
 import { PtyManager } from './pty-manager'
 
 /**
@@ -91,9 +98,6 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
   // Every handler drives the real `git` binary in the project directory; the
   // renderer only ever renders what comes back (the sandbox is never widened).
   ipcMain.handle(IpcChannel.GitStatus, (_e, projectPath: string) => gitStatus(projectPath))
-  ipcMain.handle(IpcChannel.GitDiff, (_e, projectPath: string, filePath: string, staged: boolean) =>
-    gitDiff(projectPath, filePath, staged)
-  )
   ipcMain.handle(IpcChannel.GitStage, (_e, projectPath: string, filePath: string) =>
     gitStage(projectPath, filePath)
   )
@@ -109,6 +113,16 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
     gitShow(projectPath, hash)
   )
   ipcMain.handle(
+    IpcChannel.GitFileDiff,
+    (_e, projectPath: string, filePath: string, staged: boolean) =>
+      gitFileDiff(projectPath, filePath, staged)
+  )
+  ipcMain.handle(
+    IpcChannel.GitCommitFileDiff,
+    (_e, projectPath: string, hash: string, filePath: string, origPath?: string) =>
+      gitCommitFileDiff(projectPath, hash, filePath, origPath)
+  )
+  ipcMain.handle(
     IpcChannel.GitSuggestMessage,
     (_e, projectPath: string, claudeConfigDir?: string, model?: string) =>
       suggestCommitMessage(projectPath, claudeConfigDir, model)
@@ -118,6 +132,9 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
   )
   ipcMain.handle(IpcChannel.FsRead, (_e, projectPath: string, relPath: string) =>
     readProjectFile(projectPath, relPath)
+  )
+  ipcMain.handle(IpcChannel.FsWrite, (_e, projectPath: string, relPath: string, content: string) =>
+    writeProjectFile(projectPath, relPath, content)
   )
   ipcMain.handle(IpcChannel.FsResolve, (_e, projectPath: string, candidate: string) =>
     resolveProjectPath(projectPath, candidate)

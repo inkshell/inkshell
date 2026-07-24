@@ -1,113 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { FileContent, GitCommitDetail } from '@shared/types'
-import type { Tab } from '../types'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import type { DiffContent, FileContent, GitCommitDetail } from '@shared/types'
+import type { Tab, ViewerRef } from '../types'
 import { relativeTime } from '../lib/format'
-import { highlightLines, languageForPath } from '../lib/highlight'
-import { CommitIcon, FileTextIcon, RefreshIcon } from './Icons'
+import { CommitIcon, EditIcon, FileTextIcon, RefreshIcon, SaveIcon } from './Icons'
 import { StatusBadge } from './git-format'
+
+// Monaco is ~8 MB — code-split so it's fetched only when a viewer tab first
+// opens, keeping app startup (which imports this component eagerly) off that cost.
+const CodeEditor = lazy(() => import('./CodeEditor').then((m) => ({ default: m.CodeEditor })))
+const DiffView = lazy(() => import('./DiffView').then((m) => ({ default: m.DiffView })))
 
 interface Props {
   tab: Tab
   active: boolean
+  /** Editor font size (px), shared with the terminal's A−/A+ control. */
+  fontSize: number
   onError: (message: string) => void
+  /** Reports the file tab's unsaved-changes state up to `App` (pin + close guard). */
+  onDirtyChange?: (dirty: boolean) => void
+  /** Opens a viewer tab — used by the diff header's "open the editable file" button. */
+  onOpenViewer?: (ref: ViewerRef) => void
 }
 
-/** One parsed row of a unified diff, carrying its old/new line numbers. */
-interface DiffRow {
-  type: 'file' | 'hunk' | 'add' | 'del' | 'ctx'
-  text: string
-  oldNo?: number
-  newNo?: number
-}
-
-/**
- * Parses `git`'s unified diff into rows the table renders directly. Purely
- * presentational lines (`index`, `---`, `+++`, mode/rename headers) are dropped;
- * a `diff --git a/… b/…` line becomes a file separator so a multi-file commit
- * patch reads as distinct sections.
- */
-function parseDiff(diff: string): DiffRow[] {
-  const rows: DiffRow[] = []
-  let oldNo = 0
-  let newNo = 0
-  for (const line of diff.split('\n')) {
-    if (line.startsWith('diff --git')) {
-      const m = line.match(/ b\/(.+)$/)
-      rows.push({ type: 'file', text: m ? m[1] : line })
-      continue
-    }
-    if (
-      line.startsWith('index ') ||
-      line.startsWith('--- ') ||
-      line.startsWith('+++ ') ||
-      line.startsWith('new file') ||
-      line.startsWith('deleted file') ||
-      line.startsWith('old mode') ||
-      line.startsWith('new mode') ||
-      line.startsWith('similarity') ||
-      line.startsWith('rename ') ||
-      line.startsWith('copy ') ||
-      line.startsWith('\\')
-    ) {
-      continue
-    }
-    if (line.startsWith('@@')) {
-      const m = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/)
-      if (m) {
-        oldNo = Number(m[1])
-        newNo = Number(m[2])
-      }
-      rows.push({ type: 'hunk', text: line })
-      continue
-    }
-    if (line.startsWith('+')) rows.push({ type: 'add', text: line.slice(1), newNo: newNo++ })
-    else if (line.startsWith('-')) rows.push({ type: 'del', text: line.slice(1), oldNo: oldNo++ })
-    else rows.push({ type: 'ctx', text: line.slice(1), oldNo: oldNo++, newNo: newNo++ })
-  }
-  // A trailing empty context row from the final newline reads as noise.
-  if (rows.length && rows[rows.length - 1].type === 'ctx' && rows[rows.length - 1].text === '') {
-    rows.pop()
-  }
-  return rows
-}
-
-/** The diff table — two line-number gutters (old / new) and the content. */
-function DiffTable({ rows }: { rows: DiffRow[] }) {
-  return (
-    <table className="code">
-      <tbody>
-        {rows.map((r, i) =>
-          r.type === 'file' ? (
-            <tr key={i} className="file-sep">
-              <td className="dln" />
-              <td className="dln" />
-              <td className="src">{r.text}</td>
-            </tr>
-          ) : r.type === 'hunk' ? (
-            <tr key={i} className="hunk">
-              <td className="dln" />
-              <td className="dln" />
-              <td className="src">{r.text}</td>
-            </tr>
-          ) : (
-            <tr key={i} className={r.type}>
-              <td className="dln">{r.oldNo != null ? r.oldNo : ''}</td>
-              <td className="dln">{r.newNo != null ? r.newNo : ''}</td>
-              <td className="src">
-                <span className="sign">
-                  {r.type === 'add' ? '+' : r.type === 'del' ? '-' : ' '}
-                </span>
-                {r.text || ' '}
-              </td>
-            </tr>
-          )
-        )}
-      </tbody>
-    </table>
-  )
-}
-
-/** Small +N / −N stat chips shared by the diff and commit headers. */
+/** Small +N / −N stat chips shown in the commit header. */
 function StatChips({ ins, del }: { ins: number; del: number }) {
   return (
     <>
@@ -117,62 +32,181 @@ function StatChips({ ins, del }: { ins: number; del: number }) {
   )
 }
 
+/** The Monaco diff editor, or a notice when a side is binary/oversized. */
+function DiffBody({
+  content,
+  project,
+  path,
+  fontSize,
+  active,
+  revision
+}: {
+  content: DiffContent
+  project: string
+  path: string
+  fontSize: number
+  active: boolean
+  revision?: string | number
+}) {
+  if (content.binary) {
+    return <div className="vw-note">Binary file, or too large to display.</div>
+  }
+  return (
+    <Suspense fallback={<div className="vw-note">Loading diff…</div>}>
+      <DiffView
+        original={content.original}
+        modified={content.modified}
+        project={project}
+        path={path}
+        fontSize={fontSize}
+        active={active}
+        revision={revision}
+      />
+    </Suspense>
+  )
+}
+
 /**
- * A read-only viewer tab: a working-tree diff, a project file, or a past
- * commit. It fetches once on mount (viewer tabs stay mounted for their whole
- * life, like terminals) and renders its own header — the model/context status
- * bar belongs to chat tabs, not these.
+ * A viewer tab: a working-tree diff, an editable project file, or a past commit.
+ * It fetches once on mount (viewer tabs stay mounted for their whole life, like
+ * terminals) and renders its own header — the model/context status bar belongs
+ * to chat tabs, not these. File tabs are editable: edits live in the Monaco
+ * buffer, ⌘S / the Save button writes them back through `fs.write`, and the
+ * unsaved state is reported up so `App` can pin the tab and guard its close.
+ * Diffs and commits use Monaco's diff editor over the before/after file text.
  */
-export function ViewerView({ tab, active, onError }: Props) {
+export function ViewerView({ tab, active, fontSize, onError, onDirtyChange, onOpenViewer }: Props) {
   const ref = tab.viewer
-  const [diff, setDiff] = useState<string | null>(null)
+  const [fileDiff, setFileDiff] = useState<DiffContent | null>(null)
   const [file, setFile] = useState<FileContent | null>(null)
   const [commit, setCommit] = useState<GitCommitDetail | null>(null)
+  const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  const [commitDiff, setCommitDiff] = useState<DiffContent | null>(null)
   const [loading, setLoading] = useState(true)
-  const lineRef = useRef<HTMLTableRowElement>(null)
+  const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  // Highlighting the whole file once per load (rather than per row) is what
-  // lets multi-line tokens — a block comment, a template literal — stay
-  // colored correctly across the row split below.
-  const fileLines = useMemo(() => {
-    if (!ref || ref.kind !== 'file') return []
-    return highlightLines(file?.content ?? '', languageForPath(ref.path ?? ''))
-  }, [ref, file])
+  // The Monaco buffer's current text (the draft) and the last-saved text; their
+  // difference is the dirty flag. Kept in refs so a save reads the latest text
+  // without this component re-rendering on every keystroke.
+  const draftRef = useRef('')
+  const savedRef = useRef('')
+
+  // The parent's callbacks, held in refs. `onDirtyChange` in particular arrives
+  // as a fresh inline closure on every parent render; if the loader below
+  // depended on it, it would re-run — and momentarily unmount the editor,
+  // discarding in-progress edits — on every keystroke. Refs keep the loader
+  // keyed only to the file it shows.
+  const onErrorRef = useRef(onError)
+  onErrorRef.current = onError
+  const onDirtyChangeRef = useRef(onDirtyChange)
+  onDirtyChangeRef.current = onDirtyChange
+
+  // Only surface a dirty transition (not every keystroke) to the parent. Stable
+  // across renders so it never destabilises the loader.
+  const setDirtyState = useCallback((next: boolean) => {
+    setDirty((prev) => {
+      if (prev !== next) onDirtyChangeRef.current?.(next)
+      return next
+    })
+  }, [])
+
+  // The identity of what's being shown — the loader keys off these primitives,
+  // not the `ref` object or a callback, so it fires once per target, not on
+  // every render.
+  const kind = ref?.kind
+  const project = ref?.project
+  const path = ref?.path
+  const hash = ref?.hash
+  const staged = ref?.staged
 
   const load = useCallback(async () => {
-    if (!ref) return
+    if (kind == null || project == null) return
     setLoading(true)
     try {
-      if (ref.kind === 'diff' && ref.path != null) {
-        setDiff(await window.inkshell.git.diff(ref.project, ref.path, ref.staged ?? false))
-      } else if (ref.kind === 'file' && ref.path != null) {
-        setFile(await window.inkshell.fs.read(ref.project, ref.path))
-      } else if (ref.kind === 'commit' && ref.hash != null) {
-        setCommit(await window.inkshell.git.show(ref.project, ref.hash))
+      if (kind === 'diff' && path != null) {
+        setFileDiff(await window.inkshell.git.fileDiff(project, path, staged ?? false))
+      } else if (kind === 'file' && path != null) {
+        const f = await window.inkshell.fs.read(project, path)
+        draftRef.current = f.content
+        savedRef.current = f.content
+        setDirtyState(false)
+        setFile(f)
+      } else if (kind === 'commit' && hash != null) {
+        const c = await window.inkshell.git.show(project, hash)
+        setCommit(c)
+        setSelectedFile(c.files[0]?.path ?? null)
       }
     } catch (err) {
-      onError(`Couldn't open: ${err instanceof Error ? err.message : err}`)
+      onErrorRef.current(`Couldn't open: ${err instanceof Error ? err.message : err}`)
     } finally {
       setLoading(false)
     }
-  }, [ref, onError])
+  }, [kind, project, path, hash, staged, setDirtyState])
 
   useEffect(() => {
     load()
   }, [load])
 
-  // Reveal the line a terminal link pointed at, once its row exists. A hidden
-  // tab can't be scrolled meaningfully, so this waits for it to be shown.
+  // The selected commit file's before/after, fetched whenever the selection
+  // (or the commit) changes.
   useEffect(() => {
-    if (!active || loading || ref?.line == null) return
-    lineRef.current?.scrollIntoView({ block: 'center' })
-  }, [active, loading, ref?.line, file])
+    if (!project || !hash || !commit || !selectedFile) return
+    const f = commit.files.find((x) => x.path === selectedFile)
+    if (!f) return
+    let cancelled = false
+    setCommitDiff(null)
+    window.inkshell.git
+      .commitFileDiff(project, hash, f.path, f.origPath)
+      .then((d) => {
+        if (!cancelled) setCommitDiff(d)
+      })
+      .catch((err) =>
+        onErrorRef.current(`Couldn't open: ${err instanceof Error ? err.message : err}`)
+      )
+    return () => {
+      cancelled = true
+    }
+  }, [project, hash, commit, selectedFile])
+
+  const onEditorChange = useCallback(
+    (text: string) => {
+      draftRef.current = text
+      setDirtyState(text !== savedRef.current)
+    },
+    [setDirtyState]
+  )
+
+  const save = useCallback(async () => {
+    if (kind !== 'file' || project == null || path == null) return
+    if (draftRef.current === savedRef.current) return
+    setSaving(true)
+    try {
+      await window.inkshell.fs.write(project, path, draftRef.current)
+      savedRef.current = draftRef.current
+      setDirtyState(false)
+    } catch (err) {
+      onErrorRef.current(`Couldn't save: ${err instanceof Error ? err.message : err}`)
+    } finally {
+      setSaving(false)
+    }
+  }, [kind, project, path, setDirtyState])
+
+  // Jump from a diff to the editable file it's diffing — same project + path,
+  // opened as a real (non-preview) file tab.
+  const openFile = useCallback(() => {
+    if (project == null || path == null) return
+    onOpenViewer?.({
+      kind: 'file',
+      project,
+      claudeConfigDir: ref?.claudeConfigDir ?? null,
+      path,
+      label: ref?.label ?? path.split('/').pop() ?? path,
+      dir: ref?.dir
+    })
+  }, [project, path, ref, onOpenViewer])
 
   if (!ref) return null
-
-  const rows = diff != null ? parseDiff(diff) : []
-  const ins = rows.filter((r) => r.type === 'add').length
-  const del = rows.filter((r) => r.type === 'del').length
 
   return (
     <div className="viewer" hidden={!active}>
@@ -204,16 +238,26 @@ export function ViewerView({ tab, active, onError }: Props) {
           <span className="vw-path" title={ref.path}>
             {ref.dir && <span className="dir">{ref.dir}/</span>}
             {ref.label}
+            {ref.kind === 'file' && dirty && <span className="vw-dirty" title="Unsaved changes" />}
           </span>
-          {ref.kind === 'diff' ? (
-            <StatChips ins={ins} del={del} />
-          ) : (
-            <span className="chip ro">Read only</span>
-          )}
           <span className="vw-spacer" />
-          {ref.kind === 'diff' && (
-            <button className="vw-btn" title="Reload" onClick={load}>
-              <RefreshIcon size={13} />
+          {ref.kind === 'diff' ? (
+            <>
+              <button className="vw-btn" title="Open the editable file" onClick={openFile}>
+                <EditIcon size={13} />
+              </button>
+              <button className="vw-btn" title="Reload" onClick={load}>
+                <RefreshIcon size={13} />
+              </button>
+            </>
+          ) : (
+            <button
+              className="vw-btn save"
+              title="Save (⌘S)"
+              onClick={save}
+              disabled={!dirty || saving}
+            >
+              <SaveIcon size={13} />
             </button>
           )}
         </div>
@@ -226,45 +270,69 @@ export function ViewerView({ tab, active, onError }: Props) {
           file?.tooLarge ? (
             <div className="vw-note">Binary file, or too large to display.</div>
           ) : (
-            <table className="code">
-              <tbody>
-                {fileLines.map((html, i) => (
-                  <tr
-                    key={i}
-                    ref={ref.line === i + 1 ? lineRef : undefined}
-                    className={ref.line === i + 1 ? 'hl' : undefined}
-                  >
-                    <td className="dln">{i + 1}</td>
-                    <td className="src" dangerouslySetInnerHTML={{ __html: html || ' ' }} />
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Suspense fallback={<div className="vw-note">Loading editor…</div>}>
+              <CodeEditor
+                value={file?.content ?? ''}
+                project={ref.project}
+                path={ref.path ?? ''}
+                readOnly={false}
+                fontSize={fontSize}
+                active={active}
+                revealLine={ref.line}
+                onChange={onEditorChange}
+                onSave={save}
+              />
+            </Suspense>
           )
         ) : ref.kind === 'diff' ? (
-          rows.length === 0 ? (
-            <div className="vw-note">No changes to show.</div>
+          fileDiff && ref.path != null ? (
+            <DiffBody
+              content={fileDiff}
+              project={ref.project}
+              path={ref.path}
+              fontSize={fontSize}
+              active={active}
+            />
           ) : (
-            <DiffTable rows={rows} />
+            <div className="vw-note">No changes to show.</div>
           )
         ) : (
-          <>
+          <div className="commit-body">
             {commit && (
               <div className="commit-files">
                 <div className="grp">
                   CHANGED FILES <span className="grp-n">{commit.files.length}</span>
                 </div>
                 {commit.files.map((f) => (
-                  <div className="frow static" key={f.path}>
+                  <button
+                    key={f.path}
+                    className={`frow${f.path === selectedFile ? ' sel' : ''}`}
+                    onClick={() => setSelectedFile(f.path)}
+                  >
                     <StatusBadge status={f.status} />
                     <span className="fn">{f.path.split('/').pop()}</span>
                     <span className="fp">{f.path.split('/').slice(0, -1).join('/')}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
-            <DiffTable rows={rows} />
-          </>
+            <div className="cf-diff">
+              {commitDiff && selectedFile ? (
+                <DiffBody
+                  content={commitDiff}
+                  project={ref.project}
+                  path={selectedFile}
+                  fontSize={fontSize}
+                  active={active}
+                  revision={selectedFile}
+                />
+              ) : (
+                <div className="vw-note">
+                  {commit?.files.length ? 'Loading diff…' : 'No changes.'}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>

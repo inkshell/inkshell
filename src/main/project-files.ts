@@ -1,14 +1,15 @@
-import { readdirSync, readFileSync, statSync, type Dirent } from 'node:fs'
+import { readdirSync, readFileSync, statSync, writeFileSync, type Dirent } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { FileContent, TreeEntry } from '@shared/types'
 import { listTrackedFiles } from './git'
 
 /**
- * Read-only reflection of a project's own files, backing the panel's "Files"
- * mode and its file viewer. InkShell never writes here — editing is the `claude`
- * process's job in the terminal, not this app's. Every path coming over IPC is
- * re-checked to stay inside the project directory before it touches disk.
+ * A project's own files, backing the panel's "Files" mode and its viewer. The
+ * viewer is editable, so this both reads (`readProjectFile`) and writes back
+ * (`writeProjectFile`) — the one place the app touches a project's file content
+ * directly, distinct from git's stage/commit path. Every path coming over IPC
+ * is re-checked to stay inside the project directory before it touches disk.
  */
 
 /** Biggest file the viewer will load; larger (or binary) files show a notice. */
@@ -154,4 +155,15 @@ export function readProjectFile(projectPath: string, relPath: string): FileConte
   // A NUL byte in the first chunk is a good-enough binary sniff.
   if (buf.subarray(0, 8000).includes(0)) return { path: relPath, content: '', tooLarge: true }
   return { path: relPath, content: buf.toString('utf-8'), tooLarge: false }
+}
+
+/**
+ * Saves the viewer's edits back to one file (UTF-8), after re-checking the path
+ * stays inside the project. Only ever called for files the viewer already
+ * loaded as editable text, so no binary/size gate is repeated here — refusing
+ * to write is the reader's job at open time, not the writer's at save.
+ */
+export function writeProjectFile(projectPath: string, relPath: string, content: string): void {
+  const abs = within(projectPath, relPath)
+  writeFileSync(abs, content, 'utf-8')
 }
