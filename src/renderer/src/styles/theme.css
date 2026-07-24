@@ -3086,6 +3086,12 @@ button {
 .tree-caret.open {
   transform: rotate(90deg);
 }
+/* No open items to expand: keep the caret's box (so the row stays aligned
+   with projects that do have one) but hide the glyph and disable the click. */
+.tree-caret.empty {
+  visibility: hidden;
+  pointer-events: none;
+}
 .project-row:hover .tree-caret {
   color: var(--text-muted);
 }
