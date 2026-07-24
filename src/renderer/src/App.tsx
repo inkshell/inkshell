@@ -265,8 +265,10 @@ export function App() {
    * visible pane, and failing that replaces the focused one — the displaced tab
    * stays open (and listed in the sidebar), just off-screen. An explicit `slot`
    * (a drop onto a specific pane) lands the tab there; if that pane already held
-   * another tab and the dragged one came from a pane of its own, the two swap
-   * places instead of the target's tab vanishing off-screen.
+   * another tab and the dragged one came from a *visible* pane of its own, the
+   * two swap places instead of the target's tab vanishing off-screen. A tab
+   * dragged in from off-screen (still open, but beyond the current layout)
+   * has no visible slot to swap into, so it falls back to the old behavior.
    */
   const showTab = useCallback((id: string, slot?: number) => {
     const cur = slotsRef.current
@@ -297,8 +299,10 @@ export function App() {
       // A drop onto a pane that already holds a different tab swaps the two
       // (the target's tab takes the dragged tab's old slot) rather than
       // leaving the source slot empty and the target's tab orphaned off-screen.
-      next[existing] =
-        slot !== undefined && cur[target] !== null && cur[target] !== id ? cur[target] : null
+      // Only when the source slot is itself visible, though — swapping into a
+      // hidden slot would just orphan the target's tab under a new name.
+      const canSwap = slot !== undefined && existing < lay && target < lay
+      next[existing] = canSwap && cur[target] !== null && cur[target] !== id ? cur[target] : null
     }
     next[target] = id
     setSlots(next)
@@ -1005,7 +1009,7 @@ export function App() {
                             <PaneContext tab={tab} visible={visible} config={config} />
                             <button
                               className="pane-close"
-                              title="Close pane (⌘W)"
+                              title={isMac ? 'Close pane (⌘W)' : 'Close pane (Ctrl+W)'}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 closePane(tab.id)
