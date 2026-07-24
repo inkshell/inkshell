@@ -109,6 +109,13 @@ export interface AppConfig {
    * chat with.
    */
   commitMessageModel: string
+  /**
+   * Terminal font size in px, set from the toolbar's A−/A+ control. Applies
+   * directly to every xterm instance (chat and plain-shell tabs alike) and,
+   * scaled by the same ratio as the built-in defaults, to the file/diff
+   * viewer's code table — one control for every text-heavy pane in the app.
+   */
+  terminalFontSize: number
 }
 
 /** A summary of a recorded Claude Code session, for the history list. */
@@ -254,6 +261,11 @@ export const CONTEXT_WINDOW = 200_000
 
 /** The levels `--effort` / `/effort` accept, in ascending order. */
 export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+
+/** Default terminal font size (px), and the range the toolbar's A−/A+ control clamps to. */
+export const DEFAULT_TERMINAL_FONT_SIZE = 13
+export const TERMINAL_FONT_SIZE_MIN = 9
+export const TERMINAL_FONT_SIZE_MAX = 24
 
 /**
  * The live state of a session, read off the most recent `assistant` line in its

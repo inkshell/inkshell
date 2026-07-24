@@ -859,7 +859,14 @@ export function App() {
   const projectColor = (path: string | null): string | null =>
     (path ? config.projects.find((p) => p.path === path)?.color : null) ?? null
   const sessionAccent = projectColor(activeProject)
-  const appStyle = sessionAccent ? ({ '--session': sessionAccent } as CSSProperties) : undefined
+  // The file/diff viewer's code table is intentionally denser than the
+  // terminal by default (11.5px vs. 13px); scaling it by that same ratio
+  // keeps the relationship at every size instead of just the shipped default.
+  const codeFontSize = (config.terminalFontSize * (11.5 / 13)).toFixed(2)
+  const appStyle = {
+    ...(sessionAccent ? { '--session': sessionAccent } : {}),
+    '--code-font-size': `${codeFontSize}px`
+  } as CSSProperties
 
   // The toolbar belongs to the active tab's content, so it names *that* tab's
   // working directory. With no live tab, fall back to the sidebar selection —
@@ -932,6 +939,8 @@ export function App() {
               onSetLayout={changeLayout}
               onToggleSidebar={toggleSidebar}
               onTogglePanel={togglePanel}
+              fontSize={config.terminalFontSize}
+              onSetFontSize={(size) => persistConfig({ ...config, terminalFontSize: size })}
             />
 
             {error && (
@@ -1035,6 +1044,7 @@ export function App() {
                                 tab={tab}
                                 active={visible}
                                 focused={isFocused}
+                                fontSize={config.terminalFontSize}
                                 onReady={onTabReady}
                                 onOpenFile={openFileFromTerminal}
                                 onTitle={onTabTitle}

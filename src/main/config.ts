@@ -1,7 +1,15 @@
 import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { paletteColor, type AppConfig, type ModelConfig, type ProjectEntry } from '@shared/types'
+import {
+  paletteColor,
+  DEFAULT_TERMINAL_FONT_SIZE,
+  TERMINAL_FONT_SIZE_MIN,
+  TERMINAL_FONT_SIZE_MAX,
+  type AppConfig,
+  type ModelConfig,
+  type ProjectEntry
+} from '@shared/types'
 
 /** The built-in models, used until the user edits the list. */
 export function defaultModels(): ModelConfig[] {
@@ -39,7 +47,8 @@ function defaultConfig(): AppConfig {
     defaultModel: 'sonnet',
     models: defaultModels(),
     defaultEffort: '',
-    commitMessageModel: 'haiku'
+    commitMessageModel: 'haiku',
+    terminalFontSize: DEFAULT_TERMINAL_FONT_SIZE
   }
 }
 
@@ -101,7 +110,14 @@ export function loadConfig(): AppConfig {
       commitMessageModel:
         typeof raw.commitMessageModel === 'string'
           ? raw.commitMessageModel
-          : base.commitMessageModel
+          : base.commitMessageModel,
+      // A hand-edited value outside the toolbar's own range is clamped rather
+      // than discarded, so intent ("bigger than default") survives even when
+      // the exact number doesn't.
+      terminalFontSize:
+        typeof raw.terminalFontSize === 'number' && Number.isFinite(raw.terminalFontSize)
+          ? Math.min(TERMINAL_FONT_SIZE_MAX, Math.max(TERMINAL_FONT_SIZE_MIN, raw.terminalFontSize))
+          : base.terminalFontSize
     }
   } catch {
     return base
