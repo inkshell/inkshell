@@ -1132,8 +1132,10 @@ export function App() {
                             <span className="pane-title">{tab.title}</span>
                             <PaneContext tab={tab} visible={visible} config={config} />
                             <button
+                              type="button"
                               className="pane-btn pane-minimize"
                               title={isMac ? 'Minimize pane (⌘W)' : 'Minimize pane (Ctrl+W)'}
+                              aria-label={isMac ? 'Minimize pane (⌘W)' : 'Minimize pane (Ctrl+W)'}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 closePane(tab.id)
@@ -1142,8 +1144,11 @@ export function App() {
                               <MinimizeIcon size={12} />
                             </button>
                             <button
+                              type="button"
                               className={`pane-btn pane-maximize ${isMaximized ? 'active' : ''}`}
                               title={isMaximized ? 'Restore pane' : 'Maximize pane'}
+                              aria-label={isMaximized ? 'Restore pane' : 'Maximize pane'}
+                              aria-pressed={isMaximized}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 toggleMaximize(tab.id)
@@ -1152,8 +1157,10 @@ export function App() {
                               <MaximizeIcon size={11} />
                             </button>
                             <button
+                              type="button"
                               className="pane-btn pane-close"
-                              title="Close"
+                              title="Close tab"
+                              aria-label="Close tab"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 closeTab(tab.id)

@@ -2999,7 +2999,8 @@ button {
     color var(--dur) var(--ease);
 }
 .pane:hover .pane-btn,
-.pane.focused .pane-btn {
+.pane.focused .pane-btn,
+.pane-btn:focus-visible {
   opacity: 1;
 }
 .pane-btn:hover {
