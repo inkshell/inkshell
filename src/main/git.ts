@@ -153,6 +153,12 @@ function parseStatus(z: string): GitStatus {
     // '!' (ignored) is never requested, so never appears; nothing else can.
   }
 
+  // Porcelain v2 groups by kind (tracked changes, then untracked), each group
+  // sorted on its own — so the merged list reads as "ordered by state" rather
+  // than by path. Re-sort each side by path for a stable, scannable list.
+  staged.sort((a, b) => a.path.localeCompare(b.path))
+  unstaged.sort((a, b) => a.path.localeCompare(b.path))
+
   return { isRepo: true, branch, upstream, ahead, behind, staged, unstaged }
 }
 
