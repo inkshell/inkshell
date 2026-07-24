@@ -239,6 +239,19 @@ export interface GitCommitDetail {
   diff: string
 }
 
+/**
+ * The two sides of a diff, as full file text, for Monaco's diff editor (which
+ * computes the diff itself rather than being handed a unified patch). Either
+ * side is empty when it doesn't exist on that side — a newly added file has no
+ * `original`, a deleted one no `modified`.
+ */
+export interface DiffContent {
+  original: string
+  modified: string
+  /** True when a side is binary or over the read cap — the editor can't show it. */
+  binary: boolean
+}
+
 /** One entry in a project directory listing (the files-panel tree). */
 export interface TreeEntry {
   /** Base name. */

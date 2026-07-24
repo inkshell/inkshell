@@ -30,16 +30,18 @@ export const IpcChannel = {
 
   // Project panel — git (main drives the real `git` binary) & files
   GitStatus: 'git:status',
-  GitDiff: 'git:diff',
   GitStage: 'git:stage',
   GitUnstage: 'git:unstage',
   GitCommit: 'git:commit',
   GitPush: 'git:push',
   GitLog: 'git:log',
   GitShow: 'git:show',
+  GitFileDiff: 'git:fileDiff',
+  GitCommitFileDiff: 'git:commitFileDiff',
   GitSuggestMessage: 'git:suggestMessage',
   FsList: 'fs:list',
   FsRead: 'fs:read',
+  FsWrite: 'fs:write',
   FsResolve: 'fs:resolve',
   FsListAllFiles: 'fs:listAllFiles',
 

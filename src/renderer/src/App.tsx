@@ -429,9 +429,11 @@ export function App() {
           return prev
         }
 
-        // A preview open reuses the existing preview tab's slot — only one
-        // "just looked at" file is ever open at a time.
-        const previewTab = preview ? prev.find((t) => t.preview) : undefined
+        // A preview open reuses the existing preview tab's slot — but only one
+        // of the same kind, so peeking a diff or commit doesn't repurpose (and
+        // visibly close) the file you were just looking at. Browsing files still
+        // reuses a single "just looked at" slot, as does browsing diffs.
+        const previewTab = preview ? prev.find((t) => t.preview && t.kind === ref.kind) : undefined
         if (previewTab) {
           showTab(previewTab.id)
           return prev.map((t) =>
@@ -600,7 +602,30 @@ export function App() {
     }
   }, [])
 
+  // Viewer tabs with unsaved edits. Tracked in a ref (not state) since it only
+  // gates the close guard below and pinning — neither needs a re-render.
+  const dirtyTabsRef = useRef<Set<string>>(new Set())
+  const onViewerDirtyChange = useCallback((tabId: string, dirty: boolean) => {
+    if (dirty) {
+      dirtyTabsRef.current.add(tabId)
+      // A file the user is editing must not have its slot silently reused by the
+      // next preview open — pin it the moment it goes dirty.
+      setTabs((prev) =>
+        prev.map((t) => (t.id === tabId && t.preview ? { ...t, preview: false } : t))
+      )
+    } else {
+      dirtyTabsRef.current.delete(tabId)
+    }
+  }, [])
+
   const closeTab = useCallback((id: string) => {
+    // A dirty file tab is the one close that loses work (a pane close keeps the
+    // tab mounted); confirm before discarding its unsaved edits.
+    if (dirtyTabsRef.current.has(id)) {
+      const ok = window.confirm('Discard unsaved changes to this file?')
+      if (!ok) return
+    }
+    dirtyTabsRef.current.delete(id)
     setTabs((prev) => prev.filter((t) => t.id !== id))
     const cur = slotsRef.current
     const at = cur.indexOf(id)
@@ -1060,7 +1085,10 @@ export function App() {
                                 key={tab.viewer ? `${tab.id}:${viewerKey(tab.viewer)}` : tab.id}
                                 tab={tab}
                                 active={visible}
+                                fontSize={config.terminalFontSize}
                                 onError={setError}
+                                onDirtyChange={(dirty) => onViewerDirtyChange(tab.id, dirty)}
+                                onOpenViewer={openViewerTab}
                               />
                             )}
                           </div>

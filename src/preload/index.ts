@@ -3,6 +3,7 @@ import { IpcChannel } from '@shared/ipc'
 import type {
   AppConfig,
   AppInfo,
+  DiffContent,
   FileContent,
   GitCommit,
   GitCommitDetail,
@@ -91,8 +92,6 @@ const api = {
   git: {
     status: (projectPath: string): Promise<GitStatus> =>
       ipcRenderer.invoke(IpcChannel.GitStatus, projectPath),
-    diff: (projectPath: string, filePath: string, staged: boolean): Promise<string> =>
-      ipcRenderer.invoke(IpcChannel.GitDiff, projectPath, filePath, staged),
     stage: (projectPath: string, filePath: string): Promise<void> =>
       ipcRenderer.invoke(IpcChannel.GitStage, projectPath, filePath),
     unstage: (projectPath: string, filePath: string): Promise<void> =>
@@ -105,6 +104,17 @@ const api = {
       ipcRenderer.invoke(IpcChannel.GitLog, projectPath),
     show: (projectPath: string, hash: string): Promise<GitCommitDetail> =>
       ipcRenderer.invoke(IpcChannel.GitShow, projectPath, hash),
+    /** Before/after text of one changed path, for Monaco's diff editor. */
+    fileDiff: (projectPath: string, filePath: string, staged: boolean): Promise<DiffContent> =>
+      ipcRenderer.invoke(IpcChannel.GitFileDiff, projectPath, filePath, staged),
+    /** Before/after text of one file within a commit. */
+    commitFileDiff: (
+      projectPath: string,
+      hash: string,
+      filePath: string,
+      origPath?: string
+    ): Promise<DiffContent> =>
+      ipcRenderer.invoke(IpcChannel.GitCommitFileDiff, projectPath, hash, filePath, origPath),
     suggestMessage: (
       projectPath: string,
       claudeConfigDir?: string,
@@ -118,6 +128,9 @@ const api = {
       ipcRenderer.invoke(IpcChannel.FsList, projectPath, relPath),
     read: (projectPath: string, relPath: string): Promise<FileContent> =>
       ipcRenderer.invoke(IpcChannel.FsRead, projectPath, relPath),
+    /** Saves the viewer's edits back to one file (UTF-8). */
+    write: (projectPath: string, relPath: string, content: string): Promise<void> =>
+      ipcRenderer.invoke(IpcChannel.FsWrite, projectPath, relPath, content),
     /** The project-relative path for a path-shaped token, or null if it isn't one. */
     resolve: (projectPath: string, candidate: string): Promise<string | null> =>
       ipcRenderer.invoke(IpcChannel.FsResolve, projectPath, candidate),
