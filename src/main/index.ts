@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from 'electron'
+import { join } from 'node:path'
 import { resolveClaudeBinary } from './claude-binary'
 import { createMainWindow } from './window'
 import { registerIpcHandlers, unregisterIpcHandlers } from './ipc'
@@ -42,6 +43,12 @@ function bootWindow(): void {
 
 app.whenReady().then(() => {
   app.setName('InkShell')
+  // Packaged builds carry the icon in the app bundle itself (Info.plist, baked
+  // in by electron-builder from build/icon.icns); `npm run dev` runs unpackaged
+  // with no bundle, so the dock would otherwise fall back to Electron's icon.
+  if (!app.isPackaged && process.platform === 'darwin') {
+    app.dock?.setIcon(join(app.getAppPath(), 'resources', 'icon.png'))
+  }
   // Find the `claude` binary while the window is still loading: the lookup can
   // cost a login-shell spawn, and doing it here means the first chat rarely
   // waits for one. Failures are the spawn's to report, not this call's.
