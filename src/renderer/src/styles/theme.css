@@ -1171,13 +1171,23 @@ button {
 .term-host {
   position: absolute;
   inset: 0;
-  padding: 10px 12px;
 }
 .term-host[hidden] {
   display: none;
 }
+/* The inset lives here, not on `.term-host`, because `FitAddon.proposeDimensions`
+   only ever subtracts *this* element's own padding from its parent's measured
+   height — padding on the parent is invisible to it. With the padding up on
+   `.term-host` instead, the addon overshoots the available height by exactly
+   that padding, which usually still floors down to the right row count but,
+   at just the wrong window height, rounds up into one row too many — a row
+   xterm happily draws and the pane's `overflow: hidden` then guillotines.
+   `.xterm` is `position: relative` with its children (`.xterm-viewport` et al)
+   absolutely inset to 0, so padding here insets them exactly as it did on the
+   host, while finally being where the addon's own math expects to find it. */
 .term-host .xterm {
   height: 100%;
+  padding: 10px 12px;
 }
 
 /* Empty state — a quiet hero */
