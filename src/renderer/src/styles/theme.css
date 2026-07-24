@@ -108,6 +108,9 @@ button {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
 
 /* =========================================================================
    App shell — the --session tint threads through the whole subtree
