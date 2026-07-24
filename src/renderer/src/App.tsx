@@ -1021,14 +1021,7 @@ export function App() {
                           key={`empty-${i}`}
                           className={`pane empty ${i === focusedSlot ? 'focused' : ''} ${dragOverSlot === i ? 'drag-over' : ''}`}
                           style={{ order: i }}
-                          role="button"
-                          tabIndex={0}
                           onClick={() => focusSlot(i)}
-                          onKeyDown={(e) => {
-                            if (e.key !== 'Enter' && e.key !== ' ') return
-                            e.preventDefault()
-                            focusSlot(i)
-                          }}
                           {...paneDropTarget(i)}
                         >
                           <span className="empty-pane-plus">＋</span>
