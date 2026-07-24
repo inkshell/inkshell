@@ -296,6 +296,9 @@ button {
   flex-direction: column;
   padding: 12px 12px 10px;
   overflow: hidden;
+  /* Lets `.project-row` / `.knode` react to the sidebar panel's own resized
+     width (see the `sidebar` container query below), independent of viewport. */
+  container: sidebar / inline-size;
 }
 
 /* Vertical resizable Group holding the projects / history split. */
@@ -3195,9 +3198,13 @@ button {
   color: var(--text-muted);
 }
 
-/* The nested open items, hung off a faint guide line. */
+/* The nested open items, hung off a faint guide line. A flex column (not
+   grid) so each `.knode` stretches to the row's full width by default —
+   grid's implicit auto column instead sizes to the item's own preferred
+   width, leaving `.knode` (and its wrapped title line) short of the edge. */
 .kids {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 3px;
   margin: 3px 0 5px 20px;
   padding-left: 11px;
@@ -3348,4 +3355,32 @@ button {
 .knode-close:hover {
   background: var(--bg-card-hover);
   color: var(--text-primary);
+}
+
+/* Sidebar dragged near its minimum width: a single line no longer has room
+   for both the icons and a readable title. Rather than let the title
+   squeeze the icons toward clipping, drop the title to a second line under
+   them — driven by the sidebar panel's own resized width, not the viewport. */
+@container sidebar (max-width: 230px) {
+  .project-row {
+    height: auto;
+    flex-wrap: wrap;
+    row-gap: 3px;
+    padding-block: 6px;
+  }
+  .project-row .name {
+    order: 10;
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .knode {
+    flex-wrap: wrap;
+    row-gap: 3px;
+  }
+  .knode .t {
+    order: 10;
+    flex-basis: 100%;
+    min-width: 0;
+  }
 }
