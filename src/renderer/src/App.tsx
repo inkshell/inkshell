@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent
+} from 'react'
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import {
   CONTEXT_WINDOW,
@@ -36,6 +44,8 @@ import {
   CommitIcon,
   DiffIcon,
   FileTextIcon,
+  MaximizeIcon,
+  MinimizeIcon,
   PlusIcon,
   TerminalIcon
 } from './components/Icons'
@@ -132,6 +142,11 @@ export function App() {
   // The empty pane currently under a drag, for its hover highlight — cleared
   // on drop/leave and never persisted beyond the gesture.
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null)
+  // A maximized pane's tab id — while set, that pane alone fills the stage.
+  // `slots`/`layout` are left untouched underneath, so restoring is just
+  // clearing this back to null. See the sync effect below for how it's kept
+  // from going stale when focus moves elsewhere.
+  const [maximizedTabId, setMaximizedTabId] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
   const [showQuickOpen, setShowQuickOpen] = useState(false)
@@ -162,6 +177,17 @@ export function App() {
   layoutRef.current = layout
   const focusedSlotRef = useRef(focusedSlot)
   focusedSlotRef.current = focusedSlot
+
+  // A maximized pane only makes sense while its tab still sits in the focused
+  // slot — the moment focus moves elsewhere (a sidebar click, its pane
+  // closing, its tab closing) it should fall back to the normal split view
+  // instead of keeping some other pane hidden behind a stale fullscreen tab.
+  // `useLayoutEffect` so that fallback lands before paint, not as a flash.
+  useLayoutEffect(() => {
+    if (maximizedTabId !== null && slots[focusedSlot] !== maximizedTabId) {
+      setMaximizedTabId(null)
+    }
+  }, [slots, focusedSlot, maximizedTabId])
 
   // The `CLAUDE_CONFIG_DIR` override for a project path, read from a ref so the
   // lookup helper stays stable and doesn't need to be in every dependency list.
@@ -334,6 +360,7 @@ export function App() {
   // The layout buttons. Growing reveals panes that already hold off-screen tabs;
   // shrinking keeps the focused tab in view by sliding it into the first pane.
   const changeLayout = useCallback((n: PaneLayout) => {
+    setMaximizedTabId(null)
     setLayout(n)
     if (focusedSlotRef.current >= n) {
       const next = slotsRef.current.slice()
@@ -590,9 +617,10 @@ export function App() {
   /**
    * Removes a tab from whichever pane shows it, without touching the tab
    * itself — it stays alive (and listed in the sidebar), just off-screen.
-   * This is what the pane header's own close affordances (middle click, the
-   * `×` button) do: they close the *pane*, not the chat/terminal behind it.
-   * Only the sidebar's close controls (`closeTab` below) end the instance.
+   * This is what the pane header's own minimize button (and middle click) do:
+   * they close the *pane*, not the chat/terminal behind it. Only the pane's
+   * own close button and the sidebar's close controls (`closeTab` below) end
+   * the instance.
    */
   const closePane = useCallback((id: string) => {
     const cur = slotsRef.current
@@ -613,6 +641,19 @@ export function App() {
       }
       setFocusedSlot(nf)
     }
+  }, [])
+
+  /**
+   * Toggles whether a pane fills the whole stage. `slots`/`layout` never
+   * change — the sync effect above (keyed on `focusedSlot`) is what drops
+   * back to the split view once focus moves away, so restoring is implicit.
+   * Also focuses the pane's slot, so maximizing one that wasn't already
+   * focused hands it the keyboard too.
+   */
+  const toggleMaximize = useCallback((id: string) => {
+    setMaximizedTabId((cur) => (cur === id ? null : id))
+    const at = slotsRef.current.indexOf(id)
+    if (at !== -1) setFocusedSlot(at)
   }, [])
 
   // Viewer tabs with unsaved edits. Tracked in a ref (not state) since it only
@@ -732,6 +773,18 @@ export function App() {
   // Imperative handles into the live terminals, for asking the active one
   // whether its input box is empty (the draft exists only on the CLI's screen).
   const terminalRefs = useRef(new Map<string, TerminalViewHandle>())
+
+  // Maximizing is usually a click on the pane's own header button, which
+  // steals DOM focus from the terminal on the way — and when that pane was
+  // already the focused one, `TerminalView`'s own `[focused]` effect never
+  // re-fires to claim it back (the prop didn't change). Hand the keyboard
+  // back explicitly so maximizing and typing is one motion, not two.
+  useEffect(() => {
+    if (maximizedTabId === null) return
+    const id = requestAnimationFrame(() => terminalRefs.current.get(maximizedTabId)?.focus())
+    return () => cancelAnimationFrame(id)
+  }, [maximizedTabId])
+
   /**
    * Types a slash command into the active session — only when its input box is
    * verifiably empty. Bytes written to the pty append to whatever is
@@ -854,7 +907,8 @@ export function App() {
       } else if (e.key === 'w' || e.key === 'W') {
         e.preventDefault()
         e.stopPropagation()
-        // Same action as the pane's own `×` — closes the pane, not the chat.
+        // Same action as the pane's own minimize button — hides the pane,
+        // the chat/terminal behind it stays alive off-screen.
         const { activeTabId: id, closePane: close } = shortcutRef.current
         if (id) close(id)
       } else if (e.key === 'p' || e.key === 'P') {
@@ -1034,6 +1088,7 @@ export function App() {
                       // node (and its pty/scrollback) is never reparented or torn
                       // down. Off-screen tabs stay mounted but hidden.
                       const slot = slots.indexOf(tab.id)
+                      const isMaximized = maximizedTabId === tab.id
                       const visible = slot !== -1 && slot < layout
                       const isFocused = visible && slot === focusedSlot
                       const accent = projectColor(tab.cwd)
@@ -1045,13 +1100,13 @@ export function App() {
                       return (
                         <div
                           key={tab.id}
-                          className={`pane ${isFocused ? 'focused' : ''} ${tab.processing ? 'processing' : ''} ${dragOverSlot === slot ? 'drag-over' : ''}`}
+                          className={`pane ${isFocused ? 'focused' : ''} ${isMaximized ? 'maximized' : ''} ${tab.processing ? 'processing' : ''} ${dragOverSlot === slot ? 'drag-over' : ''}`}
                           style={paneStyle}
                           onMouseDown={(e) => {
-                            // Middle click closes the pane — same idiom as a browser
-                            // tab — without also focusing the pane it sat in. The tab
-                            // itself stays open; only the sidebar's close actually
-                            // ends it.
+                            // Middle click minimizes the pane — same idiom as a
+                            // browser tab — without also focusing the pane it sat
+                            // in. The tab itself stays open; only the pane's own
+                            // close button (or the sidebar's) ends it.
                             if (e.button === 1) {
                               e.preventDefault()
                               closePane(tab.id)
@@ -1077,11 +1132,31 @@ export function App() {
                             <span className="pane-title">{tab.title}</span>
                             <PaneContext tab={tab} visible={visible} config={config} />
                             <button
-                              className="pane-close"
-                              title={isMac ? 'Close pane (⌘W)' : 'Close pane (Ctrl+W)'}
+                              className="pane-btn pane-minimize"
+                              title={isMac ? 'Minimize pane (⌘W)' : 'Minimize pane (Ctrl+W)'}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 closePane(tab.id)
+                              }}
+                            >
+                              <MinimizeIcon size={12} />
+                            </button>
+                            <button
+                              className={`pane-btn pane-maximize ${isMaximized ? 'active' : ''}`}
+                              title={isMaximized ? 'Restore pane' : 'Maximize pane'}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleMaximize(tab.id)
+                              }}
+                            >
+                              <MaximizeIcon size={11} />
+                            </button>
+                            <button
+                              className="pane-btn pane-close"
+                              title="Close"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                closeTab(tab.id)
                               }}
                             >
                               <CloseIcon size={12} />
@@ -1206,6 +1281,15 @@ export function App() {
           />
         </Panel>
       </Group>
+
+      {/* A maximized pane is `position: fixed` on its own pane-grid tile (see
+          the `.pane.maximized` rule) — this backdrop just dims everything
+          else and gives the click-outside-to-restore affordance a modal
+          normally has. No Escape shortcut on purpose: it's too easily hit
+          while typing in the chat/terminal input to double as "exit fullscreen". */}
+      {maximizedTabId && (
+        <div className="maximize-backdrop" onClick={() => setMaximizedTabId(null)} />
+      )}
 
       {showSettings && (
         <SettingsModal
