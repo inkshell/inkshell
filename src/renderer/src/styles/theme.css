@@ -2881,6 +2881,35 @@ button {
   outline-offset: -2px;
 }
 
+/* A maximized pane floats above the whole app — sidebar, toolbar, the other
+   panes — as a modal-like window rather than replacing the grid, so `layout`
+   and `slots` underneath are untouched (see `toggleMaximize` in App.tsx). It
+   stays a normal grid item in the DOM; `position: fixed` just lifts it out of
+   grid placement and the document flow without unmounting it, so the
+   terminal/pty underneath never notices. The margin is what keeps this from
+   reading as a second, competing "app" — some of the real one has to stay
+   visible at the edges for the modal framing to land. */
+.pane.maximized {
+  position: fixed;
+  inset: 5%;
+  /* `.pane` (the react-resizable-panels wrapper reuses the same class name)
+     pins width/height to 100%, which would fight the inset above and push
+     this past the viewport edge — `auto` lets the four offsets size it. */
+  width: auto;
+  height: auto;
+  z-index: 41;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--session) 45%, transparent),
+    0 40px 100px -24px rgba(0, 0, 0, 0.75);
+}
+.maximize-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 12, 0.66);
+  backdrop-filter: blur(6px);
+  z-index: 40;
+}
+
 .pane-head {
   display: flex;
   align-items: center;
@@ -2953,7 +2982,7 @@ button {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.pane-close {
+.pane-btn {
   width: 22px;
   height: 22px;
   flex: none;
@@ -2969,13 +2998,27 @@ button {
     background var(--dur) var(--ease),
     color var(--dur) var(--ease);
 }
-.pane:hover .pane-close,
-.pane.focused .pane-close {
+.pane:hover .pane-btn,
+.pane.focused .pane-btn,
+.pane-btn:focus-visible {
   opacity: 1;
 }
-.pane-close:hover {
+.pane-btn:hover {
   background: var(--bg-card-hover);
   color: var(--text-primary);
+}
+/* The real close ends the session behind the pane (it drops off the sidebar
+   too), unlike minimize/maximize which only change what's on screen — the
+   same red-on-hover cue as the window titlebar's own close button. */
+.pane-close:hover {
+  background: var(--error);
+  color: #fff;
+}
+/* Stays lit (not just on hover) so a maximized pane's own toggle reads as
+   "already active" at a glance. */
+.pane-maximize.active {
+  opacity: 1;
+  color: var(--session);
 }
 .pane-body {
   position: relative;
