@@ -11,8 +11,10 @@ import {
   GripIcon,
   InfoIcon,
   PlusIcon,
+  TerminalIcon,
   TrashIcon
 } from './Icons'
+import { TooltipHost, useTooltip } from './Tooltip'
 
 interface Props {
   isMac: boolean
@@ -42,6 +44,8 @@ interface Props {
   /** The project row's small "+" — starts a chat there without a trip through
    *  the toolbar (which no longer carries a "New chat" button). */
   onNewChat: (path: string) => void
+  /** The project row's small terminal icon — opens a plain shell there. */
+  onNewTerminal: (path: string) => void
 }
 
 /** `.project-row` height + `.project-list` gap (theme.css) — one vertical drag step. */
@@ -60,6 +64,7 @@ function moveItem<T>(arr: T[], from: number, to: number): T[] {
 function viewerGlyph(kind: Tab['kind']): string {
   if (kind === 'diff') return '±'
   if (kind === 'commit') return '◇'
+  if (kind === 'shell') return '$'
   return '◧'
 }
 
@@ -161,7 +166,8 @@ export function Sidebar({
   onDeleteSession,
   onFocusTab,
   onCloseTab,
-  onNewChat
+  onNewChat,
+  onNewTerminal
 }: Props) {
   // The projects / history split (and each section's collapsed state) is
   // remembered between launches.
@@ -175,6 +181,7 @@ export function Sidebar({
     ? ({ ['--session' as string]: currentColor } as CSSProperties)
     : undefined
   const [menu, setMenu] = useState<ContextMenu | null>(null)
+  const { tip, bind } = useTooltip()
 
   // Which project nodes are collapsed in the tree (default: all expanded).
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
@@ -345,14 +352,26 @@ export function Sidebar({
                     <button
                       type="button"
                       className="project-new-chat"
-                      title="New chat"
                       aria-label={`New chat in ${p.name}`}
                       onClick={(e) => {
                         e.stopPropagation()
                         onNewChat(p.path)
                       }}
+                      {...bind('New chat')}
                     >
-                      <PlusIcon size={12} />
+                      <PlusIcon size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="project-new-terminal"
+                      aria-label={`New terminal in ${p.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onNewTerminal(p.path)
+                      }}
+                      {...bind('New terminal')}
+                    >
+                      <TerminalIcon size={13} />
                     </button>
                     {items.length > 0 && <span className="open-count">{items.length}</span>}
                   </div>
@@ -499,6 +518,8 @@ export function Sidebar({
           </div>
         </div>
       )}
+
+      <TooltipHost tip={tip} />
     </aside>
   )
 }

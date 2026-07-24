@@ -124,10 +124,16 @@ export interface SessionSummary {
   createdMs: number
 }
 
-/** Options for spawning a Claude Code session in a pseudo-terminal. */
+/** Options for spawning a Claude Code session (or a plain shell) in a pseudo-terminal. */
 export interface PtyCreateOptions {
-  /** Working directory for the `claude` process, if a project is selected. */
+  /** Working directory for the child process, if a project is selected. */
   cwd?: string
+  /**
+   * Spawns the user's own shell (`$SHELL`, or its platform equivalent) instead
+   * of `claude` — a plain terminal for the project directory. Every other
+   * Claude-specific option below is ignored when this is set.
+   */
+  shell?: boolean
   /** Session id to `--resume`; when omitted a fresh `--session-id` is generated. */
   resumeSessionId?: string
   /** Model alias passed via `--model`, if any. */
@@ -140,7 +146,11 @@ export interface PtyCreateOptions {
   rows: number
 }
 
-/** What `pty.create` returns: the OS-level pty handle id and the session id in use. */
+/**
+ * What `pty.create` returns: the OS-level pty handle id and the session id in
+ * use. A plain shell (`PtyCreateOptions.shell`) has no Claude Code session
+ * behind it, so `sessionId` comes back empty.
+ */
 export interface PtyCreateResult {
   ptyId: number
   sessionId: string

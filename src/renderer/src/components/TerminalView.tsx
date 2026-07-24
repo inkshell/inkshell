@@ -179,6 +179,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
     window.inkshell.pty
       .create({
         cwd: tab.cwd ?? undefined,
+        shell: tab.kind === 'shell',
         resumeSessionId: tab.resumeSessionId ?? undefined,
         model: tab.model ?? undefined,
         effort: tab.effort ?? undefined,
@@ -210,7 +211,9 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
             if (!sawOutput && exitCode !== 0) {
               cbRef.current.onError(
                 tab.id,
-                `Claude Code exited immediately (code ${exitCode}) without starting. Check that \`claude\` runs in your terminal.`
+                tab.kind === 'shell'
+                  ? `The terminal exited immediately (code ${exitCode}) without starting.`
+                  : `Claude Code exited immediately (code ${exitCode}) without starting. Check that \`claude\` runs in your terminal.`
               )
               return
             }
@@ -229,7 +232,11 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
         const message = raw.replace(/^Error invoking remote method '[^']*':\s*(Error:\s*)?/, '')
         cbRef.current.onError(
           tab.id,
-          message.includes('Claude Code') ? message : `Couldn't start Claude Code: ${message}`
+          tab.kind === 'shell'
+            ? `Couldn't open a terminal: ${message}`
+            : message.includes('Claude Code')
+              ? message
+              : `Couldn't start Claude Code: ${message}`
         )
       })
 

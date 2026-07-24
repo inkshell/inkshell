@@ -14,15 +14,22 @@ import { overrideConfigDir } from './claude-history'
  */
 const GRACEFUL_EXIT_TIMEOUT_MS = 3000
 
+/** A live child process plus what kind of exit sequence it understands. */
+interface Session {
+  child: pty.IPty
+  /** A plain shell has no `/exit` — see `close()`. */
+  shell: boolean
+}
+
 /**
- * Owns every live `claude` child process, one per open tab. Each runs inside a
- * pseudo-terminal so the CLI behaves exactly as it does in a real terminal —
- * colors, prompts, `/`-commands and all — while its bytes stream to an xterm.js
- * view in the renderer.
+ * Owns every live child process, one per open tab: a `claude` session or a
+ * plain shell. Each runs inside a pseudo-terminal so it behaves exactly as it
+ * does in a real terminal — colors, prompts, `/`-commands and all — while its
+ * bytes stream to an xterm.js view in the renderer.
  */
 export class PtyManager {
   private nextId = 1
-  private readonly sessions = new Map<number, pty.IPty>()
+  private readonly sessions = new Map<number, Session>()
   /** In-flight `close` calls, so a second one joins the first instead of racing it. */
   private readonly closing = new Map<number, Promise<void>>()
 
@@ -30,7 +37,8 @@ export class PtyManager {
   constructor(private readonly sender: WebContents) {}
 
   /**
-   * Spawns a Claude Code session. New chats get a UUID we choose (via
+   * Spawns a Claude Code session, or (with `opts.shell`) a plain terminal in
+   * the project directory. New chats get a UUID we choose (via
    * `--session-id`); resumes reuse the original id (the CLI does too, unless
    * `--fork-session`). Every session launches on the configured default model
    * and effort, and in auto permission mode; switching the model afterwards is
@@ -38,6 +46,8 @@ export class PtyManager {
    * `AppConfig.defaultEffort`).
    */
   async create(opts: PtyCreateOptions): Promise<PtyCreateResult> {
+    if (opts.shell) return this.createShell(opts)
+
     const args: string[] = []
     let sessionId: string
     if (opts.resumeSessionId) {
@@ -82,8 +92,44 @@ export class PtyManager {
       env
     })
 
+    const ptyId = this.register(child, false)
+    return { ptyId, sessionId }
+  }
+
+  /**
+   * Spawns the user's own shell — `$SHELL` (or `%ComSpec%` on Windows) — as an
+   * interactive login shell in the project directory, exactly like opening a
+   * new window in a real terminal app: same rc files, same aliases, same PATH.
+   * Unlike a `claude` session there is no transcript behind it, so it never
+   * shows up in history or the context meter.
+   */
+  private async createShell(opts: PtyCreateOptions): Promise<PtyCreateResult> {
+    const isWindows = process.platform === 'win32'
+    const command = isWindows ? process.env.ComSpec || 'cmd.exe' : process.env.SHELL || '/bin/zsh'
+    const args = isWindows ? [] : ['-il']
+
+    const env: NodeJS.ProcessEnv = { ...process.env, TERM: 'xterm-256color' }
+    delete env.CLAUDE_CONFIG_DIR
+    // Same terminal-like PATH a `claude` child gets — a shell opened from this
+    // GUI app should see what a real terminal would, not launchd's truncated one.
+    env.PATH = await claudeEnvPath()
+
+    const child = pty.spawn(command, args, {
+      name: 'xterm-256color',
+      cols: opts.cols,
+      rows: opts.rows,
+      cwd: opts.cwd || process.env.HOME || process.cwd(),
+      env
+    })
+
+    const ptyId = this.register(child, true)
+    return { ptyId, sessionId: '' }
+  }
+
+  /** Tracks a freshly spawned child and wires its data/exit pushes. */
+  private register(child: pty.IPty, shell: boolean): number {
     const ptyId = this.nextId++
-    this.sessions.set(ptyId, child)
+    this.sessions.set(ptyId, { child, shell })
 
     child.onData((data) => {
       if (!this.sender.isDestroyed()) {
@@ -97,32 +143,34 @@ export class PtyManager {
       }
     })
 
-    return { ptyId, sessionId }
+    return ptyId
   }
 
   write(ptyId: number, data: string): void {
-    this.sessions.get(ptyId)?.write(data)
+    this.sessions.get(ptyId)?.child.write(data)
   }
 
   resize(ptyId: number, cols: number, rows: number): void {
     // Guard against the 0×0 xterm reports before its first layout pass.
     if (cols < 1 || rows < 1) return
     try {
-      this.sessions.get(ptyId)?.resize(cols, rows)
+      this.sessions.get(ptyId)?.child.resize(cols, rows)
     } catch {
       // A resize racing a just-exited process is harmless; ignore.
     }
   }
 
   /**
-   * Ends a session the way a person would: types `/exit` at the prompt and lets
-   * the CLI shut itself down, rather than yanking the process out from under it.
-   * Falls back to `kill` if the session hasn't gone by the timeout. Resolves once
-   * the child is actually gone, either way.
+   * Ends a session the way a person would: types `/exit` (or, for a plain
+   * shell, just `exit`) at the prompt and lets it shut itself down, rather
+   * than yanking the process out from under it. Falls back to `kill` if the
+   * session hasn't gone by the timeout. Resolves once the child is actually
+   * gone, either way.
    */
   close(ptyId: number): Promise<void> {
-    const child = this.sessions.get(ptyId)
-    if (!child) return Promise.resolve()
+    const session = this.sessions.get(ptyId)
+    if (!session) return Promise.resolve()
+    const { child } = session
     const pending = this.closing.get(ptyId)
     if (pending) return pending
 
@@ -142,9 +190,15 @@ export class PtyManager {
       const timer = setTimeout(() => finish(true), GRACEFUL_EXIT_TIMEOUT_MS)
       try {
         // Ctrl-U first: it clears whatever is half-typed at the prompt, without
-        // which `/exit` lands as a suffix to it and the CLI submits the whole
-        // thing as a prompt (`meu texto/exit`) instead of quitting.
-        child.write('\x15/exit\r')
+        // which the exit command lands as a suffix to it and gets submitted as
+        // part of it instead of running on its own. Skipped for the Windows
+        // shell fallback (cmd.exe): Ctrl-U isn't one of its line-editing
+        // shortcuts, so it would pass straight through into the exit command
+        // instead of clearing anything, corrupting it and forcing the
+        // hard-kill timeout below.
+        const isWindowsShell = session.shell && process.platform === 'win32'
+        const exitCommand = session.shell ? 'exit\r' : '/exit\r'
+        child.write(isWindowsShell ? exitCommand : '\x15' + exitCommand)
       } catch {
         finish(true)
       }
@@ -155,11 +209,11 @@ export class PtyManager {
   }
 
   kill(ptyId: number): void {
-    const child = this.sessions.get(ptyId)
-    if (!child) return
+    const session = this.sessions.get(ptyId)
+    if (!session) return
     this.sessions.delete(ptyId)
     try {
-      child.kill()
+      session.child.kill()
     } catch {
       // Already gone.
     }

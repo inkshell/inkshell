@@ -50,12 +50,12 @@ export type PaneLayout = 1 | 2 | 4
 export const TAB_DRAG_TYPE = 'application/x-inkshell-tab'
 export const SESSION_DRAG_TYPE = 'application/x-inkshell-session'
 
-/** A single open tab in the renderer: a live Claude chat, or a git viewer. */
+/** A single open tab in the renderer: a live Claude chat, a plain shell, or a git viewer. */
 export interface Tab {
   /** Stable local id (assigned by the renderer, independent of the OS pty id). */
   id: string
-  /** A live `claude` terminal, or a read-only git viewer. */
-  kind: 'terminal' | 'diff' | 'file' | 'commit'
+  /** A live `claude` terminal, a plain shell (no Claude process behind it), or a read-only git viewer. */
+  kind: 'terminal' | 'shell' | 'diff' | 'file' | 'commit'
   /** What a viewer tab renders; absent for terminal tabs. */
   viewer?: ViewerRef
   /** The OS pty handle, once the terminal has spawned; `null` while starting. */
