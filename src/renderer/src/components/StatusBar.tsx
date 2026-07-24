@@ -46,10 +46,11 @@ interface Props {
  * reached for yet, and being wrong about it in both directions.
  *
  * The bar is drawn for *every* pane kind, chat or not, and swaps its contents
- * rather than being mounted and unmounted with the focus. Its 36px is height
- * the pane grid doesn't get, so a bar that came and went as focus moved between
- * quadrants resized every terminal on screen with it — `App` renders this
- * unconditionally and passes `active: false` for a terminal, file or diff pane.
+ * rather than being mounted and unmounted with the focus. The 36px it occupies
+ * is height the pane grid never gets, so a bar that came and went as focus
+ * moved between quadrants resized every terminal on screen along with it —
+ * `App` renders this unconditionally and passes `active: false` for a terminal,
+ * file or diff pane.
  * Outside a chat it reads as a deliberately quiet strip: the directory and the
  * name of the pane, and nothing on the right. Everything the row can hold
  * belongs to a session, and inventing filler for panes that have none would
