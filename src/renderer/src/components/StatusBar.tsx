@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { EFFORT_LEVELS, type ModelConfig } from '@shared/types'
 import { ContextMeter } from './ContextMeter'
-import { BarsIcon, BookmarkIcon, FolderIcon, GaugeIcon, SwapIcon } from './Icons'
+import { BarsIcon, FolderIcon, GaugeIcon, SwapIcon } from './Icons'
 
 interface Props {
   /** Basename of the selected project, or null when none is chosen. */
@@ -24,7 +24,6 @@ interface Props {
   contextWindow: number
   onPickModel: (alias: string) => void
   onPickEffort: (effort: string) => void
-  onViewMemory: () => void
   onAnalytics: () => void
 }
 
@@ -67,7 +66,6 @@ export function StatusBar({
   contextWindow,
   onPickModel,
   onPickEffort,
-  onViewMemory,
   onAnalytics
 }: Props) {
   return (
@@ -152,9 +150,6 @@ export function StatusBar({
       {active && (
         <div className="status-right">
           <ContextMeter tokens={contextTokens} contextWindow={contextWindow} />
-          <button className="icon-btn" title="View memory" onClick={onViewMemory}>
-            <BookmarkIcon size={14} />
-          </button>
           <button className="icon-btn" title="Analytics (/stats)" onClick={onAnalytics}>
             <BarsIcon size={14} />
           </button>

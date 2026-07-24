@@ -1075,7 +1075,6 @@ export function App() {
                     contextWindow={activeContextWindow()}
                     onPickModel={requestModel}
                     onPickEffort={requestEffort}
-                    onViewMemory={() => setNotice('Memory viewing is coming soon.')}
                     onAnalytics={requestStats}
                   />
 
