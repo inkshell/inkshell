@@ -221,8 +221,11 @@ function classify(text: string): { text: string; binary: boolean } {
 /**
  * A blob's text at a revision, via `git show <rev>:<path>` — `rev` is `HEAD`, a
  * commit hash, `<hash>^` (its parent), or `''` for the index (`git show :path`).
- * Returns `null` when the path doesn't exist there (an added file has no parent
- * blob, a deleted one no current blob), which the caller renders as an empty side.
+ * Returns `null` when the rev/path isn't present (git exits 128) — an added file
+ * has no parent blob, a deleted one no current blob — which the caller renders
+ * as an empty side. Any other failure (e.g. a `maxBuffer` overflow on a huge
+ * blob, which the wrapper surfaces as a synthetic non-128 code) is flagged
+ * binary rather than faked as a clean empty side.
  */
 async function gitBlob(
   root: string,
@@ -230,7 +233,8 @@ async function gitBlob(
   filePath: string
 ): Promise<{ text: string; binary: boolean } | null> {
   const res = await git(root, ['show', `${rev}:${filePath}`], { allowNonZero: true })
-  if (res.code !== 0) return null
+  if (res.code === 128) return null
+  if (res.code !== 0) return { text: '', binary: true }
   return classify(res.stdout)
 }
 

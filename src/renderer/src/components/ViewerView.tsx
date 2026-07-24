@@ -91,6 +91,9 @@ export function ViewerView({ tab, active, fontSize, onError, onDirtyChange, onOp
   // without this component re-rendering on every keystroke.
   const draftRef = useRef('')
   const savedRef = useRef('')
+  // Guards `save` against re-entry: ⌘S can fire again while a write is still in
+  // flight, which would start a concurrent write and flicker the saving state.
+  const savingRef = useRef(false)
 
   // The parent's callbacks, held in refs. `onDirtyChange` in particular arrives
   // as a fresh inline closure on every parent render; if the loader below
@@ -179,15 +182,21 @@ export function ViewerView({ tab, active, fontSize, onError, onDirtyChange, onOp
 
   const save = useCallback(async () => {
     if (kind !== 'file' || project == null || path == null) return
+    if (savingRef.current) return
     if (draftRef.current === savedRef.current) return
+    savingRef.current = true
     setSaving(true)
+    // Snapshot the text being written, so `savedRef` records exactly what landed
+    // on disk rather than whatever the buffer holds by the time the write ends.
+    const pending = draftRef.current
     try {
-      await window.inkshell.fs.write(project, path, draftRef.current)
-      savedRef.current = draftRef.current
-      setDirtyState(false)
+      await window.inkshell.fs.write(project, path, pending)
+      savedRef.current = pending
+      setDirtyState(draftRef.current !== pending)
     } catch (err) {
       onErrorRef.current(`Couldn't save: ${err instanceof Error ? err.message : err}`)
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }, [kind, project, path, setDirtyState])

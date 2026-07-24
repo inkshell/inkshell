@@ -1,6 +1,13 @@
-import { readdirSync, readFileSync, statSync, writeFileSync, type Dirent } from 'node:fs'
+import {
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+  type Dirent
+} from 'node:fs'
 import { homedir } from 'node:os'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { FileContent, TreeEntry } from '@shared/types'
 import { listTrackedFiles } from './git'
 
@@ -162,8 +169,23 @@ export function readProjectFile(projectPath: string, relPath: string): FileConte
  * stays inside the project. Only ever called for files the viewer already
  * loaded as editable text, so no binary/size gate is repeated here — refusing
  * to write is the reader's job at open time, not the writer's at save.
+ *
+ * `within` is a purely lexical guard, so it can't stop a symlink component from
+ * pointing outside the project (`link/file`, or a target that is itself a
+ * symlink out). Since this is a write reachable over IPC, the real paths are
+ * resolved and re-checked before the write: the target if it exists (following
+ * every symlink), else its parent directory for a not-yet-created file.
  */
 export function writeProjectFile(projectPath: string, relPath: string, content: string): void {
   const abs = within(projectPath, relPath)
+  const realRoot = realpathSync(projectPath)
+  let realTarget: string
+  try {
+    realTarget = realpathSync(abs)
+  } catch {
+    realTarget = join(realpathSync(dirname(abs)), basename(abs))
+  }
+  const rel = relative(realRoot, realTarget)
+  if (rel.startsWith('..') || isAbsolute(rel)) throw new Error('Path outside the project')
   writeFileSync(abs, content, 'utf-8')
 }
