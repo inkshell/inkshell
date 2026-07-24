@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { EFFORT_LEVELS, type ModelConfig } from '@shared/types'
 import { ContextMeter } from './ContextMeter'
 import { BarsIcon, BookmarkIcon, FolderIcon, GaugeIcon, SwapIcon } from './Icons'
@@ -7,6 +8,12 @@ interface Props {
   project: string | null
   /** Whether a chat tab is currently active (drives the model + context row). */
   active: boolean
+  /**
+   * Names the focused pane when it isn't a chat (a terminal, a file, a diff),
+   * standing where the switchers would. Null for a chat, and for an empty pane
+   * — which says what it is in the middle of its own tile.
+   */
+  subject: { glyph: ReactNode; label: string } | null
   models: ModelConfig[]
   /** Alias of the model actually backing the session, read off its transcript. */
   currentModel: string | null
@@ -37,10 +44,21 @@ interface Props {
  * a banner. Reflecting the same condition here as a disabled state would mean
  * reading the CLI's screen on a timer to grey out a control the user hasn't
  * reached for yet, and being wrong about it in both directions.
+ *
+ * The bar is drawn for *every* pane kind, chat or not, and swaps its contents
+ * rather than being mounted and unmounted with the focus. Its 36px is height
+ * the pane grid doesn't get, so a bar that came and went as focus moved between
+ * quadrants resized every terminal on screen with it — `App` renders this
+ * unconditionally and passes `active: false` for a terminal, file or diff pane.
+ * Outside a chat it reads as a deliberately quiet strip: the directory and the
+ * name of the pane, and nothing on the right. Everything the row can hold
+ * belongs to a session, and inventing filler for panes that have none would
+ * only put noise where the eye has no reason to go.
  */
 export function StatusBar({
   project,
   active,
+  subject,
   models,
   currentModel,
   currentEffort,
@@ -63,6 +81,16 @@ export function StatusBar({
           <span className="none">No project</span>
         )}
       </div>
+
+      {!active && subject && (
+        <>
+          <span className="status-divider" />
+          <span className="status-subject">
+            <span className="glyph">{subject.glyph}</span>
+            {subject.label}
+          </span>
+        </>
+      )}
 
       {active && (
         <>
@@ -120,7 +148,7 @@ export function StatusBar({
 
       <span className="status-spacer" />
 
-      {active ? (
+      {active && (
         <div className="status-right">
           <ContextMeter tokens={contextTokens} contextWindow={contextWindow} />
           <button className="icon-btn" title="View memory" onClick={onViewMemory}>
@@ -129,10 +157,6 @@ export function StatusBar({
           <button className="icon-btn" title="Analytics (/stats)" onClick={onAnalytics}>
             <BarsIcon size={14} />
           </button>
-        </div>
-      ) : (
-        <div className="status-hint">
-          <span className="kbd">⌘T</span> open a new chat
         </div>
       )}
     </div>

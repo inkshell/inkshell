@@ -1292,6 +1292,25 @@ button {
   background: var(--border);
   flex-shrink: 0;
 }
+/* What the focused pane holds, when it isn't a chat. The bar is drawn at the
+   same height for every pane kind (see `StatusBar`), so this stands in the room
+   the model + effort switchers leave behind — quieter than they are, since it's
+   a label rather than a control. */
+.status-subject {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.status-subject .glyph {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
 .status-spacer {
   margin-left: auto;
 }
@@ -1299,13 +1318,6 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-.status-hint {
-  color: var(--text-faint);
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 /* Model + effort switchers */
