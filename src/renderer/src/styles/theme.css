@@ -3158,8 +3158,8 @@ button {
 /* The nested open items, hung off a faint guide line. */
 .kids {
   display: grid;
-  gap: 1px;
-  margin: 1px 0 5px 20px;
+  gap: 3px;
+  margin: 3px 0 5px 20px;
   padding-left: 11px;
   border-left: 1px solid var(--border);
 }
