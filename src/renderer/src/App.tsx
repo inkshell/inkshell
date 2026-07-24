@@ -44,11 +44,24 @@ const isMac = window.inkshell.platform === 'darwin'
 let tabSeq = 0
 
 /** The glyph a viewer pane wears in its header where a chat wears its dot. */
-function paneGlyph(kind: Tab['kind']) {
-  if (kind === 'diff') return <DiffIcon size={12} />
-  if (kind === 'commit') return <CommitIcon size={12} />
-  if (kind === 'shell') return <TerminalIcon size={12} />
-  return <FileTextIcon size={12} />
+function paneGlyph(kind: Tab['kind'], size = 12) {
+  if (kind === 'diff') return <DiffIcon size={size} />
+  if (kind === 'commit') return <CommitIcon size={size} />
+  if (kind === 'shell') return <TerminalIcon size={size} />
+  return <FileTextIcon size={size} />
+}
+
+/**
+ * How the status bar names a focused pane that isn't a chat. The bar is drawn
+ * for every pane kind so its height never moves with focus, which leaves the
+ * room the model/effort switchers would have taken — this fills it, rather than
+ * letting the row read as a blank strip whenever a terminal or file has focus.
+ */
+const PANE_SUBJECT: Record<Exclude<Tab['kind'], 'terminal'>, string> = {
+  shell: 'Terminal',
+  file: 'File',
+  diff: 'Diff',
+  commit: 'Commit'
 }
 
 /**
@@ -907,6 +920,16 @@ export function App() {
   const panelProject = activeProject
   const panelConfigDir = activeConfigDir ?? null
 
+  // What the status bar says about the focused pane. A chat drives the model +
+  // effort + context row; anything else is simply named. Null for a chat (the
+  // switchers stand there instead) and for an empty pane, which already says
+  // what it is in the middle of its own tile.
+  const chatFocused = activeTab?.kind === 'terminal'
+  const statusSubject =
+    activeTab && activeTab.kind !== 'terminal'
+      ? { glyph: paneGlyph(activeTab.kind, 13), label: PANE_SUBJECT[activeTab.kind] }
+      : null
+
   return (
     <>
       <Group
@@ -984,21 +1007,26 @@ export function App() {
                 <EmptyState />
               ) : (
                 <>
-                  {activeTab && activeTab.kind === 'terminal' && (
-                    <StatusBar
-                      project={projectName}
-                      active
-                      models={config.models}
-                      currentModel={activeModelAlias()}
-                      currentEffort={activeTab.effort}
-                      contextTokens={liveSession?.tokens ?? null}
-                      contextWindow={activeContextWindow()}
-                      onPickModel={requestModel}
-                      onPickEffort={requestEffort}
-                      onViewMemory={() => setNotice('Memory viewing is coming soon.')}
-                      onAnalytics={requestStats}
-                    />
-                  )}
+                  {/* Unconditional on purpose: gating this on a chat being
+                      focused made the strip come and go as focus moved between
+                      panes, and every terminal on screen re-fitted to the
+                      height it gave back. It now stays put and swaps its
+                      contents instead. */}
+                  <StatusBar
+                    project={projectName}
+                    active={chatFocused}
+                    subject={statusSubject}
+                    models={config.models}
+                    currentModel={activeModelAlias()}
+                    currentEffort={activeTab?.effort ?? null}
+                    contextTokens={liveSession?.tokens ?? null}
+                    contextWindow={activeContextWindow()}
+                    onPickModel={requestModel}
+                    onPickEffort={requestEffort}
+                    onViewMemory={() => setNotice('Memory viewing is coming soon.')}
+                    onAnalytics={requestStats}
+                  />
+
                   <div className="pane-grid" data-layout={layout}>
                     {tabs.map((tab) => {
                       // A tab keeps a stable wrapper keyed by its id, so moving it
