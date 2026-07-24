@@ -70,6 +70,7 @@ export function Toolbar({
       <div className="font-size-ctl" role="group" aria-label="Text size">
         <button
           title="Decrease text size"
+          aria-label="Decrease text size"
           disabled={fontSize <= TERMINAL_FONT_SIZE_MIN}
           onClick={() => onSetFontSize(Math.max(TERMINAL_FONT_SIZE_MIN, fontSize - 1))}
         >
@@ -78,6 +79,7 @@ export function Toolbar({
         <span className="fs-value">{fontSize}</span>
         <button
           title="Increase text size"
+          aria-label="Increase text size"
           disabled={fontSize >= TERMINAL_FONT_SIZE_MAX}
           onClick={() => onSetFontSize(Math.min(TERMINAL_FONT_SIZE_MAX, fontSize + 1))}
         >

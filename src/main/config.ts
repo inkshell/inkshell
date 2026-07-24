@@ -111,11 +111,12 @@ export function loadConfig(): AppConfig {
         typeof raw.commitMessageModel === 'string'
           ? raw.commitMessageModel
           : base.commitMessageModel,
+      // A hand-edited value outside the toolbar's own range is clamped rather
+      // than discarded, so intent ("bigger than default") survives even when
+      // the exact number doesn't.
       terminalFontSize:
-        typeof raw.terminalFontSize === 'number' &&
-        raw.terminalFontSize >= TERMINAL_FONT_SIZE_MIN &&
-        raw.terminalFontSize <= TERMINAL_FONT_SIZE_MAX
-          ? raw.terminalFontSize
+        typeof raw.terminalFontSize === 'number' && Number.isFinite(raw.terminalFontSize)
+          ? Math.min(TERMINAL_FONT_SIZE_MAX, Math.max(TERMINAL_FONT_SIZE_MIN, raw.terminalFontSize))
           : base.terminalFontSize
     }
   } catch {
