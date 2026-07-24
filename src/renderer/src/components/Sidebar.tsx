@@ -316,12 +316,16 @@ export function Sidebar({
                   >
                     <button
                       type="button"
-                      className={`tree-caret ${caretOpen ? 'open' : ''}`}
-                      title={caretOpen ? 'Collapse' : 'Expand'}
-                      aria-label={caretOpen ? 'Collapse' : 'Expand'}
+                      className={`tree-caret ${caretOpen ? 'open' : ''} ${items.length === 0 ? 'empty' : ''}`}
+                      title={items.length === 0 ? undefined : caretOpen ? 'Collapse' : 'Expand'}
+                      aria-label={
+                        items.length === 0 ? undefined : caretOpen ? 'Collapse' : 'Expand'
+                      }
+                      aria-hidden={items.length === 0}
+                      tabIndex={items.length === 0 ? -1 : 0}
                       onClick={(e) => {
                         e.stopPropagation()
-                        toggleExpand(p.path)
+                        if (items.length > 0) toggleExpand(p.path)
                       }}
                     >
                       <ChevronIcon size={11} />
