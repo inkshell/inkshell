@@ -191,8 +191,14 @@ export class PtyManager {
       try {
         // Ctrl-U first: it clears whatever is half-typed at the prompt, without
         // which the exit command lands as a suffix to it and gets submitted as
-        // part of it instead of running on its own.
-        child.write(session.shell ? '\x15exit\r' : '\x15/exit\r')
+        // part of it instead of running on its own. Skipped for the Windows
+        // shell fallback (cmd.exe): Ctrl-U isn't one of its line-editing
+        // shortcuts, so it would pass straight through into the exit command
+        // instead of clearing anything, corrupting it and forcing the
+        // hard-kill timeout below.
+        const isWindowsShell = session.shell && process.platform === 'win32'
+        const exitCommand = session.shell ? 'exit\r' : '/exit\r'
+        child.write(isWindowsShell ? exitCommand : '\x15' + exitCommand)
       } catch {
         finish(true)
       }

@@ -574,8 +574,10 @@ button {
 }
 .project-row:hover .project-new-chat,
 .project-row:focus-visible .project-new-chat,
+.project-row:focus-within .project-new-chat,
 .project-row:hover .project-new-terminal,
-.project-row:focus-visible .project-new-terminal {
+.project-row:focus-visible .project-new-terminal,
+.project-row:focus-within .project-new-terminal {
   opacity: 1;
 }
 .project-new-chat:hover,
