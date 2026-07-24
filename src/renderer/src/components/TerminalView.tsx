@@ -19,6 +19,8 @@ interface Props {
   active: boolean
   /** Whether this tab holds the focused pane (drives the keyboard focus). */
   focused: boolean
+  /** xterm font size in px, from the toolbar's A−/A+ control. Live-updated. */
+  fontSize: number
   /** Reports the spawned pty + session id back so the tab can be tracked. */
   onReady: (tabId: string, ptyId: number, sessionId: string) => void
   /** A file path in the output was clicked; it opens as a viewer tab. */
@@ -113,7 +115,7 @@ function promptBoxIsEmpty(term: Terminal): boolean {
  * hidden) so their scrollback and process keep running in the background.
  */
 export const TerminalView = forwardRef<TerminalViewHandle, Props>(function TerminalView(
-  { tab, active, focused, onReady, onOpenFile, onTitle, onExit, onError }: Props,
+  { tab, active, focused, fontSize, onReady, onOpenFile, onTitle, onExit, onError }: Props,
   ref
 ) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -143,7 +145,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
       theme: terminalTheme,
       fontFamily:
         "'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, 'Liberation Mono', monospace",
-      fontSize: 13,
+      fontSize,
       lineHeight: 1.2,
       cursorBlink: true,
       allowProposedApi: true,
@@ -264,6 +266,20 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
     // Deliberately run once per tab; the tab's identity/config never changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Push a live font-size change into the already-open terminal — xterm reads
+  // `options.fontSize` lazily, but never re-measures on its own, so a refit is
+  // what actually resizes the cell grid (and, via `onResize`, the pty) to it.
+  useEffect(() => {
+    const term = termRef.current
+    if (!term || term.options.fontSize === fontSize) return
+    term.options.fontSize = fontSize
+    try {
+      fitRef.current?.fit()
+    } catch {
+      /* host not laid out yet; the ResizeObserver will catch up */
+    }
+  }, [fontSize])
 
   // Refit whenever this tab becomes visible — its pane may have been hidden (so
   // zero-sized) or just resized by a layout change, and xterm needs remeasuring.
