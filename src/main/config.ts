@@ -1,7 +1,15 @@
 import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { paletteColor, type AppConfig, type ModelConfig, type ProjectEntry } from '@shared/types'
+import {
+  paletteColor,
+  DEFAULT_TERMINAL_FONT_SIZE,
+  TERMINAL_FONT_SIZE_MIN,
+  TERMINAL_FONT_SIZE_MAX,
+  type AppConfig,
+  type ModelConfig,
+  type ProjectEntry
+} from '@shared/types'
 
 /** The built-in models, used until the user edits the list. */
 export function defaultModels(): ModelConfig[] {
@@ -39,7 +47,8 @@ function defaultConfig(): AppConfig {
     defaultModel: 'sonnet',
     models: defaultModels(),
     defaultEffort: '',
-    commitMessageModel: 'haiku'
+    commitMessageModel: 'haiku',
+    terminalFontSize: DEFAULT_TERMINAL_FONT_SIZE
   }
 }
 
@@ -101,7 +110,13 @@ export function loadConfig(): AppConfig {
       commitMessageModel:
         typeof raw.commitMessageModel === 'string'
           ? raw.commitMessageModel
-          : base.commitMessageModel
+          : base.commitMessageModel,
+      terminalFontSize:
+        typeof raw.terminalFontSize === 'number' &&
+        raw.terminalFontSize >= TERMINAL_FONT_SIZE_MIN &&
+        raw.terminalFontSize <= TERMINAL_FONT_SIZE_MAX
+          ? raw.terminalFontSize
+          : base.terminalFontSize
     }
   } catch {
     return base
