@@ -384,20 +384,20 @@ export function ProjectPanel({
                 <span className="acts">
                   <button
                     className="mini"
-                    title="Pull"
                     disabled={busy}
                     onClick={() => onError('Pull is not available yet — use the terminal for now.')}
+                    {...bind('Pull')}
                   >
                     <ArrowDownIcon size={12} />
                   </button>
-                  <button className="mini" title="Push" disabled={busy} onClick={push}>
+                  <button className="mini" disabled={busy} onClick={push} {...bind('Push')}>
                     <ArrowUpIcon size={12} />
                   </button>
                   <button
                     className="mini"
-                    title="Refresh"
                     disabled={busy}
                     onClick={() => refreshStatus()}
+                    {...bind('Refresh')}
                   >
                     <RefreshIcon size={12} />
                   </button>

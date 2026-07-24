@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent
+} from 'react'
 
 interface TipState {
   text: string
-  x: number
+  /** Exactly one of these is set — which edge the tooltip grows away from. */
+  left?: number
+  right?: number
   y: number
   placement: 'above' | 'below'
 }
@@ -33,12 +42,19 @@ export function useTooltip() {
       onMouseEnter: (e: MouseEvent<HTMLElement>) => {
         const rect = e.currentTarget.getBoundingClientRect()
         const below = rect.bottom + 34 < window.innerHeight
+        // A tooltip up to max-width 420px anchored at the trigger's left edge
+        // would overflow off the right of the window — anchor it at the right
+        // edge instead so it grows leftward and stays glued to the trigger,
+        // rather than clamping `left` and leaving it stranded far to the left.
+        const fitsRight = rect.left + 420 <= window.innerWidth
         clearTimeout(timer.current)
         timer.current = setTimeout(
           () =>
             setTip({
               text,
-              x: Math.max(0, Math.min(rect.left, window.innerWidth - 420)),
+              ...(fitsRight
+                ? { left: Math.max(0, rect.left) }
+                : { right: Math.max(0, window.innerWidth - rect.right) }),
               y: below ? rect.bottom + 6 : rect.top - 6,
               placement: below ? 'below' : 'above'
             }),
@@ -58,8 +74,11 @@ export function useTooltip() {
 
 export function TooltipHost({ tip }: { tip: TipState | null }) {
   if (!tip) return null
+  const style: CSSProperties = { top: tip.y }
+  if (tip.left !== undefined) style.left = tip.left
+  else style.right = tip.right
   return (
-    <div className={`tooltip ${tip.placement}`} style={{ left: tip.x, top: tip.y }}>
+    <div className={`tooltip ${tip.placement}`} style={style}>
       {tip.text}
     </div>
   )
