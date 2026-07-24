@@ -548,21 +548,24 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* "New chat" for this project — revealed on hover next to the name, same idiom
-   as `.project-grip`. Replaces the toolbar's old standing "New chat" button. */
-.project-new-chat {
+/* "New chat" / "New terminal" for this project — revealed on hover next to the
+   name, same idiom as `.project-grip`. Replaces the toolbar's old standing
+   "New chat" button. A soft chip (not just a bare glyph) so the pair reads as
+   real controls once revealed, with a session-tinted fill on direct hover. */
+.project-new-chat,
+.project-new-terminal {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 21px;
+  height: 21px;
   flex: none;
   border: none;
   padding: 0;
   font: inherit;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-faint);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  color: var(--text-muted);
   opacity: 0;
   transition:
     opacity var(--dur) var(--ease),
@@ -570,11 +573,14 @@ button {
     color var(--dur) var(--ease);
 }
 .project-row:hover .project-new-chat,
-.project-row:focus-visible .project-new-chat {
+.project-row:focus-visible .project-new-chat,
+.project-row:hover .project-new-terminal,
+.project-row:focus-visible .project-new-terminal {
   opacity: 1;
 }
-.project-new-chat:hover {
-  background: var(--bg-card-hover);
+.project-new-chat:hover,
+.project-new-terminal:hover {
+  background: color-mix(in srgb, var(--session) 30%, var(--bg-card-hover));
   color: var(--text-primary);
 }
 
@@ -3015,6 +3021,7 @@ button {
   background: transparent;
   color: var(--text-faint);
   font-size: 12.5px;
+  cursor: pointer;
   transition:
     border-color var(--dur) var(--ease),
     color var(--dur) var(--ease),
@@ -3039,6 +3046,32 @@ button {
 .empty-pane-plus {
   font-size: 20px;
   line-height: 1;
+}
+/* The secondary "New terminal" action — a quiet pill so "New chat" (the whole
+   tile) stays the obvious default click. `stopPropagation` on its own click
+   keeps it from also triggering the tile's. */
+.empty-pane-terminal {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition:
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+.empty-pane-terminal:hover {
+  border-color: color-mix(in srgb, var(--session) 45%, var(--border-strong));
+  background: color-mix(in srgb, var(--session) 8%, transparent);
+  color: var(--text-primary);
 }
 .empty-pane-hint {
   font-size: 10.5px;

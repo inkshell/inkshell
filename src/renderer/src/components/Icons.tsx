@@ -188,6 +188,15 @@ export const DiffIcon = ({ size = 14 }: IconProps) =>
     </>
   )
 
+export const TerminalIcon = ({ size = 14 }: IconProps) =>
+  svg(
+    size,
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M7 9l3 3-3 3M13 15h4" />
+    </>
+  )
+
 export const CommitIcon = ({ size = 14 }: IconProps) =>
   svg(
     size,

@@ -31,7 +31,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { ProjectModal } from './components/ProjectModal'
 import { ConfirmModal } from './components/ConfirmModal'
 import { AboutModal } from './components/AboutModal'
-import { CloseIcon, CommitIcon, DiffIcon, FileTextIcon } from './components/Icons'
+import { CloseIcon, CommitIcon, DiffIcon, FileTextIcon, TerminalIcon } from './components/Icons'
 
 const isMac = window.inkshell.platform === 'darwin'
 let tabSeq = 0
@@ -40,6 +40,7 @@ let tabSeq = 0
 function paneGlyph(kind: Tab['kind']) {
   if (kind === 'diff') return <DiffIcon size={12} />
   if (kind === 'commit') return <CommitIcon size={12} />
+  if (kind === 'shell') return <TerminalIcon size={12} />
   return <FileTextIcon size={12} />
 }
 
@@ -351,6 +352,42 @@ export function App() {
     [selectProject, openNewChat]
   )
 
+  /**
+   * A plain terminal in the project directory — no `claude` process behind it,
+   * so no session id, model or effort. Otherwise placed exactly like a new
+   * chat: same pane-picking rules, same per-project entry point.
+   */
+  const openNewTerminal = useCallback(
+    (slot?: number, project?: string) => {
+      const cwd = project ?? currentProject
+      const tab: Tab = {
+        id: `tab-${tabSeq++}`,
+        kind: 'shell',
+        ptyId: null,
+        sessionId: null,
+        resumeSessionId: null,
+        cwd,
+        claudeConfigDir: claudeConfigDirFor(cwd) ?? null,
+        model: null,
+        effort: null,
+        startedAtMs: Date.now(),
+        title: 'Terminal',
+        processing: false
+      }
+      setTabs((prev) => [...prev, tab])
+      showTab(tab.id, slot)
+    },
+    [currentProject, claudeConfigDirFor, showTab]
+  )
+
+  const newTerminalForProject = useCallback(
+    (path: string) => {
+      selectProject(path)
+      openNewTerminal(undefined, path)
+    },
+    [selectProject, openNewTerminal]
+  )
+
   // A diff / file / commit opened from the project panel. Re-opening the same
   // one focuses its existing tab instead of stacking a duplicate. A `preview`
   // open (a single click in the file tree) reuses the one preview tab's slot
@@ -582,7 +619,7 @@ export function App() {
       // it shows up without a project switch — but only if it belongs to the
       // project currently on screen.
       const tab = tabs.find((t) => t.id === tabId)
-      if (tab && tab.sessionId === null && tab.cwd === currentProject)
+      if (tab && tab.kind === 'terminal' && tab.sessionId === null && tab.cwd === currentProject)
         reloadSessions(currentProject)
     },
     [tabs, currentProject, reloadSessions]
@@ -832,6 +869,7 @@ export function App() {
             onFocusTab={showTab}
             onCloseTab={closeTab}
             onNewChat={newChatForProject}
+            onNewTerminal={newTerminalForProject}
           />
         </Panel>
 
@@ -939,7 +977,7 @@ export function App() {
                             </button>
                           </div>
                           <div className="pane-body">
-                            {tab.kind === 'terminal' ? (
+                            {tab.kind === 'terminal' || tab.kind === 'shell' ? (
                               <TerminalView
                                 ref={(handle) => {
                                   if (handle) terminalRefs.current.set(tab.id, handle)
@@ -972,17 +1010,36 @@ export function App() {
                     })}
                     {Array.from({ length: layout }).map((_, i) =>
                       slots[i] === null ? (
-                        <button
+                        <div
                           key={`empty-${i}`}
                           className={`pane empty ${i === focusedSlot ? 'focused' : ''} ${dragOverSlot === i ? 'drag-over' : ''}`}
                           style={{ order: i }}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => openNewChat(i)}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter' && e.key !== ' ') return
+                            e.preventDefault()
+                            openNewChat(i)
+                          }}
                           {...paneDropTarget(i)}
                         >
                           <span className="empty-pane-plus">＋</span>
                           <span>New chat</span>
+                          <button
+                            type="button"
+                            className="empty-pane-terminal"
+                            title="Open a terminal here"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openNewTerminal(i)
+                            }}
+                          >
+                            <TerminalIcon size={12} />
+                            New terminal
+                          </button>
                           <span className="empty-pane-hint">or drag a chat here</span>
-                        </button>
+                        </div>
                       ) : null
                     )}
                   </div>
