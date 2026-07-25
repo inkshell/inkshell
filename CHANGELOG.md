@@ -7,8 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-25
+
+### Added
+
+- A drag-and-drop pane workspace: the tab strip is replaced by a resizable
+  1/2/4-pane grid backed by a project tree in the sidebar. Panes can be
+  split, dragged into one another to swap tabs, and closed independently
+  without ending the underlying chat. (#46, #49)
+- Pane close now offers minimize (keep the session running, hide the pane)
+  alongside maximize and full close. (#59)
+- A plain per-project terminal pane, alongside Claude chat panes, for
+  running shell commands next to a session. (#48)
+- The read-only file viewer is now an editable Monaco editor with save
+  support, plus a Monaco-based diff view. (#57)
+- Empty panes get their own "New chat" action. (#51)
+- A font-size control for terminal, file viewer, and diff panes, now living
+  in Settings. (#54, #60)
+- Tooltips on the toolbar's git actions. (#62)
+- The app icon was redesigned to match the Midnight Ink brand badge. (#52)
+
+### Changed
+
+- Dropped the placeholder memory button from the toolbar (not yet
+  implemented). (#62)
+- Redesigned the settings gear icon, and the sidebar's git status list is
+  now sorted by path. (#63)
+
 ### Fixed
 
+- Dragging a tab from one pane onto another swaps tabs instead of merging
+  them, and closing a pane no longer ends its chat session. (#49)
+- Removed a stray white scrollbar-corner square. (#50)
+- The sidebar's tree caret now only shows when a project has open items.
+  (#47)
+- Tab icons stay visible and reflow correctly at narrow sidebar widths.
+  (#55)
+- The terminal no longer clips its bottom row at some window heights. (#56)
+- The status strip stays in place when the active pane isn't a chat. (#58)
+- Added breathing room between a project's open-instance rows in the
+  sidebar. (#53)
+- Centered the X in the tab close button. (#61)
 - macOS releases now build a single universal (arm64 + x64) zip on one
   `macos-latest` runner instead of one zip per architecture built on a
   dedicated runner per arch. GitHub retired its free Intel macOS runner
@@ -83,6 +122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frameless "Midnight Ink" dark UI — cool graphite surfaces, iris accent, and a
   per-model hue — with per-platform window chrome.
 
-[Unreleased]: https://github.com/inkshell/inkshell/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/inkshell/inkshell/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/inkshell/inkshell/compare/v0.1.4...v0.2.0
+[0.1.4]: https://github.com/inkshell/inkshell/compare/v0.1.1...v0.1.4
 [0.1.1]: https://github.com/inkshell/inkshell/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/inkshell/inkshell/tree/v0.1.0
