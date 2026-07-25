@@ -187,7 +187,7 @@ InkShell is a standard three-process Electron app:
 
 | Process      | Responsibility                                                                              |
 | ------------ | ------------------------------------------------------------------------------------------- |
-| **main**     | Spawns `claude` (or your `$SHELL`) in a pseudo-terminal (`node-pty`), reads config, history and git, owns the window. |
+| **main**     | Spawns `claude` (or your `$SHELL`) in a pseudo-terminal (`node-pty`), reads config & history, drives git, owns the window. |
 | **preload**  | A tiny `contextBridge` exposing a typed, sandboxed `window.inkshell` API.                     |
 | **renderer** | React UI: the pane grid, sidebar tree, git/files dock, an `xterm.js` view per session and a Monaco editor per file. |
 
