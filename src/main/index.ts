@@ -6,14 +6,20 @@ import { registerIpcHandlers, unregisterIpcHandlers } from './ipc'
 import type { PtyManager } from './pty-manager'
 
 // A GUI launch (Finder, Dock) inherits launchd's environment, which unlike a
-// terminal session carries no LANG/LC_ALL at all. With no locale set, macOS
-// falls back to MacRoman for any legacy 8-bit text conversion — including
-// clipboard reads done in this process and locale-aware calls in every
-// `claude`/shell child spawned off `process.env` (see `pty-manager.ts`) — so
-// pasting accented text (e.g. "ç") renders as mojibake ("√ß"). Only the
-// encoding half of the locale matters here, so a fixed UTF-8 one is fine
-// regardless of the user's actual language.
-if (process.platform !== 'win32' && !/\.UTF-8$/i.test(process.env.LANG ?? '')) {
+// terminal session carries no LANG/LC_ALL/LC_CTYPE at all. With no locale set,
+// macOS falls back to MacRoman for any legacy 8-bit text conversion —
+// including clipboard reads done in this process and locale-aware calls in
+// every `claude`/shell child spawned off `process.env` (see `pty-manager.ts`)
+// — so pasting accented text (e.g. "ç") renders as mojibake ("√ß"). This is a
+// macOS-specific fallback, and only kicks in when none of the three locale
+// variables are set at all — a value the user (or a real terminal launch)
+// already put in any of them, UTF-8 or not, is left alone.
+if (
+  process.platform === 'darwin' &&
+  !process.env.LC_ALL &&
+  !process.env.LC_CTYPE &&
+  !process.env.LANG
+) {
   process.env.LANG = 'en_US.UTF-8'
 }
 
