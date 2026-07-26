@@ -197,6 +197,17 @@ export const TerminalIcon = ({ size = 14 }: IconProps) =>
     </>
   )
 
+/** Claude's spark: rays around a core the sidebar fills (in a pane) or
+ *  hollows out (open but off-screen) via the `.core` class. */
+export const ClaudeIcon = ({ size = 14 }: IconProps) =>
+  svg(
+    size,
+    <>
+      <circle className="core" cx="12" cy="12" r="2.5" fill="currentColor" stroke="none" />
+      <path d="M12 2.6v4.9M12 16.5v4.9M2.6 12h4.9M16.5 12h4.9M5.4 5.4l3.4 3.4M15.2 15.2l3.4 3.4M5.4 18.6l3.4-3.4M15.2 8.8l3.4-3.4" />
+    </>
+  )
+
 export const CommitIcon = ({ size = 14 }: IconProps) =>
   svg(
     size,

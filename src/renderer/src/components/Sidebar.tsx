@@ -5,7 +5,11 @@ import { SESSION_DRAG_TYPE, TAB_DRAG_TYPE, type PaneLayout, type Tab } from '../
 import { relativeTime } from '../lib/format'
 import {
   ChevronIcon,
+  ClaudeIcon,
   CloseIcon,
+  CommitIcon,
+  DiffIcon,
+  FileTextIcon,
   FolderIcon,
   GearIcon,
   GripIcon,
@@ -60,12 +64,13 @@ function moveItem<T>(arr: T[], from: number, to: number): T[] {
   return next
 }
 
-/** A viewer's glyph in the tree, where a chat wears its project-colour dot. */
-function viewerGlyph(kind: Tab['kind']): string {
-  if (kind === 'diff') return '±'
-  if (kind === 'commit') return '◇'
-  if (kind === 'shell') return '$'
-  return '◧'
+/** A viewer's glyph in the tree, where a chat wears the Claude spark instead.
+ *  Mirrors `paneGlyph` in App.tsx so the tree and the pane header agree. */
+function viewerGlyph(kind: Tab['kind']): ReactNode {
+  if (kind === 'diff') return <DiffIcon size={13} />
+  if (kind === 'commit') return <CommitIcon size={13} />
+  if (kind === 'shell') return <TerminalIcon size={13} />
+  return <FileTextIcon size={13} />
 }
 
 /**
@@ -411,7 +416,9 @@ export function Sidebar({
                             {isChat ? (
                               <span
                                 className={`kd ${t.processing ? 'proc' : ''} ${!inPane ? 'idle' : ''}`}
-                              />
+                              >
+                                <ClaudeIcon size={13} />
+                              </span>
                             ) : (
                               <span className="gl">{viewerGlyph(t.kind)}</span>
                             )}
