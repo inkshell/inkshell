@@ -179,6 +179,8 @@ export function App() {
   focusedSlotRef.current = focusedSlot
   const tabsRef = useRef(tabs)
   tabsRef.current = tabs
+  const currentProjectRef = useRef(currentProject)
+  currentProjectRef.current = currentProject
 
   // A maximized pane only makes sense while its tab still sits in the focused
   // slot — the moment focus moves elsewhere (a sidebar click, its pane
@@ -269,10 +271,15 @@ export function App() {
    * (`openNewChat` and friends); those already own their selection, either
    * because they launch into `currentProject` or because the sidebar's
    * per-project buttons call `selectProject` themselves.
+   *
+   * Selecting re-reads the project's transcript directory (`listSessions` walks
+   * every `.jsonl` in it), so a focus move that lands on the project already
+   * selected — clicking between two panes of one project, or back onto the pane
+   * that already had focus — skips out rather than paying that walk per click.
    */
   const syncSelectionToTab = useCallback((id: string | null) => {
     const cwd = id ? tabsRef.current.find((t) => t.id === id)?.cwd : null
-    if (cwd) selectProjectRef.current(cwd)
+    if (cwd && cwd !== currentProjectRef.current) selectProjectRef.current(cwd)
   }, [])
 
   /**
