@@ -2929,20 +2929,24 @@ button {
 .pane.focused .pane-head {
   background: color-mix(in srgb, var(--session) 14%, var(--bg-sidebar));
 }
+/* A chat's Claude spark, the same mark the sidebar tree wears. Square, so the
+   processing ring below stays a circle as it rotates. */
 .pane-dot {
   position: relative;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--session);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--session) 40%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   flex: none;
+  color: var(--session);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--session) 40%, transparent));
 }
 /* Same spinning "thinking" ring the tabs used, kept in the pane header. */
 .pane.processing .pane-dot::before {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -2.5px;
   border-radius: 50%;
   border: 1.3px solid transparent;
   border-top-color: var(--session);
@@ -3219,26 +3223,34 @@ button {
   box-shadow: inset 2px 0 0 var(--session);
 }
 
-/* A chat's dot: filled when open, hollow when off-screen, ringed when working. */
+/* A chat's Claude spark: solid core when in a pane, hollow and grey when
+   off-screen, ringed when working — same semantics as the old dot. */
 .knode .kd {
   position: relative;
-  width: 8px;
-  height: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  /* Square, so the spinner ring below stays a circle as it rotates. */
+  height: 14px;
   flex: none;
-  border-radius: 50%;
-  background: var(--session);
+  color: var(--session);
 }
 .knode .kd.idle {
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--session) 70%, var(--border));
+  color: var(--text-muted);
+}
+.knode .kd.idle .core {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.5;
 }
 .knode.on .kd {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--session) 22%, transparent);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--session) 55%, transparent));
 }
 .knode .kd.proc::before {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -2.5px;
   border-radius: 50%;
   border: 1.3px solid transparent;
   border-top-color: var(--session);
@@ -3251,13 +3263,14 @@ button {
     animation: none;
   }
 }
-/* A viewer's glyph, where a chat wears its dot. */
+/* A viewer's icon, where a chat wears its spark. */
 .knode .gl {
-  width: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   flex: none;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 11.5px;
   color: var(--text-faint);
 }
 .knode.in-pane .gl {
