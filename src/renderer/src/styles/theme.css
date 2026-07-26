@@ -2929,20 +2929,24 @@ button {
 .pane.focused .pane-head {
   background: color-mix(in srgb, var(--session) 14%, var(--bg-sidebar));
 }
+/* A chat's Claude spark, the same mark the sidebar tree wears. Square, so the
+   processing ring below stays a circle as it rotates. */
 .pane-dot {
   position: relative;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--session);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--session) 40%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   flex: none;
+  color: var(--session);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--session) 40%, transparent));
 }
 /* Same spinning "thinking" ring the tabs used, kept in the pane header. */
 .pane.processing .pane-dot::before {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -2.5px;
   border-radius: 50%;
   border: 1.3px solid transparent;
   border-top-color: var(--session);

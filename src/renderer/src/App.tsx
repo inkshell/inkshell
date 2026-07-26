@@ -40,6 +40,7 @@ import { ProjectModal } from './components/ProjectModal'
 import { ConfirmModal } from './components/ConfirmModal'
 import { AboutModal } from './components/AboutModal'
 import {
+  ClaudeIcon,
   CloseIcon,
   CommitIcon,
   DiffIcon,
@@ -53,7 +54,7 @@ import {
 const isMac = window.inkshell.platform === 'darwin'
 let tabSeq = 0
 
-/** The glyph a viewer pane wears in its header where a chat wears its dot. */
+/** The glyph a viewer pane wears in its header where a chat wears its spark. */
 function paneGlyph(kind: Tab['kind'], size = 12) {
   if (kind === 'diff') return <DiffIcon size={size} />
   if (kind === 'commit') return <CommitIcon size={size} />
@@ -1122,7 +1123,9 @@ export function App() {
                             }}
                           >
                             {tab.kind === 'terminal' ? (
-                              <span className="pane-dot" />
+                              <span className="pane-dot">
+                                <ClaudeIcon size={12} />
+                              </span>
                             ) : (
                               <span className="pane-glyph">{paneGlyph(tab.kind)}</span>
                             )}
