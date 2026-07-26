@@ -17,7 +17,7 @@ import {
 } from './Icons'
 
 interface Props {
-  /** The active tab's project (repo) directory, or null when none is chosen. */
+  /** The sidebar-selected project (repo) directory, or null when none is chosen. */
   project: string | null
   /** `CLAUDE_CONFIG_DIR` override for `project`, threaded into `claude -p`. */
   claudeConfigDir: string | null
@@ -37,7 +37,7 @@ const fileName = (p: string): string => p.split('/').pop() ?? p
 const fileDir = (p: string): string => p.split('/').slice(0, -1).join('/')
 
 /**
- * The right dock: two lenses on the active project's directory. **Git** shows
+ * The right dock: two lenses on the sidebar-selected project's directory. **Git** shows
  * the working tree (staged / unstaged, with stage + commit + push) and the
  * branch history; **Files** shows the file tree. Both are navigation only —
  * anything that needs width (a diff, a file, a commit) opens as a viewer tab in

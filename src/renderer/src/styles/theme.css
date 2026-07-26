@@ -141,6 +141,7 @@ button {
    span would be paid on each repaint. Add a selector here when a new scope
    starts overriding --session. */
 .app,
+.pane,
 .project-row,
 .tab,
 .history-list,
