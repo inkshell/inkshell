@@ -3227,6 +3227,8 @@ button {
   align-items: center;
   justify-content: center;
   width: 14px;
+  /* Square, so the spinner ring below stays a circle as it rotates. */
+  height: 14px;
   flex: none;
   color: var(--session);
 }
@@ -3263,6 +3265,7 @@ button {
   align-items: center;
   justify-content: center;
   width: 14px;
+  height: 14px;
   flex: none;
   color: var(--text-faint);
 }
