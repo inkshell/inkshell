@@ -170,9 +170,11 @@ button {
   min-width: 0;
   min-height: 0;
   position: relative;
-  /* A whisper of the session colour bleeding from the top-left corner. */
-  background:
-    radial-gradient(900px 380px at 0% -8%, var(--session-dim), transparent 60%), var(--bg-app);
+  /* Deliberately uncoloured: with multiple panes, each on its own project,
+     no single project's colour can represent the whole column. Each pane
+     (and its own workspace card) carries its own project's --session tint
+     instead — see the pane-grid below. */
+  background: var(--bg-app);
 }
 
 /* =========================================================================
@@ -2772,12 +2774,15 @@ button {
 .layout-switcher .lay:hover:not(.on) {
   background: var(--bg-card-hover);
 }
+/* Fixed brand accent, not --session: this switcher is global chrome, not
+   scoped to one pane, and with multiple panes each on its own project no
+   single project's colour belongs here. */
 .layout-switcher .lay.on {
-  background: color-mix(in srgb, var(--session) 20%, var(--bg-card));
-  border-color: color-mix(in srgb, var(--session) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 20%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
 .layout-switcher .lay.on i {
-  background: var(--session);
+  background: var(--accent);
 }
 .layout-switcher .lay-1 {
   grid-template-columns: 1fr;
