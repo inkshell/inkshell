@@ -177,6 +177,8 @@ export function App() {
   layoutRef.current = layout
   const focusedSlotRef = useRef(focusedSlot)
   focusedSlotRef.current = focusedSlot
+  const tabsRef = useRef(tabs)
+  tabsRef.current = tabs
 
   // A maximized pane only makes sense while its tab still sits in the focused
   // slot — the moment focus moves elsewhere (a sidebar click, its pane
@@ -239,12 +241,61 @@ export function App() {
     [claudeConfigDirFor]
   )
 
+  /** Points the sidebar (highlight, history list, git/files dock) at a project.
+   *  Never moves pane focus — see `selectProjectFromSidebar` for that. */
   const selectProject = useCallback(
     (path: string) => {
       setCurrentProject(path)
       reloadSessions(path)
     },
     [reloadSessions]
+  )
+  const selectProjectRef = useRef(selectProject)
+  selectProjectRef.current = selectProject
+
+  /**
+   * Re-points the sidebar at the project of the tab that just took focus.
+   *
+   * Called from every site that moves the focused slot rather than from an
+   * effect on the active tab, because the two states this has to reconcile are
+   * *events*, not values: focus moving between two panes of the **same**
+   * project — or landing back on the pane that already had it — leaves the
+   * active tab's `cwd` (and often `activeTabId` itself) untouched, so an effect
+   * keyed on either would never re-run and the sidebar would stay stranded on
+   * whatever project was clicked in between.
+   *
+   * A slot holding no tab carries no project, so it leaves the selection alone.
+   * A tab that isn't in `tabsRef` yet is one being created this very tick
+   * (`openNewChat` and friends); those already own their selection, either
+   * because they launch into `currentProject` or because the sidebar's
+   * per-project buttons call `selectProject` themselves.
+   */
+  const syncSelectionToTab = useCallback((id: string | null) => {
+    const cwd = id ? tabsRef.current.find((t) => t.id === id)?.cwd : null
+    if (cwd) selectProjectRef.current(cwd)
+  }, [])
+
+  /**
+   * The sidebar's project row: selects the project and, when it already has an
+   * instance on screen, hands that pane the focus too (focus ring, keyboard,
+   * and the pane a new chat would default into).
+   *
+   * A tab parked in a hidden slot beyond the current layout doesn't count —
+   * only a pane actually on screen can be "selected". With no visible pane to
+   * match, focus stays exactly where it was instead of guessing: `isFocused`
+   * and the tree's `isActive` are gated on the project too (see the pane-grid
+   * and Sidebar.tsx), so the pane that no longer belongs to the selection just
+   * stops *looking* selected, without disturbing what's still running in it.
+   */
+  const selectProjectFromSidebar = useCallback(
+    (path: string) => {
+      selectProject(path)
+      const match = slotsRef.current
+        .slice(0, layoutRef.current)
+        .findIndex((id) => id !== null && tabsRef.current.find((t) => t.id === id)?.cwd === path)
+      if (match !== -1) setFocusedSlot(match)
+    },
+    [selectProject]
   )
 
   /**
@@ -316,61 +367,76 @@ export function App() {
    * dragged in from off-screen (still open, but beyond the current layout)
    * has no visible slot to swap into, so it falls back to the old behavior.
    */
-  const showTab = useCallback((id: string, slot?: number) => {
-    const cur = slotsRef.current
-    const lay = layoutRef.current
-    const existing = cur.indexOf(id)
-    if (slot === undefined && existing !== -1 && existing < lay) {
-      setFocusedSlot(existing)
-      return
-    }
-    let target = slot
-    if (target === undefined) {
-      // Prefer the focused pane when it's free, then any empty pane, then
-      // replace the focused one (its tab stays open, just off-screen).
-      const focused = Math.min(focusedSlotRef.current, lay - 1)
-      target = cur[focused] === null ? focused : -1
-      if (target === -1) {
-        for (let i = 0; i < lay; i++) {
-          if (cur[i] === null) {
-            target = i
-            break
+  const showTab = useCallback(
+    (id: string, slot?: number) => {
+      const cur = slotsRef.current
+      const lay = layoutRef.current
+      const existing = cur.indexOf(id)
+      if (slot === undefined && existing !== -1 && existing < lay) {
+        setFocusedSlot(existing)
+        syncSelectionToTab(id)
+        return
+      }
+      let target = slot
+      if (target === undefined) {
+        // Prefer the focused pane when it's free, then any empty pane, then
+        // replace the focused one (its tab stays open, just off-screen).
+        const focused = Math.min(focusedSlotRef.current, lay - 1)
+        target = cur[focused] === null ? focused : -1
+        if (target === -1) {
+          for (let i = 0; i < lay; i++) {
+            if (cur[i] === null) {
+              target = i
+              break
+            }
           }
         }
+        if (target === -1) target = focused
       }
-      if (target === -1) target = focused
-    }
-    const next = cur.slice()
-    if (existing !== -1) {
-      // A drop onto a pane that already holds a different tab swaps the two
-      // (the target's tab takes the dragged tab's old slot) rather than
-      // leaving the source slot empty and the target's tab orphaned off-screen.
-      // Only when the source slot is itself visible, though — swapping into a
-      // hidden slot would just orphan the target's tab under a new name.
-      const canSwap = slot !== undefined && existing < lay && target < lay
-      next[existing] = canSwap && cur[target] !== null && cur[target] !== id ? cur[target] : null
-    }
-    next[target] = id
-    setSlots(next)
-    setFocusedSlot(target)
-  }, [])
+      const next = cur.slice()
+      if (existing !== -1) {
+        // A drop onto a pane that already holds a different tab swaps the two
+        // (the target's tab takes the dragged tab's old slot) rather than
+        // leaving the source slot empty and the target's tab orphaned off-screen.
+        // Only when the source slot is itself visible, though — swapping into a
+        // hidden slot would just orphan the target's tab under a new name.
+        const canSwap = slot !== undefined && existing < lay && target < lay
+        next[existing] = canSwap && cur[target] !== null && cur[target] !== id ? cur[target] : null
+      }
+      next[target] = id
+      setSlots(next)
+      setFocusedSlot(target)
+      syncSelectionToTab(id)
+    },
+    [syncSelectionToTab]
+  )
 
-  const focusSlot = useCallback((i: number) => setFocusedSlot(i), [])
+  const focusSlot = useCallback(
+    (i: number) => {
+      setFocusedSlot(i)
+      syncSelectionToTab(slotsRef.current[i])
+    },
+    [syncSelectionToTab]
+  )
 
   // The layout buttons. Growing reveals panes that already hold off-screen tabs;
   // shrinking keeps the focused tab in view by sliding it into the first pane.
-  const changeLayout = useCallback((n: PaneLayout) => {
-    setMaximizedTabId(null)
-    setLayout(n)
-    if (focusedSlotRef.current >= n) {
-      const next = slotsRef.current.slice()
-      const held = next[focusedSlotRef.current]
-      next[focusedSlotRef.current] = next[0]
-      next[0] = held
-      setSlots(next)
-      setFocusedSlot(0)
-    }
-  }, [])
+  const changeLayout = useCallback(
+    (n: PaneLayout) => {
+      setMaximizedTabId(null)
+      setLayout(n)
+      if (focusedSlotRef.current >= n) {
+        const next = slotsRef.current.slice()
+        const held = next[focusedSlotRef.current]
+        next[focusedSlotRef.current] = next[0]
+        next[0] = held
+        setSlots(next)
+        setFocusedSlot(0)
+        syncSelectionToTab(held)
+      }
+    },
+    [syncSelectionToTab]
+  )
 
   // --- Tab lifecycle -------------------------------------------------------
   /** `project` defaults to the sidebar's current selection — pass it explicitly
@@ -622,26 +688,30 @@ export function App() {
    * own close button and the sidebar's close controls (`closeTab` below) end
    * the instance.
    */
-  const closePane = useCallback((id: string) => {
-    const cur = slotsRef.current
-    const at = cur.indexOf(id)
-    if (at === -1) return
-    const next = cur.slice()
-    next[at] = null
-    setSlots(next)
-    // If the pane held focus, move it to another pane that still has
-    // something in it (otherwise the now-empty pane stays focused).
-    if (at === focusedSlotRef.current) {
-      let nf = focusedSlotRef.current
-      for (let i = 0; i < layoutRef.current; i++) {
-        if (next[i] !== null) {
-          nf = i
-          break
+  const closePane = useCallback(
+    (id: string) => {
+      const cur = slotsRef.current
+      const at = cur.indexOf(id)
+      if (at === -1) return
+      const next = cur.slice()
+      next[at] = null
+      setSlots(next)
+      // If the pane held focus, move it to another pane that still has
+      // something in it (otherwise the now-empty pane stays focused).
+      if (at === focusedSlotRef.current) {
+        let nf = focusedSlotRef.current
+        for (let i = 0; i < layoutRef.current; i++) {
+          if (next[i] !== null) {
+            nf = i
+            break
+          }
         }
+        setFocusedSlot(nf)
+        syncSelectionToTab(next[nf])
       }
-      setFocusedSlot(nf)
-    }
-  }, [])
+    },
+    [syncSelectionToTab]
+  )
 
   /**
    * Toggles whether a pane fills the whole stage. `slots`/`layout` never
@@ -650,11 +720,17 @@ export function App() {
    * Also focuses the pane's slot, so maximizing one that wasn't already
    * focused hands it the keyboard too.
    */
-  const toggleMaximize = useCallback((id: string) => {
-    setMaximizedTabId((cur) => (cur === id ? null : id))
-    const at = slotsRef.current.indexOf(id)
-    if (at !== -1) setFocusedSlot(at)
-  }, [])
+  const toggleMaximize = useCallback(
+    (id: string) => {
+      setMaximizedTabId((cur) => (cur === id ? null : id))
+      const at = slotsRef.current.indexOf(id)
+      if (at !== -1) {
+        setFocusedSlot(at)
+        syncSelectionToTab(id)
+      }
+    },
+    [syncSelectionToTab]
+  )
 
   // Viewer tabs with unsaved edits. Tracked in a ref (not state) since it only
   // gates the close guard below and pinning — neither needs a re-render.
@@ -672,34 +748,38 @@ export function App() {
     }
   }, [])
 
-  const closeTab = useCallback((id: string) => {
-    // A dirty file tab is the one close that loses work (a pane close keeps the
-    // tab mounted); confirm before discarding its unsaved edits.
-    if (dirtyTabsRef.current.has(id)) {
-      const ok = window.confirm('Discard unsaved changes to this file?')
-      if (!ok) return
-    }
-    dirtyTabsRef.current.delete(id)
-    setTabs((prev) => prev.filter((t) => t.id !== id))
-    const cur = slotsRef.current
-    const at = cur.indexOf(id)
-    if (at === -1) return
-    const next = cur.slice()
-    next[at] = null
-    setSlots(next)
-    // If the closed tab held the focused pane, move focus to another pane that
-    // still has something in it (otherwise the now-empty pane stays focused).
-    if (at === focusedSlotRef.current) {
-      let nf = focusedSlotRef.current
-      for (let i = 0; i < layoutRef.current; i++) {
-        if (next[i] !== null) {
-          nf = i
-          break
-        }
+  const closeTab = useCallback(
+    (id: string) => {
+      // A dirty file tab is the one close that loses work (a pane close keeps the
+      // tab mounted); confirm before discarding its unsaved edits.
+      if (dirtyTabsRef.current.has(id)) {
+        const ok = window.confirm('Discard unsaved changes to this file?')
+        if (!ok) return
       }
-      setFocusedSlot(nf)
-    }
-  }, [])
+      dirtyTabsRef.current.delete(id)
+      setTabs((prev) => prev.filter((t) => t.id !== id))
+      const cur = slotsRef.current
+      const at = cur.indexOf(id)
+      if (at === -1) return
+      const next = cur.slice()
+      next[at] = null
+      setSlots(next)
+      // If the closed tab held the focused pane, move focus to another pane that
+      // still has something in it (otherwise the now-empty pane stays focused).
+      if (at === focusedSlotRef.current) {
+        let nf = focusedSlotRef.current
+        for (let i = 0; i < layoutRef.current; i++) {
+          if (next[i] !== null) {
+            nf = i
+            break
+          }
+        }
+        setFocusedSlot(nf)
+        syncSelectionToTab(next[nf])
+      }
+    },
+    [syncSelectionToTab]
+  )
 
   // Right-click "Delete chat" only opens the confirmation modal; the actual
   // deletion waits for `confirmDelete` below.
@@ -969,10 +1049,16 @@ export function App() {
       : (config.projects.find((p) => p.path === path)?.name ?? path.split(/[/\\]/).pop() ?? path)
   const projectName = nameForPath(activeProject)
 
-  // The project panel follows the active tab's directory (a viewer tab's cwd is
-  // the project it was opened from), falling back to the sidebar selection.
-  const panelProject = activeProject
-  const panelConfigDir = activeConfigDir ?? null
+  // The project panel always follows the sidebar selection, not the active
+  // tab: it's a repo browser, and the sidebar's own highlight + history list
+  // already track `currentProject`, so the git/files dock must agree with
+  // what the sidebar shows as selected even while a tab from another project
+  // sits on screen. Same reasoning as the sidebar's own history section
+  // (Sidebar.tsx `historyStyle`): it wears the sidebar-selected project's
+  // colour, not the app-wide --session the active tab carries.
+  const panelProject = currentProject
+  const panelConfigDir = claudeConfigDirFor(currentProject) ?? null
+  const panelAccent = projectColor(currentProject)
 
   // What the status bar says about the focused pane. A chat drives the model +
   // effort + context row; anything else is simply named. Null for a chat (the
@@ -1017,7 +1103,7 @@ export function App() {
             onNewProject={newProject}
             onOpenSettings={() => setShowSettings(true)}
             onOpenAbout={() => setShowAbout(true)}
-            onSelectProject={selectProject}
+            onSelectProject={selectProjectFromSidebar}
             onEditProject={editProject}
             onReorderProjects={reorderProjects}
             onOpenSession={openResume}
@@ -1087,7 +1173,14 @@ export function App() {
                       const slot = slots.indexOf(tab.id)
                       const isMaximized = maximizedTabId === tab.id
                       const visible = slot !== -1 && slot < layout
-                      const isFocused = visible && slot === focusedSlot
+                      // Gated on the project too: the pane the user is literally
+                      // typing into keeps driving the meter/toolbar/keyboard
+                      // regardless (see `activeProject` below), but its focus ring
+                      // only shows once the sidebar selection agrees with it — a
+                      // sidebar click on a project with no open instance here must
+                      // not leave a stale pane looking selected.
+                      const isFocused =
+                        visible && slot === focusedSlot && tab.cwd === currentProject
                       const accent = projectColor(tab.cwd)
                       const paneStyle: CSSProperties = {
                         order: slot === -1 ? 99 : slot,
@@ -1274,6 +1367,7 @@ export function App() {
           defaultSize={312}
           groupResizeBehavior="preserve-pixel-size"
           onResize={(size) => setPanelCollapsed(size.inPixels === 0)}
+          style={panelAccent ? ({ '--session': panelAccent } as CSSProperties) : undefined}
         >
           <ProjectPanel
             project={panelProject}

@@ -381,7 +381,12 @@ export function Sidebar({
                       {items.map((t) => {
                         const slot = slots.indexOf(t.id)
                         const inPane = slot !== -1 && slot < layout
-                        const isActive = t.id === activeTabId
+                        // Gated on the project too, not just the tab id: a pane can
+                        // stay focused on another project's instance while this
+                        // project is the one selected in the sidebar (git dock etc.
+                        // already follow the selection), and none of the tree's
+                        // instance rows should read as "selected" in that case.
+                        const isActive = t.id === activeTabId && p.path === currentProject
                         const isChat = t.kind === 'terminal'
                         return (
                           <div
