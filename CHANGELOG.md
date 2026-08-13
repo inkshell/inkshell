@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-13
+
+### Changed
+
+- Sidebar tree items now wear real icons instead of text glyphs: chats get
+  a new Claude spark icon tinted with the project colour (keeping the old
+  dot's filled/hollow and spinner states), and shell, diff, commit and file
+  items reuse the icons the pane header already draws. The pane header now
+  shows the same Claude spark too, so the tree and the header agree. (#66)
+
+### Fixed
+
+- The git/files dock now follows the project selected in the sidebar rather
+  than staying pinned to the active tab's project, and selection now moves in
+  both directions — focusing a pane re-points the sidebar, and clicking a
+  project row focuses its first on-screen instance. (#67)
+- Global chrome (the main column's background wash and the layout switcher's
+  active state) is no longer tinted with the focused pane's project colour;
+  per-pane elements keep their own tint. (#68)
+- On macOS, default to a UTF-8 locale when launched from Finder/Dock so pasted
+  accented text is no longer mangled into mojibake. Only fires when none of
+  `LANG`/`LC_ALL`/`LC_CTYPE` are set, leaving a deliberately configured locale
+  alone. (#65)
+
 ## [0.2.0] - 2026-07-25
 
 ### Added
@@ -122,7 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frameless "Midnight Ink" dark UI — cool graphite surfaces, iris accent, and a
   per-model hue — with per-platform window chrome.
 
-[Unreleased]: https://github.com/inkshell/inkshell/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/inkshell/inkshell/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/inkshell/inkshell/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/inkshell/inkshell/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/inkshell/inkshell/compare/v0.1.1...v0.1.4
 [0.1.1]: https://github.com/inkshell/inkshell/compare/v0.1.0...v0.1.1
