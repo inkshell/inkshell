@@ -328,23 +328,27 @@ export function App() {
     const m = config?.defaultModel.trim()
     return m ? m : undefined
   }, [config])
+  const defaultOpencodeModel = useCallback((): string | undefined => {
+    const m = config?.defaultOpencodeModel.trim()
+    return m ? m : undefined
+  }, [config])
   const defaultEffort = useCallback((): string | undefined => {
     const e = config?.defaultEffort.trim()
     return e ? e : undefined
   }, [config])
   /**
    * The model a new chat in `cwd` launches on: the project's own default for
-   * that CLI wins over the global one (claude only — opencode has no global
-   * default here, so a project override is the only way to pin one).
+   * that CLI wins over the global one, each in its own form — an alias or id
+   * for claude, opencode's `provider/model` for opencode.
    */
   const modelFor = useCallback(
     (cli: CliKind, cwd: string | null): string | undefined => {
       const project = cwd ? configRef.current?.projects.find((p) => p.path === cwd) : undefined
       const override = (cli === 'claude' ? project?.claudeModel : project?.opencodeModel)?.trim()
       if (override) return override
-      return cli === 'claude' ? defaultModel() : undefined
+      return cli === 'claude' ? defaultModel() : defaultOpencodeModel()
     },
-    [defaultModel]
+    [defaultModel, defaultOpencodeModel]
   )
 
   // --- Panes: placing tabs into the split layout ---------------------------
@@ -1363,7 +1367,6 @@ export function App() {
           <ProjectPanel
             project={panelProject}
             claudeConfigDir={panelConfigDir}
-            commitMessageModel={config.commitMessageModel}
             visible={!panelCollapsed}
             onOpenViewer={openViewerTab}
             onError={setError}

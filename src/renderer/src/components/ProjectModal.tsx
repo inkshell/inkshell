@@ -192,9 +192,8 @@ export function ProjectModal({ mode, entry, existingPaths, onSubmit, onCancel }:
               onChange={(e) => setClaudeModel(e.target.value)}
             />
             <span className="form-hint">
-              Passed as <strong>--model</strong> to this project's Claude Code chats — an alias from
-              the model list (e.g. <em>sonnet</em>) or a full model id. Empty uses the global
-              default.
+              Passed as <strong>--model</strong> to this project's Claude Code chats — a short alias
+              (e.g. <em>sonnet</em>) or a full model id. Empty uses the global default.
             </span>
           </label>
 
@@ -208,8 +207,8 @@ export function ProjectModal({ mode, entry, existingPaths, onSubmit, onCancel }:
             />
             <span className="form-hint">
               Passed as <strong>--model</strong> to this project's Opencode chats, in{' '}
-              <em>provider/model</em> form (e.g. <em>zai-coding-plan/glm-5.3</em>). Empty uses
-              opencode's own configured default.
+              <em>provider/model</em> form (e.g. <em>zai-coding-plan/glm-5.3</em>). Empty uses the
+              global default.
             </span>
           </label>
 

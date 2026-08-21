@@ -79,7 +79,7 @@ know before touching it:
   200k. `App.tsx` polls this every 2s for the active tab.
 
 InkShell's own config lives separately at `~/.inkshell/config.json` (`main/config.ts`)
-— the recent-projects list, default model, and the editable model picker list.
+— the recent-projects list, default model, and other launch-time defaults.
 
 ## Conventions
 

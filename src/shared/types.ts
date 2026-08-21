@@ -2,7 +2,7 @@
  * Data models shared across the main, preload, and renderer processes.
  *
  * These mirror the concepts of the original Rust app: a config file listing
- * recent projects and selectable models, plus session summaries read out of
+ * recent projects and launch-time defaults, plus session summaries read out of
  * Claude Code's own transcript store under `~/.claude/projects/`.
  */
 
@@ -73,65 +73,36 @@ export interface ProjectEntry {
   claudeConfigDir?: string
   /**
    * Per-project default model for Claude Code chats, overriding the global
-   * `AppConfig.defaultModel` for tabs opened in this project. An alias from
-   * the model list or a full model id. Omitted means the global default.
+   * `AppConfig.defaultModel` for tabs opened in this project. A short alias
+   * or a full model id. Omitted means the global default.
    */
   claudeModel?: string
   /**
    * Per-project default model for Opencode chats, passed as `--model` in
    * opencode's own `provider/model` form (e.g. `zai-coding-plan/glm-5.3`).
-   * There is no global opencode default — omitted means opencode's own
-   * configured default. For the context meter to size against this model,
-   * add a matching entry (alias or `idPrefix`) to the model list in Settings.
+   * Omitted means the global default (`defaultOpencodeModel`).
    */
   opencodeModel?: string
-}
-
-/**
- * A model the user can pick from the toolbar. The whole list lives in the
- * config file and is editable from Settings, so a newly released (or renamed)
- * Claude model is a config edit, not a new release.
- */
-export interface ModelConfig {
-  /** Argument passed to `/model` and `--model` (a short alias like "opus", or a full model id). */
-  alias: string
-  /** Human name shown in the picker. */
-  display: string
-  /** Prefix of the model ids recorded in transcripts, e.g. "claude-opus-4-8". */
-  idPrefix: string
-  /**
-   * Context window in tokens, used as the denominator for this model's
-   * context meter reading instead of a flat guess. Config-edited like the
-   * rest of `ModelConfig` — there's no API to read it off the model itself,
-   * and a session recorded on a beta context variant (e.g. Sonnet's 1M mode)
-   * is indistinguishable from the regular one by transcript id alone, so this
-   * is necessarily one fixed number per model, not per-session truth.
-   */
-  contextWindow: number
 }
 
 /** The persisted application configuration (`~/.inkshell/config.json`). */
 export interface AppConfig {
   projects: ProjectEntry[]
-  /** `/model` alias (or full id) passed via `--model` to new chats. */
+  /** `/model` alias (or full id) passed via `--model` to new Claude Code chats. */
   defaultModel: string
-  /** The user's model list, shown in the toolbar picker. */
-  models: ModelConfig[]
   /**
-   * Passed via `--effort` to every chat this app opens (`low`, `medium`,
-   * `high`, `xhigh`, `max`), or `''` to leave it up to Claude Code's own
-   * default. Unlike the model, effort is never recorded in a transcript, so
+   * Opencode model passed via `--model` to new opencode chats, in opencode's
+   * own `provider/model` form (e.g. `zai-coding-plan/glm-5.3`), or `''` to
+   * leave it up to opencode's own configured default.
+   */
+  defaultOpencodeModel: string
+  /**
+   * Passed via `--effort` to every Claude Code chat this app opens (`low`,
+   * `medium`, `high`, `xhigh`, `max`), or `''` to leave it up to Claude Code's
+   * own default. Unlike the model, effort is never recorded in a transcript, so
    * there's no live picker for it — only this launch-time default.
    */
   defaultEffort: string
-  /**
-   * `/model` alias (or full id) passed via `--model` to the headless
-   * `claude -p` run behind "Generate message with Claude", or `''` to let the
-   * CLI pick. Separate from `defaultModel` because summarising a diff is a
-   * cheap one-shot job — worth pointing at a smaller model than the one you
-   * chat with.
-   */
-  commitMessageModel: string
   /**
    * Terminal font size in px, set from the toolbar's A−/A+ control. Applies
    * directly to every xterm instance (chat and plain-shell tabs alike) and,
@@ -334,9 +305,7 @@ export interface SessionContext {
    * The context window of the model that recorded this turn, when the backend
    * knows it authoritatively — opencode reads it from its cached model
    * catalog (`~/.cache/opencode/models.json`, `limit.context`). Absent for
-   * claude, whose denominator stays config-derived
-   * (`ModelConfig.contextWindow`), and for an opencode model missing from
-   * the catalog (renderer falls back to the config match, then 200k).
+   * claude and for an opencode model missing from the catalog.
    */
   contextWindow?: number
 }
