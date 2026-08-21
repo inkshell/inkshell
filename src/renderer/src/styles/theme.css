@@ -653,6 +653,45 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+/* Segmented Claude/Opencode switch above the history list — the two CLIs keep
+   separate session stores, so the list has to say (and let you choose) which
+   one it is reading. The active side takes the sidebar project's accent. */
+.history-cli-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 0 0 7px;
+  flex-shrink: 0;
+}
+.history-cli-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition:
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+.history-cli-toggle button:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+.history-cli-toggle button.on {
+  color: var(--text-primary);
+  border-color: var(--session);
+  background: color-mix(in srgb, var(--session) 14%, var(--bg-card));
+}
+
 .empty-note {
   color: var(--text-faint);
   font-size: 12px;

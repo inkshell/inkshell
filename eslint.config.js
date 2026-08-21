@@ -8,7 +8,16 @@ import reactHooks from 'eslint-plugin-react-hooks'
 // Flat config (ESLint 9). Kept intentionally lean so contributors aren't fighting
 // the linter — it flags real mistakes, not stylistic preferences (Prettier owns those).
 export default [
-  { ignores: ['out/**', 'dist/**', 'release/**', 'node_modules/**'] },
+  // `**/` so nested copies — notably `.claude/worktrees/*/out/**` — are ignored too.
+  {
+    ignores: [
+      '**/out/**',
+      '**/dist/**',
+      '**/release/**',
+      'node_modules/**',
+      '.claude/worktrees/**'
+    ]
+  },
   js.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],

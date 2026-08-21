@@ -8,8 +8,9 @@ const execFileAsync = promisify(execFile)
 
 const isWindows = process.platform === 'win32'
 
-/** The CLI's executable name — npm installs a `.cmd` shim on Windows. */
+/** Each CLI's executable name — npm installs a `.cmd` shim on Windows. */
 const CLAUDE_BIN = isWindows ? 'claude.cmd' : 'claude'
+const OPENCODE_BIN = isWindows ? 'opencode.cmd' : 'opencode'
 
 /**
  * How long the login shell gets to report its PATH. It only runs once per app
@@ -19,8 +20,8 @@ const CLAUDE_BIN = isWindows ? 'claude.cmd' : 'claude'
 const SHELL_PATH_TIMEOUT_MS = 5000
 
 /**
- * Directories a `claude` install commonly lands in. Tried after the login
- * shell's own PATH, as a last resort for a shell whose rc never exports it.
+ * Directories a CLI install commonly lands in. Tried after the login shell's
+ * own PATH, as a last resort for a shell whose rc never exports it.
  */
 function fallbackDirs(): string[] {
   const home = homedir()
@@ -104,32 +105,49 @@ function isExecutable(path: string): boolean {
 }
 
 /**
- * The PATH to give a `claude` child. The CLI shells out to `git`, `node` and
- * friends, so it needs a terminal-like PATH of its own — not the truncated one
- * a Finder-launched app starts with.
+ * The PATH to give a CLI child. Both CLIs shell out to `git`, `node` and
+ * friends, so they need a terminal-like PATH of their own — not the truncated
+ * one a Finder-launched app starts with.
  */
-export async function claudeEnvPath(): Promise<string> {
+export async function cliEnvPath(): Promise<string> {
   return (await searchDirs()).join(delimiter)
+}
+
+const binaryCaches = new Map<'claude' | 'opencode', Promise<string | null>>()
+
+/**
+ * Resolves a CLI's absolute executable path from an explicit env override plus
+ * the search directories. Cached as a promise per binary, so the login-shell
+ * probe behind it happens at most once however many tabs ask at the same time.
+ */
+function resolveBinary(
+  cacheKey: 'claude' | 'opencode',
+  bin: string,
+  envOverride: string | undefined
+): Promise<string | null> {
+  const cached = binaryCaches.get(cacheKey)
+  if (cached) return cached
+  const promise = (async () => {
+    // An explicit override wins, for a non-standard install or a wrapper
+    // script. Absolute only: a relative path would resolve against whatever
+    // working directory the app happens to have, which nobody can predict.
+    if (envOverride && isAbsolute(envOverride) && isExecutable(envOverride)) return envOverride
+    return (await searchDirs()).map((dir) => join(dir, bin)).find(isExecutable) ?? null
+  })()
+  binaryCaches.set(cacheKey, promise)
+  return promise
 }
 
 /**
  * Absolute path to the `claude` executable, or `null` when it genuinely isn't
- * installed. Resolved once and cached as a promise, so the shell spawn behind
- * it happens at most once however many tabs ask at the same time.
- *
- * Worth kicking off at startup (see `index.ts`): by the time a first chat is
- * opened the answer is usually already there.
+ * installed. Worth kicking off at startup (see `index.ts`): by the time a first
+ * chat is opened the answer is usually already there.
  */
-let binaryPromise: Promise<string | null> | undefined
 export function resolveClaudeBinary(): Promise<string | null> {
-  if (binaryPromise) return binaryPromise
-  binaryPromise = (async () => {
-    // An explicit override wins, for a non-standard install or a wrapper
-    // script. Absolute only: a relative path would resolve against whatever
-    // working directory the app happens to have, which nobody can predict.
-    const override = process.env.INKSHELL_CLAUDE_BIN
-    if (override && isAbsolute(override) && isExecutable(override)) return override
-    return (await searchDirs()).map((dir) => join(dir, CLAUDE_BIN)).find(isExecutable) ?? null
-  })()
-  return binaryPromise
+  return resolveBinary('claude', CLAUDE_BIN, process.env.INKSHELL_CLAUDE_BIN)
+}
+
+/** Absolute path to the `opencode` executable, or `null` when not installed. */
+export function resolveOpencodeBinary(): Promise<string | null> {
+  return resolveBinary('opencode', OPENCODE_BIN, process.env.INKSHELL_OPENCODE_BIN)
 }

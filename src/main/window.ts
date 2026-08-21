@@ -5,6 +5,21 @@ import { join } from 'node:path'
 const isMac = process.platform === 'darwin'
 
 /**
+ * Launch flags parsed off the main process's own argv and forwarded to the
+ * renderer through `additionalArguments` (which appends to the preload's
+ * `process.argv`). The preload re-parses them there, so the renderer knows a
+ * flag synchronously at first paint — no IPC round-trip, no layout flash.
+ *
+ * `--no-panel` starts the app with the right-hand project dock collapsed for
+ * this launch only: a per-launch override of the saved panel layout, not a
+ * persisted setting (expanding the panel during the session and quitting
+ * still saves "expanded" for the next normal launch).
+ */
+export function parseLaunchFlags(argv: string[]): { panelHidden: boolean } {
+  return { panelHidden: argv.includes('--no-panel') }
+}
+
+/**
  * Dev/CI hook: with INKSHELL_SCREENSHOT=<path.png> set, captures the window a
  * moment after it renders, writes the PNG, and quits. Uses `capturePage`, so it
  * needs no screen-recording permission — the app reads its own framebuffer.
@@ -54,7 +69,10 @@ export function createMainWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Launch flags travel under a canonical `--inkshell-*` name so the
+      // preload can recognize them regardless of the alias the user typed.
+      additionalArguments: parseLaunchFlags(process.argv).panelHidden ? ['--inkshell-no-panel'] : []
     }
   })
 

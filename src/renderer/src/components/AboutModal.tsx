@@ -53,7 +53,7 @@ export function AboutModal({ onClose }: Props) {
             <div className="about-name">InkShell</div>
             <div className="about-version">{info ? `Version ${info.version}` : ' '}</div>
             <p className="about-tagline">
-              A tabbed desktop workspace for Claude Code — the CLI, with style.
+              A tabbed desktop workspace for Claude Code &amp; Opencode — the CLIs, with style.
             </p>
           </div>
 
@@ -76,6 +76,12 @@ export function AboutModal({ onClose }: Props) {
               <span>claude binary</span>
               <span className="about-mono" title={info?.claudePath ?? undefined}>
                 {info ? (info.claudePath ?? 'Not found on PATH') : '—'}
+              </span>
+            </div>
+            <div className="about-row">
+              <span>opencode binary</span>
+              <span className="about-mono" title={info?.opencodePath ?? undefined}>
+                {info ? (info.opencodePath ?? 'Not found on PATH') : '—'}
               </span>
             </div>
           </div>

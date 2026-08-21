@@ -4,7 +4,7 @@ export function EmptyState() {
       <div className="empty-logo">◈</div>
       <div className="empty-title">Ready to vibe</div>
       <div className="empty-sub">
-        Every tab is a real Claude Code session running. Open one and get started.
+        Every tab is a real Claude Code or Opencode session running. Open one and get started.
       </div>
       <div className="empty-keys">
         <span className="kbd">⌘T</span> new chat

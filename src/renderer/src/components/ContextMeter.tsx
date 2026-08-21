@@ -36,7 +36,7 @@ export function ContextMeter({ tokens, contextWindow }: Props) {
 
   const tip =
     tokens === null
-      ? 'Session context — no reply from Claude yet'
+      ? 'Session context — no reply yet'
       : `Session context: ${tokens} of ${contextWindow} tokens`
 
   return (
