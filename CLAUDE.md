@@ -69,8 +69,10 @@ know before touching it:
 
 - The directory name encodes the project path by replacing **every
   non-alphanumeric character with `-`** (`encodeProjectDir`). This is lossy, so a
-  path can't be decoded back from the directory name — real paths are instead
-  recovered from the `cwd` field inside a transcript (`discoverKnownProjects`).
+  path can't be decoded back from the directory name — and nothing is ever
+  auto-discovered from this store: the projects list is user-curated, and a
+  first launch opens the "New project" screen instead of importing the CLI's
+  existing projects.
 - The **context meter** reads the newest `assistant` line's usage as
   `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` (output
   excluded), mirroring the CLI's own indicator, against a `CONTEXT_WINDOW` of

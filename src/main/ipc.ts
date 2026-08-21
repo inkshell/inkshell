@@ -3,15 +3,9 @@ import { IpcChannel } from '@shared/ipc'
 import type { AppConfig, AppInfo, CliKind, PtyCreateOptions } from '@shared/types'
 import { resolveClaudeBinary, resolveOpencodeBinary } from './cli-binary'
 import { loadConfig, saveConfig } from './config'
-import {
-  deleteSession,
-  discoverKnownProjects,
-  listSessions,
-  sessionContext
-} from './claude-history'
+import { deleteSession, listSessions, sessionContext } from './claude-history'
 import {
   deleteOpencodeSession,
-  discoverOpencodeProjects,
   listOpencodeSessions,
   opencodeSessionContext
 } from './opencode-history'
@@ -82,9 +76,6 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
         ? listOpencodeSessions(projectPath)
         : listSessions(projectPath, claudeConfigDir)
   )
-  ipcMain.handle(IpcChannel.HistoryDiscoverProjects, () => [
-    ...new Set([...discoverKnownProjects(), ...discoverOpencodeProjects()])
-  ])
   ipcMain.handle(
     IpcChannel.HistorySessionContext,
     (_e, projectPath: string, sessionId: string, claudeConfigDir?: string, cli?: CliKind) =>

@@ -58,8 +58,6 @@ const api = {
       cli?: CliKind
     ): Promise<SessionSummary[]> =>
       ipcRenderer.invoke(IpcChannel.HistoryListSessions, projectPath, claudeConfigDir, cli),
-    discoverProjects: (): Promise<string[]> =>
-      ipcRenderer.invoke(IpcChannel.HistoryDiscoverProjects),
     sessionContext: (
       projectPath: string,
       sessionId: string,

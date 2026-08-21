@@ -168,24 +168,24 @@ export function App() {
     window.inkshell.config.save(next)
   }, [])
 
-  // --- Init: load config, discover projects, select the first one ----------
+  // --- Init: load config, select the first project -------------------------
+  // A first launch starts empty on purpose: nothing is ever imported from the
+  // CLIs' own history stores — the user adds each project explicitly. With no
+  // saved projects, the project screen opens so that's the first thing they do.
   useEffect(() => {
     ;(async () => {
-      let cfg = await window.inkshell.config.load()
-      if (cfg.projects.length === 0) {
-        const discovered = await window.inkshell.history.discoverProjects()
-        const seen = new Set<string>()
-        const projects = discovered
-          .filter((p) => (seen.has(p) ? false : (seen.add(p), true)))
-          .map((p, i) => ({ name: p.split(/[/\\]/).pop() || p, path: p, color: paletteColor(i) }))
-        cfg = { ...cfg, projects }
-        await window.inkshell.config.save(cfg)
-      }
+      const cfg = await window.inkshell.config.load()
       setConfig(cfg)
       const first = cfg.projects[0] ?? null
-      setCurrentProject(first?.path ?? null)
-      if (first)
+      if (first) {
+        setCurrentProject(first.path)
         setSessions(await window.inkshell.history.listSessions(first.path, first.claudeConfigDir))
+      } else {
+        setProjectModal({
+          mode: 'new',
+          entry: { name: '', path: '', color: paletteColor(0) }
+        })
+      }
     })()
   }, [])
 

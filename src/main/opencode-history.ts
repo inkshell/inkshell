@@ -132,26 +132,6 @@ export function listOpencodeSessions(projectPath: string): SessionSummary[] {
   }
 }
 
-/**
- * Every project directory opencode has a session for — the counterpart of
- * Claude Code's `discoverKnownProjects`, used to seed the projects list on a
- * first launch.
- */
-export function discoverOpencodeProjects(): string[] {
-  const db = openDb()
-  if (!db) return []
-  try {
-    const rows = db.prepare('SELECT DISTINCT directory FROM session').all() as Array<{
-      directory: string
-    }>
-    return rows.map((row) => row.directory).filter(Boolean)
-  } catch {
-    return []
-  } finally {
-    db.close()
-  }
-}
-
 type Json = Record<string, unknown>
 
 /** Reads a message row's `tokens` JSON (`json_extract` hands it back as text). */

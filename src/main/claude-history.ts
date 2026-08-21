@@ -182,10 +182,6 @@ function extractTimestampMs(value: Json): number | null {
   return Number.isNaN(ms) ? null : ms
 }
 
-function extractCwd(value: Json): string | null {
-  return typeof value.cwd === 'string' ? value.cwd : null
-}
-
 /**
  * Token usage, model id, and recording time for an `assistant` transcript
  * line, or `null` if the line is not an assistant message carrying a `usage`
@@ -327,44 +323,4 @@ export function sessionContext(
     if (found) return found
   }
   return null
-}
-
-/**
- * Scans `~/.claude/projects/` for project directories that already have
- * session history, recovering each one's real filesystem path from the `cwd`
- * field recorded inside its transcripts (the directory name itself can't be
- * reliably decoded back to a path since `-` is ambiguous).
- */
-export function discoverKnownProjects(): string[] {
-  let dirs: string[]
-  try {
-    dirs = readdirSync(claudeProjectsDir(), { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .map((d) => d.name)
-  } catch {
-    return []
-  }
-
-  const found: string[] = []
-  for (const dir of dirs) {
-    const dirPath = join(claudeProjectsDir(), dir)
-    let jsonl: string | undefined
-    try {
-      jsonl = readdirSync(dirPath).find((f) => f.endsWith('.jsonl'))
-    } catch {
-      continue
-    }
-    if (!jsonl) continue
-
-    for (const line of readHead(join(dirPath, jsonl), HEAD_SCAN_BYTES).split('\n')) {
-      if (!line) continue
-      const value = safeParse(line)
-      const cwd = value && extractCwd(value)
-      if (cwd) {
-        found.push(cwd)
-        break
-      }
-    }
-  }
-  return found
 }
