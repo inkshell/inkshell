@@ -15,7 +15,6 @@ import {
   GripIcon,
   InfoIcon,
   OpencodeIcon,
-  PlusIcon,
   TerminalIcon,
   TrashIcon
 } from './Icons'
@@ -376,7 +375,7 @@ export function Sidebar({
                       }}
                       {...bind('New Claude Code chat')}
                     >
-                      <PlusIcon size={13} />
+                      <ClaudeIcon size={13} />
                     </button>
                     <button
                       type="button"
