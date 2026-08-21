@@ -14,11 +14,28 @@ import { overrideConfigDir } from './claude-history'
  */
 const GRACEFUL_EXIT_TIMEOUT_MS = 3000
 
+/**
+ * opencode's command palette opens asynchronously a moment after `/` is typed,
+ * and an Enter arriving in the same burst of keys is swallowed by the opening
+ * palette — it just sits there with `/exit` selected and never runs. The
+ * command text and the Enter that submits it have to be separate writes, with
+ * a beat between them.
+ */
+const OPENCODE_SUBMIT_DELAY_MS = 500
+
+/**
+ * A second Enter, a bit later, for the case where the first submission
+ * surfaces an exit-confirmation dialog (e.g. a task still running): opencode
+ * dialogs submit on Enter too. Once the child is gone `write` is a no-op, so
+ * this can only ever confirm, never corrupt.
+ */
+const OPENCODE_CONFIRM_DELAY_MS = 1200
+
 /** A live child process plus what kind of exit sequence it understands. */
 interface Session {
   child: pty.IPty
   /** A plain shell has no `/exit` — see `close()`. */
-  shell: boolean
+  kind: 'claude' | 'opencode' | 'shell'
 }
 
 /**
@@ -101,7 +118,7 @@ export class PtyManager {
       env: await childEnv(env)
     })
 
-    const ptyId = this.register(child, false)
+    const ptyId = this.register(child, 'claude')
     return { ptyId, sessionId }
   }
 
@@ -130,7 +147,7 @@ export class PtyManager {
       env: await childEnv({ ...process.env, TERM: 'xterm-256color' })
     })
 
-    const ptyId = this.register(child, false)
+    const ptyId = this.register(child, 'opencode')
     // A new chat's real id is assigned by the TUI itself; the renderer adopts
     // it from opencode's session store once it shows up there.
     return { ptyId, sessionId: opts.resumeSessionId ?? '' }
@@ -160,14 +177,14 @@ export class PtyManager {
       env: await childEnv(env)
     })
 
-    const ptyId = this.register(child, true)
+    const ptyId = this.register(child, 'shell')
     return { ptyId, sessionId: '' }
   }
 
   /** Tracks a freshly spawned child and wires its data/exit pushes. */
-  private register(child: pty.IPty, shell: boolean): number {
+  private register(child: pty.IPty, kind: Session['kind']): number {
     const ptyId = this.nextId++
-    this.sessions.set(ptyId, { child, shell })
+    this.sessions.set(ptyId, { child, kind })
 
     child.onData((data) => {
       if (!this.sender.isDestroyed()) {
@@ -227,16 +244,26 @@ export class PtyManager {
       const listener = child.onExit(() => finish(false))
       const timer = setTimeout(() => finish(true), GRACEFUL_EXIT_TIMEOUT_MS)
       try {
-        // Ctrl-U first: it clears whatever is half-typed at the prompt, without
-        // which the exit command lands as a suffix to it and gets submitted as
-        // part of it instead of running on its own. Skipped for the Windows
-        // shell fallback (cmd.exe): Ctrl-U isn't one of its line-editing
-        // shortcuts, so it would pass straight through into the exit command
-        // instead of clearing anything, corrupting it and forcing the
-        // hard-kill timeout below.
-        const isWindowsShell = session.shell && process.platform === 'win32'
-        const exitCommand = session.shell ? 'exit\r' : '/exit\r'
-        child.write(isWindowsShell ? exitCommand : '\x15' + exitCommand)
+        if (session.kind === 'opencode') {
+          // opencode: the command text and the submitting Enter must be
+          // separate writes (see OPENCODE_SUBMIT_DELAY_MS), so the sequence is
+          // scheduled instead of written in one burst. Both go through
+          // `write()`, which no-ops once the child is gone.
+          child.write('\x15/exit')
+          setTimeout(() => this.write(ptyId, '\r'), OPENCODE_SUBMIT_DELAY_MS)
+          setTimeout(() => this.write(ptyId, '\r'), OPENCODE_CONFIRM_DELAY_MS)
+        } else {
+          // Ctrl-U first: it clears whatever is half-typed at the prompt, without
+          // which the exit command lands as a suffix to it and gets submitted as
+          // part of it instead of running on its own. Skipped for the Windows
+          // shell fallback (cmd.exe): Ctrl-U isn't one of its line-editing
+          // shortcuts, so it would pass straight through into the exit command
+          // instead of clearing anything, corrupting it and forcing the
+          // hard-kill timeout below.
+          const isWindowsShell = session.kind === 'shell' && process.platform === 'win32'
+          const exitCommand = session.kind === 'shell' ? 'exit\r' : '/exit\r'
+          child.write(isWindowsShell ? exitCommand : '\x15' + exitCommand)
+        }
       } catch {
         finish(true)
       }
