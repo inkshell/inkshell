@@ -14,7 +14,6 @@ export const IpcChannel = {
   // Projects & history
   DialogPickFolder: 'dialog:pickFolder',
   HistoryListSessions: 'history:listSessions',
-  HistoryDiscoverProjects: 'history:discoverProjects',
   HistorySessionContext: 'history:sessionContext',
   HistoryDeleteSession: 'history:deleteSession',
 
