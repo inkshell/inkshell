@@ -7,11 +7,6 @@ export function relativeTime(epochMs: number): string {
   return `${Math.floor(secs / 86_400)}d ago`
 }
 
-/** Compact token count for the meter: `40142 → "40k"`, `950 → "950"`. */
-export function fmtK(n: number): string {
-  return n >= 1000 ? `${Math.round(n / 1000)}k` : String(n)
-}
-
 /** Last path segment, for a folder's display name. */
 export function baseName(path: string): string {
   const parts = path.replace(/[/\\]+$/, '').split(/[/\\]/)

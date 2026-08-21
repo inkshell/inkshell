@@ -9,12 +9,10 @@ import {
 } from 'react'
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import {
-  CONTEXT_WINDOW,
   paletteColor,
   type AppConfig,
   type CliKind,
   type ProjectEntry,
-  type SessionContext,
   type SessionSummary
 } from '@shared/types'
 import {
@@ -32,7 +30,6 @@ import { TitleBar } from './components/TitleBar'
 import { StatusBar } from './components/StatusBar'
 import { TerminalView, type TerminalViewHandle } from './components/TerminalView'
 import { ViewerView } from './components/ViewerView'
-import { ContextPct } from './components/ContextMeter'
 import { ProjectPanel } from './components/ProjectPanel'
 import { QuickOpen } from './components/QuickOpen'
 import { EmptyState } from './components/EmptyState'
@@ -71,9 +68,8 @@ function paneGlyph(kind: Tab['kind'], size = 12) {
 
 /**
  * How the status bar names a focused pane that isn't a chat. The bar is drawn
- * for every pane kind so its height never moves with focus, which leaves the
- * room the model/effort switchers would have taken — this fills it, rather than
- * letting the row read as a blank strip whenever a terminal or file has focus.
+ * at the same height for every pane kind, so this fills the row rather than
+ * letting it read as a blank strip whenever a terminal or file has focus.
  */
 const PANE_SUBJECT: Record<Exclude<Tab['kind'], 'terminal'>, string> = {
   shell: 'Terminal',
@@ -81,66 +77,6 @@ const PANE_SUBJECT: Record<Exclude<Tab['kind'], 'terminal'>, string> = {
   diff: 'Diff',
   commit: 'Commit'
 }
-
-/**
- * A pane's own context-window usage, polled independently of every other
- * pane — the app-wide `liveSession` effect below only ever tracks the
- * focused tab, but with 2 or 4 panes on screen each quadrant needs its own
- * reading in its title bar. Mirrors the model-resolution rule `activeModelAlias`
- * uses (a stale transcript line predating this tab's own launch doesn't count),
- * just scoped to one tab instead of the app's single active one.
- */
-function PaneContext({ tab, visible, config }: { tab: Tab; visible: boolean; config: AppConfig }) {
-  const [ctx, setCtx] = useState<SessionContext | null>(null)
-  useEffect(() => {
-    if (!visible || tab.kind !== 'terminal' || !tab.cwd || !tab.sessionId) {
-      setCtx(null)
-      return
-    }
-    const cwd = tab.cwd
-    const sessionId = tab.sessionId
-    const configDir = tab.cli === 'claude' ? (tab.claudeConfigDir ?? undefined) : undefined
-    let cancelled = false
-    const read = async () => {
-      const c = await window.inkshell.history.sessionContext(cwd, sessionId, configDir, tab.cli)
-      if (!cancelled) setCtx(c)
-    }
-    read()
-    const timer = setInterval(read, 2000)
-    return () => {
-      cancelled = true
-      clearInterval(timer)
-    }
-  }, [visible, tab.kind, tab.cli, tab.cwd, tab.sessionId, tab.claudeConfigDir])
-
-  if (!ctx) return null
-  const isFresh = ctx.timestampMs != null && ctx.timestampMs >= tab.startedAtMs
-  const modelId = isFresh ? ctx.model : null
-  const alias =
-    (modelId && config.models.find((m) => m.idPrefix && modelId.startsWith(m.idPrefix))?.alias) ??
-    tab.model ??
-    null
-  // The reading's own window (opencode's catalog knows it per model) wins over
-  // the config-derived one, gated on the same freshness rule as the model —
-  // a stale reading belongs to the previous model, whose window may differ.
-  const contextWindow =
-    (isFresh && typeof ctx.contextWindow === 'number' && ctx.contextWindow > 0
-      ? ctx.contextWindow
-      : null) ??
-    config.models.find((m) => m.alias === alias)?.contextWindow ??
-    CONTEXT_WINDOW
-  return <ContextPct tokens={ctx.tokens} contextWindow={contextWindow} />
-}
-
-/**
- * Why a pick in the status bar was refused. The switchers type `/commands` into
- * the session, and bytes written to the pty land wherever the CLI's cursor is —
- * appended to a half-written prompt, the command would be submitted as part of
- * it rather than run. Shown only after the user actually picks, so it names
- * what didn't happen and what to do about it.
- */
-const DRAFT_BLOCKED_NOTICE =
-  "Couldn't switch: the chat input has text in it. Send or clear the text and try again."
 
 export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null)
@@ -179,8 +115,6 @@ export function App() {
   // (or dismisses) the modal. Carries the summary so the prompt can quote it.
   const [pendingDelete, setPendingDelete] = useState<SessionSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  const [liveSession, setLiveSession] = useState<SessionContext | null>(null)
   // Tracks whether the sidebar is collapsed (button or drag) so the tab row can
   // reserve space for the macOS traffic lights it would otherwise slide under.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -930,9 +864,9 @@ export function App() {
     [closeTab]
   )
 
-  // --- Toolbar actions -----------------------------------------------------
-  // Imperative handles into the live terminals, for asking the active one
-  // whether its input box is empty (the draft exists only on the CLI's screen).
+  // --- Pane handles ----------------------------------------------------------
+  // Imperative handles into the live terminals, used to hand the keyboard back
+  // to a pane after a click elsewhere stole its DOM focus.
   const terminalRefs = useRef(new Map<string, TerminalViewHandle>())
 
   // Maximizing is usually a click on the pane's own header button, which
@@ -946,86 +880,10 @@ export function App() {
     return () => cancelAnimationFrame(id)
   }, [maximizedTabId])
 
-  /**
-   * Types a slash command into the active session — only when its input box is
-   * verifiably empty. Bytes written to the pty append to whatever is
-   * half-written in the box, so a `/command` typed over a draft would submit
-   * the two as one prompt.
-   *
-   * This is the *only* place the condition is evaluated, and it runs at the
-   * moment of the pick: the switchers stay enabled and explain themselves in a
-   * banner when a draft turns out to be in the way. Returns whether the command
-   * was actually sent — the switchers are controlled by state that only moves
-   * on success, so a refused pick snaps back on its own.
-   */
-  const writeCommandToActive = useCallback(
-    (command: string): boolean => {
-      const handle = activeTabId ? terminalRefs.current.get(activeTabId) : undefined
-      if (activeTab?.ptyId == null || !handle?.promptIsEmpty()) {
-        setNotice(DRAFT_BLOCKED_NOTICE)
-        return false
-      }
-      window.inkshell.pty.write(activeTab.ptyId, `${command}\r`)
-      // The control that triggered this (a status-bar select or button) still
-      // holds the keyboard; hand it straight back to the terminal, on the next
-      // frame so the native picker has finished closing first.
-      requestAnimationFrame(() => handle.focus())
-      return true
-    },
-    [activeTab, activeTabId]
-  )
-  const requestModel = useCallback(
-    (alias: string) => {
-      if (!writeCommandToActive(`/model ${alias}`)) return
-      // Optimistic guess so the tint updates instantly; the next transcript
-      // poll below confirms it (or corrects it) against real usage.
-      if (activeTabId)
-        setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, model: alias } : t)))
-    },
-    [writeCommandToActive, activeTabId]
-  )
-  const requestEffort = useCallback(
-    (effort: string) => {
-      if (!writeCommandToActive(`/effort ${effort}`)) return
-      // Purely optimistic — unlike the model, effort is never recorded in the
-      // transcript, so there's no way to confirm or correct this later.
-      if (activeTabId)
-        setTabs((prev) => prev.map((t) => (t.id === activeTabId ? { ...t, effort } : t)))
-    },
-    [writeCommandToActive, activeTabId]
-  )
-  const requestStats = useCallback(
-    () => void writeCommandToActive('/stats'),
-    [writeCommandToActive]
-  )
-
-  // --- Live session: poll the active session's store for token usage + model ----
-  // Keyed off the tab's own project, not the sidebar selection: a tab keeps its
-  // records wherever it was launched, so browsing to another project in the
-  // sidebar must not blank out the meter of the tab still on screen.
+  // The project the active tab drives (its own cwd, not the sidebar selection:
+  // a tab keeps its records wherever it was launched) — feeds the status bar's
+  // project readout and the keyboard shortcuts.
   const activeProject = activeTab?.cwd ?? currentProject
-  const activeConfigDir = activeTab?.claudeConfigDir ?? claudeConfigDirFor(activeProject)
-  useEffect(() => {
-    if (!activeProject || activeTab?.kind !== 'terminal' || !activeTab?.sessionId) {
-      setLiveSession(null)
-      return
-    }
-    const project = activeProject
-    const configDir = activeTab.cli === 'claude' ? activeConfigDir : undefined
-    const sessionId = activeTab.sessionId
-    const cli = activeTab.cli
-    let cancelled = false
-    const read = async () => {
-      const ctx = await window.inkshell.history.sessionContext(project, sessionId, configDir, cli)
-      if (!cancelled) setLiveSession(ctx)
-    }
-    read()
-    const timer = setInterval(read, 2000)
-    return () => {
-      cancelled = true
-      clearInterval(timer)
-    }
-  }, [activeProject, activeConfigDir, activeTab?.kind, activeTab?.cli, activeTab?.sessionId])
 
   // --- Opencode session adoption --------------------------------------------
   // A new opencode chat has no session id at spawn — the TUI assigns one and
@@ -1101,47 +959,6 @@ export function App() {
     // `pendingAdoption` is derived from `tabs`; the key is what it is keyed on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adoptionKey])
-
-  // The model alias actually backing the active session: the transcript's
-  // recorded model id, matched against each config model's `idPrefix` (the
-  // only ground truth there is — Claude Code never exposes this any other
-  // way). Discarded if it predates this tab's own run — a resumed session's
-  // last transcript line can be older than the current process, e.g. when
-  // resuming launches under a different `--model` than that history was on —
-  // in which case the tab's launch model (the actual `--model` argument) is
-  // the correct answer until a fresh turn lands.
-  const activeModelAlias = useCallback((): string | null => {
-    const isFresh =
-      liveSession?.timestampMs != null &&
-      activeTab != null &&
-      liveSession.timestampMs >= activeTab.startedAtMs
-    const modelId = isFresh ? liveSession.model : null
-    const match = modelId
-      ? config?.models.find((m) => m.idPrefix && modelId.startsWith(m.idPrefix))
-      : undefined
-    return match?.alias ?? activeTab?.model ?? null
-  }, [liveSession, config, activeTab])
-
-  // The context meter's denominator: the reading's own window when the backend
-  // reports one (opencode's model catalog), else the resolved model's
-  // config-edited window, else a flat guess before any model is known at all
-  // (e.g. a brand-new chat). The reading's window follows the same freshness
-  // rule as `activeModelAlias` — a stale reading belongs to the previous model.
-  const activeContextWindow = useCallback((): number => {
-    const isFresh =
-      liveSession?.timestampMs != null &&
-      activeTab != null &&
-      liveSession.timestampMs >= activeTab.startedAtMs
-    if (
-      isFresh &&
-      typeof liveSession?.contextWindow === 'number' &&
-      liveSession.contextWindow > 0
-    ) {
-      return liveSession.contextWindow
-    }
-    const alias = activeModelAlias()
-    return config?.models.find((m) => m.alias === alias)?.contextWindow ?? CONTEXT_WINDOW
-  }, [liveSession, activeTab, activeModelAlias, config])
 
   // --- Keyboard shortcuts (capture phase, to beat xterm's key handling) -----
   const shortcutRef = useRef({ openNewChat, closePane, activeTabId, activeProject })
@@ -1242,20 +1059,17 @@ export function App() {
   const panelConfigDir = claudeConfigDirFor(currentProject) ?? null
   const panelAccent = projectColor(currentProject)
 
-  // What the status bar says about the focused pane. A claude chat drives the
-  // model + effort + context row; an opencode chat names its CLI in v1 (no
-  // switchers or meter — those have no opencode backend yet); anything else is
-  // simply named. Null for a claude chat (the switchers stand there instead)
-  // and for an empty pane, which already says what it is in the middle of its
-  // own tile.
-  const chatFocused = activeTab?.kind === 'terminal' && activeTab.cli === 'claude'
+  // What the status bar says about the focused pane. A chat names its CLI
+  // (claude and opencode alike — a clean label, the way the opencode bar
+  // always read); anything else is simply named. Null for an empty pane,
+  // which already says what it is in the middle of its own tile.
   const statusSubject = !activeTab
     ? null
     : activeTab.kind !== 'terminal'
       ? { glyph: paneGlyph(activeTab.kind, 13), label: PANE_SUBJECT[activeTab.kind] }
       : activeTab.cli === 'opencode'
         ? { glyph: <OpencodeIcon size={13} />, label: 'Opencode' }
-        : null
+        : { glyph: <ClaudeIcon size={13} />, label: 'Claude Code' }
 
   return (
     <>
@@ -1339,20 +1153,7 @@ export function App() {
                       panes, and every terminal on screen re-fitted to the
                       height it gave back. It now stays put and swaps its
                       contents instead. */}
-                  <StatusBar
-                    project={projectName}
-                    active={chatFocused}
-                    subject={statusSubject}
-                    meter={activeTab?.kind === 'terminal' && activeTab.sessionId !== null}
-                    models={config.models}
-                    currentModel={activeModelAlias()}
-                    currentEffort={activeTab?.effort ?? null}
-                    contextTokens={liveSession?.tokens ?? null}
-                    contextWindow={activeContextWindow()}
-                    onPickModel={requestModel}
-                    onPickEffort={requestEffort}
-                    onAnalytics={requestStats}
-                  />
+                  <StatusBar project={projectName} subject={statusSubject} />
 
                   <div className="pane-grid" data-layout={layout}>
                     {tabs.map((tab) => {
@@ -1410,7 +1211,6 @@ export function App() {
                               <span className="pane-glyph">{paneGlyph(tab.kind)}</span>
                             )}
                             <span className="pane-title">{tab.title}</span>
-                            <PaneContext tab={tab} visible={visible} config={config} />
                             <button
                               type="button"
                               className="pane-btn pane-minimize"
@@ -1542,17 +1342,6 @@ export function App() {
                 </>
               )}
             </div>
-
-            {notice && (
-              <div className="banner notice">
-                <span className="glyph">◈</span>
-                <span>{notice}</span>
-                <span className="spacer" />
-                <button className="banner-close" onClick={() => setNotice(null)}>
-                  <CloseIcon size={13} />
-                </button>
-              </div>
-            )}
           </div>
         </Panel>
 

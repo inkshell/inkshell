@@ -1290,9 +1290,9 @@ button {
 }
 
 /* =========================================================================
-   Toolbar — sits between the tabs and the terminal; belongs to the active
-   tab's content. Model switcher + context + tools.
-   ========================================================================= */
+    Status bar — the app's ground line under the panes; belongs to the active
+    tab's content. Project + pane name + tools.
+    ========================================================================= */
 
 .statusbar {
   display: flex;
@@ -1334,10 +1334,9 @@ button {
   background: var(--border);
   flex-shrink: 0;
 }
-/* What the focused pane holds, when it isn't a chat. The bar is drawn at the
-   same height for every pane kind (see `StatusBar`), so this stands in the room
-   the model + effort switchers leave behind — quieter than they are, since it's
-   a label rather than a control. */
+/* What the focused pane holds — a chat names its CLI, a viewer or shell names
+   itself. The bar is drawn at the same height for every pane kind (see
+   `StatusBar`), so this fills the row as a label rather than a control. */
 .status-subject {
   display: flex;
   align-items: center;
@@ -1353,154 +1352,9 @@ button {
   flex-shrink: 0;
   color: var(--text-faint);
 }
-.status-spacer {
-  margin-left: auto;
-}
-.status-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Model + effort switchers */
-.swap-hint {
-  color: var(--text-faint);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-/* Deliberately neutral: the project accent already tints the chrome around
-   these (the corner wash, the folder glyph, the tabs), so the switchers stay
-   graphite and let it read. Depth comes from a hairline top highlight rather
-   than a fill; focus uses the fixed brand iris, never --session. */
-.pill-select {
-  height: 26px;
-  padding: 0 28px 0 12px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6' fill='none'%3E%3Cpath d='M1 1.5L4.5 5L8 1.5' stroke='%2399a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-      no-repeat right 11px center / 9px 6px,
-    var(--bg-card);
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 600;
-  font-family: inherit;
-  appearance: none;
-  cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  transition:
-    border-color var(--dur) var(--ease),
-    background-color var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease);
-}
-.pill-select:hover {
-  border-color: var(--border-strong);
-  background-color: var(--bg-card-hover);
-}
-.pill-select:focus {
-  outline: none;
-}
-.pill-select:focus-visible {
-  border-color: var(--accent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
-}
-.pill-select option {
-  background: var(--bg-card);
-  color: var(--text-primary);
-}
-/* No `min-width: 0` here, deliberately: it would let the group shrink past the
-   pills inside it and slide them under the context meter. Left at `auto` it
-   floors at its content, and the squeeze goes where it always went — the
-   project name, which carries the `min-width: 0` and the ellipsis for it. */
-.switchers {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.icon-btn {
-  width: 30px;
-  height: 26px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-muted);
-  transition:
-    color var(--dur) var(--ease),
-    border-color var(--dur) var(--ease),
-    background var(--dur) var(--ease);
-}
-.icon-btn:hover {
-  border-color: var(--session-line);
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
-}
-.icon-btn:disabled {
-  opacity: 0.45;
-}
-
-/* Context meter — a fuel gauge with ticks */
-.meter {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 26px;
-  padding: 0 11px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  font-size: 11px;
-}
-.meter-track {
-  position: relative;
-  width: 54px;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--bg-extreme);
-  overflow: hidden;
-}
-/* Subtle fuel-gauge tick marks over the track. */
-.meter-track::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0,
-    transparent 8px,
-    rgba(255, 255, 255, 0.08) 8px,
-    rgba(255, 255, 255, 0.08) 9px
-  );
-  pointer-events: none;
-}
-.meter-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition:
-    width 0.35s var(--ease),
-    background 0.35s var(--ease),
-    box-shadow 0.35s var(--ease);
-}
-.meter-label {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-}
-.meter-label.warn {
-  color: var(--warn);
-}
-.meter-label.danger {
-  color: var(--error);
-}
 
 /* =========================================================================
-   Banners (error / notice)
+   Banners (error)
    ========================================================================= */
 
 .banner {
@@ -1518,19 +1372,13 @@ button {
   border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
   color: var(--text-primary);
 }
-.banner.notice {
-  background: var(--session-tint);
-  border: 1px solid var(--session-line);
-  color: var(--text-primary);
-  margin-bottom: 12px;
-}
 .banner .glyph {
   display: grid;
   place-items: center;
-  color: var(--session);
-}
-.banner.error .glyph {
   color: var(--error);
+}
+.banner .spacer {
+  margin-left: auto;
 }
 .banner .spacer {
   margin-left: auto;
@@ -3021,15 +2869,6 @@ button {
 }
 .pane.focused .pane-title {
   color: var(--text-primary);
-}
-/* Live context-window usage for this pane's own session — colour comes from
-   `ContextPct`'s inline style (the same green→amber→red scale as the full
-   meter), this just sets size/weight/spacing. */
-.pane-context {
-  flex: none;
-  font-size: 10.5px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 .pane-btn {
   width: 22px;

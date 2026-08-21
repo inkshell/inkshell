@@ -7,9 +7,7 @@ import { createFileLinkProvider, type FileLinkTarget } from '../lib/file-links'
 import type { Tab } from '../types'
 
 export interface TerminalViewHandle {
-  /** True when the CLI's input box is on screen and verifiably empty. */
-  promptIsEmpty: () => boolean
-  /** Puts the keyboard back in the terminal (the status bar steals it). */
+  /** Puts the keyboard back in the terminal (a click elsewhere steals it). */
   focus: () => void
 }
 
@@ -47,69 +45,6 @@ function openUrl(uri: string): void {
 }
 
 /**
- * Whether the CLI's input box is verifiably empty.
- *
- * A half-written draft lives inside the `claude` process, which never reports
- * it anywhere — its only observable trace is the screen itself. So this reads
- * the input box the CLI draws at the bottom of the buffer: a `❯` marker line
- * between two `───` border lines. Callers use it to decide whether typing a
- * `/command` into the pty is safe; anything already in the box would swallow
- * the command into the draft and submit the two as one prompt.
- *
- * It deliberately errs toward "not empty". Every state it cannot positively
- * recognize as an empty prompt counts as a draft: no box on screen (CLI still
- * booting, or a redesigned layout), a box taller than one row (the draft holds
- * a line break, even if no cell in it is visible), a marker other than `❯`
- * (the `!` bash and `#` memory modes only ever engage by typing), or any text
- * it can't classify. The failure mode is a refused switch — never a corrupted
- * prompt.
- *
- * Emptiness is read off the *rendering*, not the text: the CLI draws its own
- * placeholder dim and anything the user typed in normal intensity, so a box
- * holding nothing but dim cells is an empty box. Matching the placeholder's
- * wording instead would tie this to a string the CLI rotates and translates,
- * and refuse the switch every time it changed.
- */
-function promptBoxIsEmpty(term: Terminal): boolean {
-  const buffer = term.buffer.active
-  const last = buffer.length - 1
-  const first = Math.max(0, buffer.length - term.rows)
-  const borderAt = (y: number): boolean =>
-    /^\s*─{8,}\s*$/.test(buffer.getLine(y)?.translateToString(true) ?? '')
-
-  let bottom = -1
-  for (let y = last; y >= first; y--) {
-    if (borderAt(y)) {
-      bottom = y
-      break
-    }
-  }
-  let top = -1
-  for (let y = bottom - 1; y >= first; y--) {
-    if (borderAt(y)) {
-      top = y
-      break
-    }
-  }
-  if (top < 0) return false
-
-  // An empty prompt is exactly one row tall. A taller box means the draft
-  // already holds a line break even when every visible cell in it is blank —
-  // a draft may well *start* with a blank line, or be nothing but newlines.
-  if (bottom - top !== 2) return false
-
-  const line = buffer.getLine(top + 1)
-  if (!line) return false
-  if (!line.translateToString(true).startsWith('❯')) return false
-  for (let x = 1; x < line.length; x++) {
-    const cell = line.getCell(x)
-    if (!(cell?.getChars() ?? '').trim()) continue
-    if (!cell!.isDim()) return false
-  }
-  return true
-}
-
-/**
  * One live terminal, bound to one CLI child process (`claude` or `opencode`).
  * Owns its xterm instance for the tab's whole lifetime — inactive tabs stay
  * mounted (just hidden) so their scrollback and process keep running in the
@@ -132,7 +67,6 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
   useImperativeHandle(
     ref,
     () => ({
-      promptIsEmpty: () => (termRef.current ? promptBoxIsEmpty(termRef.current) : false),
       focus: () => termRef.current?.focus()
     }),
     []

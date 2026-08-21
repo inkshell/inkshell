@@ -65,29 +65,6 @@ export const GripIcon = ({ size = 14 }: IconProps) => (
   </svg>
 )
 
-export const SwapIcon = ({ size = 16 }: IconProps) =>
-  svg(size, <path d="M4 8h13l-3-3M20 16H7l3 3" />)
-
-export const GaugeIcon = ({ size = 16 }: IconProps) =>
-  svg(
-    size,
-    <>
-      <path d="M5 17a7 7 0 0 1 14 0" />
-      <path d="M12 17l4-6" />
-      <circle cx="12" cy="17" r="1.1" fill="currentColor" stroke="none" />
-    </>
-  )
-
-export const BarsIcon = ({ size = 16 }: IconProps) =>
-  svg(
-    size,
-    <>
-      <path d="M6 20V13" />
-      <path d="M12 20V8" />
-      <path d="M18 20V4" />
-    </>
-  )
-
 export const BookmarkIcon = ({ size = 16 }: IconProps) =>
   svg(size, <path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1Z" />)
 
