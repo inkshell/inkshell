@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
-import { resolveClaudeBinary } from './claude-binary'
+import { resolveClaudeBinary, resolveOpencodeBinary } from './cli-binary'
 import { createMainWindow } from './window'
 import { registerIpcHandlers, unregisterIpcHandlers } from './ipc'
 import type { PtyManager } from './pty-manager'
@@ -67,10 +67,11 @@ app.whenReady().then(() => {
   if (!app.isPackaged && process.platform === 'darwin') {
     app.dock?.setIcon(join(app.getAppPath(), 'resources', 'icon.png'))
   }
-  // Find the `claude` binary while the window is still loading: the lookup can
+  // Find the CLI binaries while the window is still loading: the lookup can
   // cost a login-shell spawn, and doing it here means the first chat rarely
   // waits for one. Failures are the spawn's to report, not this call's.
   void resolveClaudeBinary()
+  void resolveOpencodeBinary()
   bootWindow()
 
   // macOS: re-open a window when the dock icon is clicked and none are open.

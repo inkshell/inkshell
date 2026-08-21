@@ -110,9 +110,10 @@ function promptBoxIsEmpty(term: Terminal): boolean {
 }
 
 /**
- * One live terminal, bound to one `claude` child process. Owns its xterm
- * instance for the tab's whole lifetime — inactive tabs stay mounted (just
- * hidden) so their scrollback and process keep running in the background.
+ * One live terminal, bound to one CLI child process (`claude` or `opencode`).
+ * Owns its xterm instance for the tab's whole lifetime — inactive tabs stay
+ * mounted (just hidden) so their scrollback and process keep running in the
+ * background.
  */
 export const TerminalView = forwardRef<TerminalViewHandle, Props>(function TerminalView(
   { tab, active, focused, fontSize, onReady, onOpenFile, onTitle, onExit, onError }: Props,
@@ -182,6 +183,7 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
       .create({
         cwd: tab.cwd ?? undefined,
         shell: tab.kind === 'shell',
+        cli: tab.cli,
         resumeSessionId: tab.resumeSessionId ?? undefined,
         model: tab.model ?? undefined,
         effort: tab.effort ?? undefined,
@@ -215,7 +217,9 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
                 tab.id,
                 tab.kind === 'shell'
                   ? `The terminal exited immediately (code ${exitCode}) without starting.`
-                  : `Claude Code exited immediately (code ${exitCode}) without starting. Check that \`claude\` runs in your terminal.`
+                  : tab.cli === 'opencode'
+                    ? `Opencode exited immediately (code ${exitCode}) without starting. Check that \`opencode\` runs in your terminal.`
+                    : `Claude Code exited immediately (code ${exitCode}) without starting. Check that \`claude\` runs in your terminal.`
               )
               return
             }
@@ -232,13 +236,19 @@ export const TerminalView = forwardRef<TerminalViewHandle, Props>(function Termi
         // person to read, so the plumbing is stripped off it here.
         const raw = String(err?.message ?? err)
         const message = raw.replace(/^Error invoking remote method '[^']*':\s*(Error:\s*)?/, '')
+        if (tab.kind === 'shell') {
+          cbRef.current.onError(tab.id, `Couldn't open a terminal: ${message}`)
+          return
+        }
+        // The spawn errors name their own CLI ("Claude Code was not found…",
+        // "Opencode was not found…"); anything else gets the prefix.
+        const named =
+          tab.cli === 'opencode' ? message.includes('Opencode') : message.includes('Claude Code')
         cbRef.current.onError(
           tab.id,
-          tab.kind === 'shell'
-            ? `Couldn't open a terminal: ${message}`
-            : message.includes('Claude Code')
-              ? message
-              : `Couldn't start Claude Code: ${message}`
+          named
+            ? message
+            : `Couldn't start ${tab.cli === 'opencode' ? 'Opencode' : 'Claude Code'}: ${message}`
         )
       })
 

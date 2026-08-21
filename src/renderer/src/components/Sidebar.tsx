@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
-import type { ProjectEntry, SessionSummary } from '@shared/types'
+import type { CliKind, ProjectEntry, SessionSummary } from '@shared/types'
 import { SESSION_DRAG_TYPE, TAB_DRAG_TYPE, type PaneLayout, type Tab } from '../types'
 import { relativeTime } from '../lib/format'
 import {
@@ -14,6 +14,7 @@ import {
   GearIcon,
   GripIcon,
   InfoIcon,
+  OpencodeIcon,
   PlusIcon,
   TerminalIcon,
   TrashIcon
@@ -25,6 +26,10 @@ interface Props {
   currentProject: string | null
   projects: ProjectEntry[]
   sessions: SessionSummary[]
+  /** Which CLI's sessions the history list below shows. */
+  historyCli: CliKind
+  /** Switches the history list to the other CLI's sessions. */
+  onSetHistoryCli: (cli: CliKind) => void
   /** Every open tab (chats + viewers), grouped into the tree by working dir. */
   tabs: Tab[]
   /** Which tab sits in each of the four panes (null = empty pane). */
@@ -45,9 +50,9 @@ interface Props {
   onFocusTab: (tabId: string) => void
   /** Close an open tab from the tree. */
   onCloseTab: (tabId: string) => void
-  /** The project row's small "+" — starts a chat there without a trip through
-   *  the toolbar (which no longer carries a "New chat" button). */
-  onNewChat: (path: string) => void
+  /** The project row's small "+" — starts a claude chat there without a trip
+   *  through the toolbar (which no longer carries a "New chat" button). */
+  onNewChat: (path: string, cli?: CliKind) => void
   /** The project row's small terminal icon — opens a plain shell there. */
   onNewTerminal: (path: string) => void
 }
@@ -64,7 +69,12 @@ function moveItem<T>(arr: T[], from: number, to: number): T[] {
   return next
 }
 
-/** A viewer's glyph in the tree, where a chat wears the Claude spark instead.
+/** A chat's glyph in the tree, following whichever CLI drives it. */
+function chatGlyph(cli: CliKind): ReactNode {
+  return cli === 'opencode' ? <OpencodeIcon size={13} /> : <ClaudeIcon size={13} />
+}
+
+/** A viewer's glyph in the tree, where a chat wears its CLI's mark instead.
  *  Mirrors `paneGlyph` in App.tsx so the tree and the pane header agree. */
 function viewerGlyph(kind: Tab['kind']): ReactNode {
   if (kind === 'diff') return <DiffIcon size={13} />
@@ -157,6 +167,8 @@ export function Sidebar({
   currentProject,
   projects,
   sessions,
+  historyCli,
+  onSetHistoryCli,
   tabs,
   slots,
   layout,
@@ -259,7 +271,7 @@ export function Sidebar({
         <div className="brand-badge">◈</div>
         <div>
           <div className="brand-name">InkShell</div>
-          <div className="brand-tag">Claude Code, with style</div>
+          <div className="brand-tag">Claude Code &amp; Opencode, with style</div>
         </div>
       </div>
 
@@ -357,14 +369,26 @@ export function Sidebar({
                     <button
                       type="button"
                       className="project-new-chat"
-                      aria-label={`New chat in ${p.name}`}
+                      aria-label={`New Claude Code chat in ${p.name}`}
                       onClick={(e) => {
                         e.stopPropagation()
-                        onNewChat(p.path)
+                        onNewChat(p.path, 'claude')
                       }}
-                      {...bind('New chat')}
+                      {...bind('New Claude Code chat')}
                     >
                       <PlusIcon size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="project-new-chat"
+                      aria-label={`New Opencode chat in ${p.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onNewChat(p.path, 'opencode')
+                      }}
+                      {...bind('New Opencode chat')}
+                    >
+                      <OpencodeIcon size={13} />
                     </button>
                     <button
                       type="button"
@@ -422,7 +446,7 @@ export function Sidebar({
                               <span
                                 className={`kd ${t.processing ? 'proc' : ''} ${!inPane ? 'idle' : ''}`}
                               >
-                                <ClaudeIcon size={13} />
+                                {chatGlyph(t.cli)}
                               </span>
                             ) : (
                               <span className="gl">{viewerGlyph(t.kind)}</span>
@@ -455,34 +479,63 @@ export function Sidebar({
         <Section id="history" title="HISTORY" count={currentProject === null ? 0 : sessions.length}>
           {currentProject === null ? (
             <div className="empty-note">Select a project to see its history.</div>
-          ) : sessions.length === 0 ? (
-            <div className="empty-note">No conversations in this project yet.</div>
           ) : (
-            <div className="history-list" style={historyStyle}>
-              {sessions.map((s) => (
+            <>
+              {/* Each CLI keeps its own session store, so the list has to say
+                  which one it is reading — and let the user switch. */}
+              <div className="history-cli-toggle" role="tablist" aria-label="History source">
                 <button
-                  key={s.sessionId}
-                  className="history-card"
-                  title={s.preview}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData(SESSION_DRAG_TYPE, s.sessionId)
-                    // Matches the drop target's fixed `dropEffect: 'move'` — a
-                    // mismatched effect (e.g. 'copy' here) makes the browser treat
-                    // the drag as disallowed and the pane's `drop` never fires.
-                    e.dataTransfer.effectAllowed = 'move'
-                  }}
-                  onClick={() => onOpenSession(s.sessionId)}
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    setMenu({ x: e.clientX, y: e.clientY, sessionId: s.sessionId })
-                  }}
+                  type="button"
+                  role="tab"
+                  aria-selected={historyCli === 'claude'}
+                  className={historyCli === 'claude' ? 'on' : ''}
+                  onClick={() => onSetHistoryCli('claude')}
                 >
-                  <div className="history-preview">{s.preview}</div>
-                  <div className="history-time">{relativeTime(s.createdMs)}</div>
+                  <ClaudeIcon size={11} /> Claude
                 </button>
-              ))}
-            </div>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={historyCli === 'opencode'}
+                  className={historyCli === 'opencode' ? 'on' : ''}
+                  onClick={() => onSetHistoryCli('opencode')}
+                >
+                  <OpencodeIcon size={11} /> Opencode
+                </button>
+              </div>
+              {sessions.length === 0 ? (
+                <div className="empty-note">
+                  No {historyCli === 'opencode' ? 'Opencode' : 'Claude Code'} conversations in this
+                  project yet.
+                </div>
+              ) : (
+                <div className="history-list" style={historyStyle}>
+                  {sessions.map((s) => (
+                    <button
+                      key={s.sessionId}
+                      className="history-card"
+                      title={s.preview}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(SESSION_DRAG_TYPE, s.sessionId)
+                        // Matches the drop target's fixed `dropEffect: 'move'` — a
+                        // mismatched effect (e.g. 'copy' here) makes the browser treat
+                        // the drag as disallowed and the pane's `drop` never fires.
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      onClick={() => onOpenSession(s.sessionId)}
+                      onContextMenu={(e) => {
+                        e.preventDefault()
+                        setMenu({ x: e.clientX, y: e.clientY, sessionId: s.sessionId })
+                      }}
+                    >
+                      <div className="history-preview">{s.preview}</div>
+                      <div className="history-time">{relativeTime(s.createdMs)}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </Section>
       </Group>

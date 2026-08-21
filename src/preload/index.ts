@@ -3,6 +3,7 @@ import { IpcChannel } from '@shared/ipc'
 import type {
   AppConfig,
   AppInfo,
+  CliKind,
   DiffContent,
   FileContent,
   GitCommit,
@@ -26,6 +27,14 @@ import type {
 const api = {
   platform: process.platform,
 
+  /** Launch-time overrides (e.g. `inkshell --no-panel`), parsed off this
+   *  process's argv — main forwards them via `additionalArguments` so they're
+   *  readable synchronously, before the first paint. */
+  launch: {
+    /** `--no-panel`: start with the right-hand project dock collapsed. */
+    panelHidden: process.argv.includes('--inkshell-no-panel')
+  },
+
   app: {
     getInfo: (): Promise<AppInfo> => ipcRenderer.invoke(IpcChannel.AppGetInfo)
   },
@@ -42,22 +51,41 @@ const api = {
   },
 
   history: {
-    listSessions: (projectPath: string, claudeConfigDir?: string): Promise<SessionSummary[]> =>
-      ipcRenderer.invoke(IpcChannel.HistoryListSessions, projectPath, claudeConfigDir),
+    /** `cli` routes the read to the backend that recorded the sessions. */
+    listSessions: (
+      projectPath: string,
+      claudeConfigDir?: string,
+      cli?: CliKind
+    ): Promise<SessionSummary[]> =>
+      ipcRenderer.invoke(IpcChannel.HistoryListSessions, projectPath, claudeConfigDir, cli),
     discoverProjects: (): Promise<string[]> =>
       ipcRenderer.invoke(IpcChannel.HistoryDiscoverProjects),
     sessionContext: (
       projectPath: string,
       sessionId: string,
-      claudeConfigDir?: string
+      claudeConfigDir?: string,
+      cli?: CliKind
     ): Promise<SessionContext | null> =>
-      ipcRenderer.invoke(IpcChannel.HistorySessionContext, projectPath, sessionId, claudeConfigDir),
+      ipcRenderer.invoke(
+        IpcChannel.HistorySessionContext,
+        projectPath,
+        sessionId,
+        claudeConfigDir,
+        cli
+      ),
     deleteSession: (
       projectPath: string,
       sessionId: string,
-      claudeConfigDir?: string
+      claudeConfigDir?: string,
+      cli?: CliKind
     ): Promise<void> =>
-      ipcRenderer.invoke(IpcChannel.HistoryDeleteSession, projectPath, sessionId, claudeConfigDir)
+      ipcRenderer.invoke(
+        IpcChannel.HistoryDeleteSession,
+        projectPath,
+        sessionId,
+        claudeConfigDir,
+        cli
+      )
   },
 
   pty: {

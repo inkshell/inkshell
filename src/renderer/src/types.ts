@@ -1,6 +1,8 @@
+import type { CliKind } from '@shared/types'
+
 /**
  * What a viewer tab (diff / file / commit) renders. Viewer tabs live in the
- * same tab strip as chat tabs but hold no `claude` process — they show git
+ * same tab strip as chat tabs but hold no CLI process — they show git
  * content the project panel opened, in the wide central area a 300px panel
  * can't give a diff.
  */
@@ -50,21 +52,26 @@ export type PaneLayout = 1 | 2 | 4
 export const TAB_DRAG_TYPE = 'application/x-inkshell-tab'
 export const SESSION_DRAG_TYPE = 'application/x-inkshell-session'
 
-/** A single open tab in the renderer: a live Claude chat, a plain shell, or a git viewer. */
+/**
+ * A single open tab in the renderer: a live Claude or Opencode chat, a plain
+ * shell, or a git viewer.
+ */
 export interface Tab {
   /** Stable local id (assigned by the renderer, independent of the OS pty id). */
   id: string
-  /** A live `claude` terminal, a plain shell (no Claude process behind it), or a read-only git viewer. */
+  /** Which CLI a terminal tab drives; meaningless for shell and viewer tabs. */
+  cli: CliKind
+  /** A live CLI terminal, a plain shell (no CLI process behind it), or a read-only git viewer. */
   kind: 'terminal' | 'shell' | 'diff' | 'file' | 'commit'
   /** What a viewer tab renders; absent for terminal tabs. */
   viewer?: ViewerRef
   /** The OS pty handle, once the terminal has spawned; `null` while starting. */
   ptyId: number | null
-  /** The Claude Code session id backing the tab (drives the context meter). */
+  /** The CLI session id backing the tab (drives resume matching and deletion). */
   sessionId: string | null
-  /** Session to `--resume`, or `null` for a fresh chat. */
+  /** Session to resume, or `null` for a fresh chat. */
   resumeSessionId: string | null
-  /** Working directory for this tab's `claude` process. */
+  /** Working directory for this tab's CLI process. */
   cwd: string | null
   /** `CLAUDE_CONFIG_DIR` override inherited from the project, or `null`. */
   claudeConfigDir: string | null

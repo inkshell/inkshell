@@ -3,7 +3,7 @@ import type { WebContents } from 'electron'
 import * as pty from 'node-pty'
 import { IpcChannel } from '@shared/ipc'
 import type { PtyCreateOptions, PtyCreateResult } from '@shared/types'
-import { claudeEnvPath, resolveClaudeBinary } from './claude-binary'
+import { cliEnvPath, resolveClaudeBinary, resolveOpencodeBinary } from './cli-binary'
 import { overrideConfigDir } from './claude-history'
 
 /**
@@ -22,10 +22,19 @@ interface Session {
 }
 
 /**
- * Owns every live child process, one per open tab: a `claude` session or a
- * plain shell. Each runs inside a pseudo-terminal so it behaves exactly as it
- * does in a real terminal — colors, prompts, `/`-commands and all — while its
- * bytes stream to an xterm.js view in the renderer.
+ * The terminal-like PATH a CLI child (or plain shell) gets — both CLIs shell
+ * out to `git`, `node` and friends, so they need what a real terminal would
+ * have, not the truncated one a Finder-launched app inherits from launchd.
+ */
+async function childEnv(env: NodeJS.ProcessEnv): Promise<NodeJS.ProcessEnv> {
+  return { ...env, PATH: await cliEnvPath() }
+}
+
+/**
+ * Owns every live child process, one per open tab: a `claude` or `opencode`
+ * session, or a plain shell. Each runs inside a pseudo-terminal so it behaves
+ * exactly as it does in a real terminal — colors, prompts, `/`-commands and
+ * all — while its bytes stream to an xterm.js view in the renderer.
  */
 export class PtyManager {
   private nextId = 1
@@ -37,17 +46,21 @@ export class PtyManager {
   constructor(private readonly sender: WebContents) {}
 
   /**
-   * Spawns a Claude Code session, or (with `opts.shell`) a plain terminal in
-   * the project directory. New chats get a UUID we choose (via
+   * Spawns a CLI session, or (with `opts.shell`) a plain terminal in the
+   * project directory. A claude chat gets a UUID we choose (via
    * `--session-id`); resumes reuse the original id (the CLI does too, unless
-   * `--fork-session`). Every session launches on the configured default model
-   * and effort, and in auto permission mode; switching the model afterwards is
-   * a one-shot `/model` typed via the toolbar (effort has no such picker — see
-   * `AppConfig.defaultEffort`).
+   * `--fork-session`); every session launches on the configured default model
+   * and effort, and in auto permission mode. An opencode chat instead runs on
+   * its own defaults (model included) and, for a new chat, on a session id the
+   * TUI assigns itself — `sessionId` comes back empty and the renderer adopts
+   * the real id from opencode's session store once it appears there.
    */
   async create(opts: PtyCreateOptions): Promise<PtyCreateResult> {
     if (opts.shell) return this.createShell(opts)
+    return opts.cli === 'opencode' ? this.createOpencode(opts) : this.createClaude(opts)
+  }
 
+  private async createClaude(opts: PtyCreateOptions): Promise<PtyCreateResult> {
     const args: string[] = []
     let sessionId: string
     if (opts.resumeSessionId) {
@@ -71,10 +84,6 @@ export class PtyManager {
     delete env.CLAUDE_CONFIG_DIR
     const configDir = overrideConfigDir(opts.claudeConfigDir)
     if (configDir) env.CLAUDE_CONFIG_DIR = configDir
-    // The CLI shells out to `git`, `node` and friends, so it gets a
-    // terminal-like PATH rather than the truncated one a Finder-launched app
-    // inherits from launchd.
-    env.PATH = await claudeEnvPath()
 
     // Spawn by absolute path: relying on PATH resolution is what makes a chat
     // die instantly when the app is opened from the Finder instead of a shell.
@@ -89,7 +98,7 @@ export class PtyManager {
       cols: opts.cols,
       rows: opts.rows,
       cwd: opts.cwd || process.env.HOME || process.cwd(),
-      env
+      env: await childEnv(env)
     })
 
     const ptyId = this.register(child, false)
@@ -97,10 +106,41 @@ export class PtyManager {
   }
 
   /**
+   * An opencode chat. v1 runs the TUI as-is: `--session <id>` for a resume,
+   * `--model provider/model` when the project pinned one (otherwise opencode's
+   * own configured default), and no effort/permission flags (those stay
+   * claude-only). Its config in `~/.config/opencode` is left untouched.
+   */
+  private async createOpencode(opts: PtyCreateOptions): Promise<PtyCreateResult> {
+    const args: string[] = []
+    if (opts.resumeSessionId) args.push('--session', opts.resumeSessionId)
+    if (opts.model) args.push('--model', opts.model)
+
+    const command = await resolveOpencodeBinary()
+    if (!command) {
+      throw new Error(
+        'Opencode was not found. Install the `opencode` CLI and make sure it runs in your terminal, then reopen InkShell.'
+      )
+    }
+    const child = pty.spawn(command, args, {
+      name: 'xterm-256color',
+      cols: opts.cols,
+      rows: opts.rows,
+      cwd: opts.cwd || process.env.HOME || process.cwd(),
+      env: await childEnv({ ...process.env, TERM: 'xterm-256color' })
+    })
+
+    const ptyId = this.register(child, false)
+    // A new chat's real id is assigned by the TUI itself; the renderer adopts
+    // it from opencode's session store once it shows up there.
+    return { ptyId, sessionId: opts.resumeSessionId ?? '' }
+  }
+
+  /**
    * Spawns the user's own shell — `$SHELL` (or `%ComSpec%` on Windows) — as an
    * interactive login shell in the project directory, exactly like opening a
    * new window in a real terminal app: same rc files, same aliases, same PATH.
-   * Unlike a `claude` session there is no transcript behind it, so it never
+   * Unlike a CLI session there is no transcript behind it, so it never
    * shows up in history or the context meter.
    */
   private async createShell(opts: PtyCreateOptions): Promise<PtyCreateResult> {
@@ -110,16 +150,14 @@ export class PtyManager {
 
     const env: NodeJS.ProcessEnv = { ...process.env, TERM: 'xterm-256color' }
     delete env.CLAUDE_CONFIG_DIR
-    // Same terminal-like PATH a `claude` child gets — a shell opened from this
+    // Same terminal-like PATH a CLI child gets — a shell opened from this
     // GUI app should see what a real terminal would, not launchd's truncated one.
-    env.PATH = await claudeEnvPath()
-
     const child = pty.spawn(command, args, {
       name: 'xterm-256color',
       cols: opts.cols,
       rows: opts.rows,
       cwd: opts.cwd || process.env.HOME || process.cwd(),
-      env
+      env: await childEnv(env)
     })
 
     const ptyId = this.register(child, true)

@@ -12,6 +12,7 @@ import {
   CONTEXT_WINDOW,
   paletteColor,
   type AppConfig,
+  type CliKind,
   type ProjectEntry,
   type SessionContext,
   type SessionSummary
@@ -47,12 +48,18 @@ import {
   FileTextIcon,
   MaximizeIcon,
   MinimizeIcon,
+  OpencodeIcon,
   PlusIcon,
   TerminalIcon
 } from './components/Icons'
 
 const isMac = window.inkshell.platform === 'darwin'
 let tabSeq = 0
+
+/** The glyph a chat pane wears where a viewer pane wears its own icon. */
+function chatGlyph(cli: CliKind, size = 12) {
+  return cli === 'opencode' ? <OpencodeIcon size={size} /> : <ClaudeIcon size={size} />
+}
 
 /** The glyph a viewer pane wears in its header where a chat wears its spark. */
 function paneGlyph(kind: Tab['kind'], size = 12) {
@@ -92,10 +99,10 @@ function PaneContext({ tab, visible, config }: { tab: Tab; visible: boolean; con
     }
     const cwd = tab.cwd
     const sessionId = tab.sessionId
-    const configDir = tab.claudeConfigDir ?? undefined
+    const configDir = tab.cli === 'claude' ? (tab.claudeConfigDir ?? undefined) : undefined
     let cancelled = false
     const read = async () => {
-      const c = await window.inkshell.history.sessionContext(cwd, sessionId, configDir)
+      const c = await window.inkshell.history.sessionContext(cwd, sessionId, configDir, tab.cli)
       if (!cancelled) setCtx(c)
     }
     read()
@@ -104,7 +111,7 @@ function PaneContext({ tab, visible, config }: { tab: Tab; visible: boolean; con
       cancelled = true
       clearInterval(timer)
     }
-  }, [visible, tab.kind, tab.cwd, tab.sessionId, tab.claudeConfigDir])
+  }, [visible, tab.kind, tab.cli, tab.cwd, tab.sessionId, tab.claudeConfigDir])
 
   if (!ctx) return null
   const isFresh = ctx.timestampMs != null && ctx.timestampMs >= tab.startedAtMs
@@ -113,8 +120,15 @@ function PaneContext({ tab, visible, config }: { tab: Tab; visible: boolean; con
     (modelId && config.models.find((m) => m.idPrefix && modelId.startsWith(m.idPrefix))?.alias) ??
     tab.model ??
     null
+  // The reading's own window (opencode's catalog knows it per model) wins over
+  // the config-derived one, gated on the same freshness rule as the model —
+  // a stale reading belongs to the previous model, whose window may differ.
   const contextWindow =
-    config.models.find((m) => m.alias === alias)?.contextWindow ?? CONTEXT_WINDOW
+    (isFresh && typeof ctx.contextWindow === 'number' && ctx.contextWindow > 0
+      ? ctx.contextWindow
+      : null) ??
+    config.models.find((m) => m.alias === alias)?.contextWindow ??
+    CONTEXT_WINDOW
   return <ContextPct tokens={ctx.tokens} contextWindow={contextWindow} />
 }
 
@@ -132,6 +146,10 @@ export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [currentProject, setCurrentProject] = useState<string | null>(null)
   const [sessions, setSessions] = useState<SessionSummary[]>([])
+  // Which CLI's history the sidebar lists. The choice is per-listing (and so
+  // per-resume): every session summary carries its own `cli`, and a chat tab
+  // remembers which CLI it drives for the rest of its life.
+  const [historyCli, setHistoryCli] = useState<CliKind>('claude')
   const [tabs, setTabs] = useState<Tab[]>([])
   // Split-view state: `slots` places up to four tabs into the panes, `layout`
   // is how many of those panes show at once (1 / 2 / 4), and `focusedSlot` is
@@ -182,6 +200,8 @@ export function App() {
   tabsRef.current = tabs
   const currentProjectRef = useRef(currentProject)
   currentProjectRef.current = currentProject
+  const historyCliRef = useRef(historyCli)
+  historyCliRef.current = historyCli
 
   // A maximized pane only makes sense while its tab still sits in the focused
   // slot — the moment focus moves elsewhere (a sidebar click, its pane
@@ -236,12 +256,28 @@ export function App() {
   }, [])
 
   const reloadSessions = useCallback(
-    async (path: string | null) => {
+    async (path: string | null, cli?: CliKind) => {
+      const which = cli ?? historyCliRef.current
       setSessions(
-        path ? await window.inkshell.history.listSessions(path, claudeConfigDirFor(path)) : []
+        path
+          ? await window.inkshell.history.listSessions(
+              path,
+              which === 'claude' ? claudeConfigDirFor(path) : undefined,
+              which
+            )
+          : []
       )
     },
     [claudeConfigDirFor]
+  )
+
+  /** Switches the sidebar's history list between the two CLIs. */
+  const switchHistoryCli = useCallback(
+    (cli: CliKind) => {
+      setHistoryCli(cli)
+      reloadSessions(currentProjectRef.current, cli)
+    },
+    [reloadSessions]
   )
 
   /** Points the sidebar (highlight, history list, git/files dock) at a project.
@@ -362,6 +398,20 @@ export function App() {
     const e = config?.defaultEffort.trim()
     return e ? e : undefined
   }, [config])
+  /**
+   * The model a new chat in `cwd` launches on: the project's own default for
+   * that CLI wins over the global one (claude only — opencode has no global
+   * default here, so a project override is the only way to pin one).
+   */
+  const modelFor = useCallback(
+    (cli: CliKind, cwd: string | null): string | undefined => {
+      const project = cwd ? configRef.current?.projects.find((p) => p.path === cwd) : undefined
+      const override = (cli === 'claude' ? project?.claudeModel : project?.opencodeModel)?.trim()
+      if (override) return override
+      return cli === 'claude' ? defaultModel() : undefined
+    },
+    [defaultModel]
+  )
 
   // --- Panes: placing tabs into the split layout ---------------------------
   /**
@@ -449,20 +499,23 @@ export function App() {
   // --- Tab lifecycle -------------------------------------------------------
   /** `project` defaults to the sidebar's current selection — pass it explicitly
    *  to start a chat in a project without first selecting it (the sidebar's
-   *  per-project "new chat" icon does this). */
+   *  per-project "new chat" icons do this). `cli` picks which agent runs. */
   const openNewChat = useCallback(
-    (slot?: number, project?: string) => {
+    (slot?: number, project?: string, cli: CliKind = 'claude') => {
       const cwd = project ?? currentProject
       const tab: Tab = {
         id: `tab-${tabSeq++}`,
+        cli,
         kind: 'terminal',
         ptyId: null,
         sessionId: null,
         resumeSessionId: null,
         cwd,
         claudeConfigDir: claudeConfigDirFor(cwd) ?? null,
-        model: defaultModel() ?? null,
-        effort: defaultEffort() ?? null,
+        // A project (or the global config, for claude) may pin the model a new
+        // chat launches on; opencode falls back to its own default when unset.
+        model: modelFor(cli, cwd) ?? null,
+        effort: cli === 'claude' ? (defaultEffort() ?? null) : null,
         startedAtMs: Date.now(),
         title: 'New chat',
         processing: false
@@ -470,16 +523,16 @@ export function App() {
       setTabs((prev) => [...prev, tab])
       showTab(tab.id, slot)
     },
-    [currentProject, defaultModel, defaultEffort, claudeConfigDirFor, showTab]
+    [currentProject, modelFor, defaultEffort, claudeConfigDirFor, showTab]
   )
 
-  /** The sidebar's per-project "new chat" icon: selects the project (so the
+  /** The sidebar's per-project "new chat" icons: selects the project (so the
    *  history section and highlight follow it, same as clicking the row) and
    *  starts a chat there, regardless of whatever project was current before. */
   const newChatForProject = useCallback(
-    (path: string) => {
+    (path: string, cli: CliKind = 'claude') => {
       selectProject(path)
-      openNewChat(undefined, path)
+      openNewChat(undefined, path, cli)
     },
     [selectProject, openNewChat]
   )
@@ -494,6 +547,7 @@ export function App() {
       const cwd = project ?? currentProject
       const tab: Tab = {
         id: `tab-${tabSeq++}`,
+        cli: 'claude',
         kind: 'shell',
         ptyId: null,
         sessionId: null,
@@ -566,6 +620,7 @@ export function App() {
 
         const tab: Tab = {
           id: `tab-${tabSeq++}`,
+          cli: 'claude',
           kind: ref.kind,
           viewer: ref,
           preview,
@@ -622,6 +677,10 @@ export function App() {
 
   const openResume = useCallback(
     (sessionId: string, slot?: number) => {
+      // Which CLI recorded this session decides which binary the tab spawns —
+      // the history card it came from knows, and its summary carries it here.
+      const summary = sessions.find((s) => s.sessionId === sessionId)
+      const cli: CliKind = summary?.cli ?? 'claude'
       // Focus an already-open tab for this session instead of duplicating it.
       const existing = tabs.find((t) => t.sessionId === sessionId)
       if (existing) {
@@ -630,25 +689,26 @@ export function App() {
       }
       const tab: Tab = {
         id: `tab-${tabSeq++}`,
+        cli,
         kind: 'terminal',
         ptyId: null,
         sessionId,
         resumeSessionId: sessionId,
         cwd: currentProject,
-        claudeConfigDir: claudeConfigDirFor(currentProject) ?? null,
-        model: defaultModel() ?? null,
-        effort: defaultEffort() ?? null,
+        claudeConfigDir: cli === 'claude' ? (claudeConfigDirFor(currentProject) ?? null) : null,
+        model: modelFor(cli, currentProject) ?? null,
+        effort: cli === 'claude' ? (defaultEffort() ?? null) : null,
         startedAtMs: Date.now(),
         // The history card's name for this chat carries over as the tab title,
         // so a resume opens already named instead of sitting on a placeholder
         // until the CLI re-emits its own (identical) title over OSC.
-        title: sessions.find((s) => s.sessionId === sessionId)?.preview ?? 'Resuming…',
+        title: summary?.preview ?? 'Resuming…',
         processing: false
       }
       setTabs((prev) => [...prev, tab])
       showTab(tab.id, slot)
     },
-    [tabs, sessions, currentProject, defaultModel, defaultEffort, claudeConfigDirFor, showTab]
+    [tabs, sessions, currentProject, modelFor, defaultEffort, claudeConfigDirFor, showTab]
   )
 
   /**
@@ -800,11 +860,12 @@ export function App() {
 
   const confirmDelete = useCallback(async () => {
     const sessionId = pendingDelete?.sessionId
+    const cli = pendingDelete?.cli ?? 'claude'
     setPendingDelete(null)
     if (!currentProject || !sessionId) return
-    // A deleted chat can't stay open. Wait out its `claude` before removing the
-    // transcript: a session still running writes its own on the way out, which
-    // would resurrect the file we're about to delete.
+    // A deleted chat can't stay open. Wait out its CLI before removing the
+    // session record: a session still running writes its own on the way out,
+    // which would resurrect the record we're about to delete.
     const open = tabs.find((t) => t.sessionId === sessionId)
     if (open) {
       if (open.ptyId !== null) await window.inkshell.pty.close(open.ptyId)
@@ -814,25 +875,37 @@ export function App() {
       await window.inkshell.history.deleteSession(
         currentProject,
         sessionId,
-        claudeConfigDirFor(currentProject)
+        cli === 'claude' ? claudeConfigDirFor(currentProject) : undefined,
+        cli
       )
     } catch (err) {
       setError(`Couldn't delete the chat: ${err instanceof Error ? err.message : err}`)
     }
-    reloadSessions(currentProject)
+    reloadSessions(currentProject, cli)
   }, [pendingDelete, currentProject, tabs, closeTab, claudeConfigDirFor, reloadSessions])
 
   // Callbacks from TerminalView.
   const onTabReady = useCallback(
     (tabId: string, ptyId: number, sessionId: string) => {
-      setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, ptyId, sessionId } : t)))
+      // `''` (a shell, or an opencode new chat whose id the TUI hasn't
+      // recorded yet) normalizes to null so every "has a session?" check in
+      // the renderer can stay `!== null`.
+      setTabs((prev) =>
+        prev.map((t) => (t.id === tabId ? { ...t, ptyId, sessionId: sessionId || null } : t))
+      )
       // A brand-new chat's session only exists in history from this point on
       // (a resume already had its sessionId set at tab creation, so it's
       // already in the sidebar and doesn't need this). Refresh the sidebar so
       // it shows up without a project switch — but only if it belongs to the
-      // project currently on screen.
+      // project currently on screen and the CLI whose history is listed.
       const tab = tabs.find((t) => t.id === tabId)
-      if (tab && tab.kind === 'terminal' && tab.sessionId === null && tab.cwd === currentProject)
+      if (
+        tab &&
+        tab.kind === 'terminal' &&
+        tab.sessionId === null &&
+        tab.cwd === currentProject &&
+        tab.cli === historyCliRef.current
+      )
         reloadSessions(currentProject)
     },
     [tabs, currentProject, reloadSessions]
@@ -926,23 +999,24 @@ export function App() {
     [writeCommandToActive]
   )
 
-  // --- Live session: poll the active transcript for token usage + model ----
+  // --- Live session: poll the active session's store for token usage + model ----
   // Keyed off the tab's own project, not the sidebar selection: a tab keeps its
-  // transcript wherever it was launched, so browsing to another project in the
+  // records wherever it was launched, so browsing to another project in the
   // sidebar must not blank out the meter of the tab still on screen.
   const activeProject = activeTab?.cwd ?? currentProject
   const activeConfigDir = activeTab?.claudeConfigDir ?? claudeConfigDirFor(activeProject)
   useEffect(() => {
-    if (!activeProject || !activeTab?.sessionId) {
+    if (!activeProject || activeTab?.kind !== 'terminal' || !activeTab?.sessionId) {
       setLiveSession(null)
       return
     }
     const project = activeProject
-    const configDir = activeConfigDir
+    const configDir = activeTab.cli === 'claude' ? activeConfigDir : undefined
     const sessionId = activeTab.sessionId
+    const cli = activeTab.cli
     let cancelled = false
     const read = async () => {
-      const ctx = await window.inkshell.history.sessionContext(project, sessionId, configDir)
+      const ctx = await window.inkshell.history.sessionContext(project, sessionId, configDir, cli)
       if (!cancelled) setLiveSession(ctx)
     }
     read()
@@ -951,7 +1025,82 @@ export function App() {
       cancelled = true
       clearInterval(timer)
     }
-  }, [activeProject, activeConfigDir, activeTab?.sessionId])
+  }, [activeProject, activeConfigDir, activeTab?.kind, activeTab?.cli, activeTab?.sessionId])
+
+  // --- Opencode session adoption --------------------------------------------
+  // A new opencode chat has no session id at spawn — the TUI assigns one and
+  // records it in its own store, so the only way to learn it is to watch that
+  // store. Poll for sessions created in the tab's directory at or after the
+  // tab itself started, oldest-session-to-oldest-tab (two new chats racing in
+  // one directory each adopt their own), and stop once nothing is pending.
+  // The id is what makes resume-dedup, tab naming and deletion work for the
+  // chat later on.
+  const pendingAdoption = tabs
+    .filter((t) => t.kind === 'terminal' && t.cli === 'opencode' && t.sessionId === null && t.cwd)
+    .map((t) => ({ id: t.id, cwd: t.cwd as string, startedAtMs: t.startedAtMs }))
+  const adoptionKey = pendingAdoption.map((p) => p.id).join('|')
+  useEffect(() => {
+    if (!adoptionKey) return
+    const pending = pendingAdoption
+    let cancelled = false
+    const adopt = async () => {
+      const byCwd = new Map<string, typeof pending>()
+      for (const p of pending) {
+        const group = byCwd.get(p.cwd) ?? []
+        group.push(p)
+        byCwd.set(p.cwd, group)
+      }
+      for (const [cwd, group] of byCwd) {
+        let listed: SessionSummary[]
+        try {
+          listed = await window.inkshell.history.listSessions(cwd, undefined, 'opencode')
+        } catch {
+          continue
+        }
+        if (cancelled) return
+        // Clock skew between process start and the store's own timestamps is
+        // absorbed by a small window; sessions older than every pending tab
+        // belong to earlier chats and must not be adopted.
+        const candidates = listed
+          .filter((s) => group.some((p) => s.createdMs >= p.startedAtMs - 2000))
+          .sort((a, b) => a.createdMs - b.createdMs)
+        const queue = [...group].sort((a, b) => a.startedAtMs - b.startedAtMs)
+        let adopted = 0
+        for (const session of candidates) {
+          const p = queue.shift()
+          if (!p) break
+          adopted++
+          setTabs((prev) =>
+            prev.map((t) =>
+              t.id === p.id && t.sessionId === null
+                ? {
+                    ...t,
+                    sessionId: session.sessionId,
+                    title: t.title === 'New chat' ? session.preview : t.title
+                  }
+                : t
+            )
+          )
+        }
+        // A newly recorded session should also show up in the history list —
+        // when that list is the one for this directory's CLI and project.
+        if (
+          adopted > 0 &&
+          cwd === currentProjectRef.current &&
+          historyCliRef.current === 'opencode'
+        )
+          reloadSessions(cwd, 'opencode')
+      }
+    }
+    void adopt()
+    const timer = setInterval(adopt, 2000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+    // `pendingAdoption` is derived from `tabs`; the key is what it is keyed on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adoptionKey])
 
   // The model alias actually backing the active session: the transcript's
   // recorded model id, matched against each config model's `idPrefix` (the
@@ -973,13 +1122,26 @@ export function App() {
     return match?.alias ?? activeTab?.model ?? null
   }, [liveSession, config, activeTab])
 
-  // The context meter's denominator: the resolved model's own window (config
-  // edited per `ModelConfig.contextWindow`), falling back to a flat guess
-  // before any model is known at all (e.g. a brand-new chat).
+  // The context meter's denominator: the reading's own window when the backend
+  // reports one (opencode's model catalog), else the resolved model's
+  // config-edited window, else a flat guess before any model is known at all
+  // (e.g. a brand-new chat). The reading's window follows the same freshness
+  // rule as `activeModelAlias` — a stale reading belongs to the previous model.
   const activeContextWindow = useCallback((): number => {
+    const isFresh =
+      liveSession?.timestampMs != null &&
+      activeTab != null &&
+      liveSession.timestampMs >= activeTab.startedAtMs
+    if (
+      isFresh &&
+      typeof liveSession?.contextWindow === 'number' &&
+      liveSession.contextWindow > 0
+    ) {
+      return liveSession.contextWindow
+    }
     const alias = activeModelAlias()
     return config?.models.find((m) => m.alias === alias)?.contextWindow ?? CONTEXT_WINDOW
-  }, [activeModelAlias, config])
+  }, [liveSession, activeTab, activeModelAlias, config])
 
   // --- Keyboard shortcuts (capture phase, to beat xterm's key handling) -----
   const shortcutRef = useRef({ openNewChat, closePane, activeTabId, activeProject })
@@ -1031,6 +1193,18 @@ export function App() {
     else p.collapse()
   }, [projectPanel])
 
+  // `--no-panel`: override the saved layout for this launch only and start
+  // with the project dock collapsed. Once, on mount — a later expand (toolbar
+  // toggle) is the user's own choice for the session and nothing here fights
+  // it; the collapse itself updates `panelCollapsed` through the panel's own
+  // onResize, same as the toolbar toggle does.
+  useEffect(() => {
+    if (!window.inkshell.launch.panelHidden) return
+    const id = requestAnimationFrame(() => projectPanel.current?.collapse())
+    return () => cancelAnimationFrame(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   if (!config) return null
 
   // Each project's chosen colour. A tab wears its project's colour, and the
@@ -1068,15 +1242,20 @@ export function App() {
   const panelConfigDir = claudeConfigDirFor(currentProject) ?? null
   const panelAccent = projectColor(currentProject)
 
-  // What the status bar says about the focused pane. A chat drives the model +
-  // effort + context row; anything else is simply named. Null for a chat (the
-  // switchers stand there instead) and for an empty pane, which already says
-  // what it is in the middle of its own tile.
-  const chatFocused = activeTab?.kind === 'terminal'
-  const statusSubject =
-    activeTab && activeTab.kind !== 'terminal'
+  // What the status bar says about the focused pane. A claude chat drives the
+  // model + effort + context row; an opencode chat names its CLI in v1 (no
+  // switchers or meter — those have no opencode backend yet); anything else is
+  // simply named. Null for a claude chat (the switchers stand there instead)
+  // and for an empty pane, which already says what it is in the middle of its
+  // own tile.
+  const chatFocused = activeTab?.kind === 'terminal' && activeTab.cli === 'claude'
+  const statusSubject = !activeTab
+    ? null
+    : activeTab.kind !== 'terminal'
       ? { glyph: paneGlyph(activeTab.kind, 13), label: PANE_SUBJECT[activeTab.kind] }
-      : null
+      : activeTab.cli === 'opencode'
+        ? { glyph: <OpencodeIcon size={13} />, label: 'Opencode' }
+        : null
 
   return (
     <>
@@ -1104,6 +1283,8 @@ export function App() {
             currentProject={currentProject}
             projects={config.projects}
             sessions={sessions}
+            historyCli={historyCli}
+            onSetHistoryCli={switchHistoryCli}
             tabs={tabs}
             slots={slots}
             layout={layout}
@@ -1162,6 +1343,7 @@ export function App() {
                     project={projectName}
                     active={chatFocused}
                     subject={statusSubject}
+                    meter={activeTab?.kind === 'terminal' && activeTab.sessionId !== null}
                     models={config.models}
                     currentModel={activeModelAlias()}
                     currentEffort={activeTab?.effort ?? null}
@@ -1223,9 +1405,7 @@ export function App() {
                             }}
                           >
                             {tab.kind === 'terminal' ? (
-                              <span className="pane-dot">
-                                <ClaudeIcon size={12} />
-                              </span>
+                              <span className="pane-dot">{chatGlyph(tab.cli, 12)}</span>
                             ) : (
                               <span className="pane-glyph">{paneGlyph(tab.kind)}</span>
                             )}
@@ -1320,14 +1500,26 @@ export function App() {
                             <button
                               type="button"
                               className="empty-pane-action"
-                              title="Start a new chat here"
+                              title="Start a new Claude Code chat here"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 openNewChat(i)
                               }}
                             >
                               <PlusIcon size={12} />
-                              New chat
+                              Claude chat
+                            </button>
+                            <button
+                              type="button"
+                              className="empty-pane-action"
+                              title="Start a new Opencode chat here"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openNewChat(i, undefined, 'opencode')
+                              }}
+                            >
+                              <OpencodeIcon size={12} />
+                              Opencode chat
                             </button>
                             <button
                               type="button"

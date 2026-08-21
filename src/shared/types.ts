@@ -29,6 +29,13 @@ export function paletteColor(index: number): string {
 }
 
 /**
+ * Which coding-agent CLI a tab drives. Both are wrapped the same way — a real
+ * binary in a pseudo-terminal, never a reimplementation — but each has its own
+ * spawn flags, session store, and feature surface (see `PtyCreateOptions.cli`).
+ */
+export type CliKind = 'claude' | 'opencode'
+
+/**
  * Version and environment facts shown on the About screen. Read straight from
  * the running process rather than duplicated in package.json at build time, so
  * it can never drift from what's actually executing.
@@ -40,6 +47,8 @@ export interface AppInfo {
   node: string
   /** Absolute path to the resolved `claude` binary, or null if none was found. */
   claudePath: string | null
+  /** Absolute path to the resolved `opencode` binary, or null if none was found. */
+  opencodePath: string | null
 }
 
 /** A folder the user has opened as a working directory for Claude Code. */
@@ -62,6 +71,20 @@ export interface ProjectEntry {
    * expanded to the home directory. Omitted means the default config dir.
    */
   claudeConfigDir?: string
+  /**
+   * Per-project default model for Claude Code chats, overriding the global
+   * `AppConfig.defaultModel` for tabs opened in this project. An alias from
+   * the model list or a full model id. Omitted means the global default.
+   */
+  claudeModel?: string
+  /**
+   * Per-project default model for Opencode chats, passed as `--model` in
+   * opencode's own `provider/model` form (e.g. `zai-coding-plan/glm-5.3`).
+   * There is no global opencode default — omitted means opencode's own
+   * configured default. For the context meter to size against this model,
+   * add a matching entry (alias or `idPrefix`) to the model list in Settings.
+   */
+  opencodeModel?: string
 }
 
 /**
@@ -118,36 +141,44 @@ export interface AppConfig {
   terminalFontSize: number
 }
 
-/** A summary of a recorded Claude Code session, for the history list. */
+/** A summary of a recorded CLI session, for the history list. */
 export interface SessionSummary {
   sessionId: string
   /**
-   * How the chat is named in the history list: the CLI's own `ai-title` — the
-   * same text it shows as the tab title — falling back to the first real user
-   * message for a session it never titled. One line, truncated.
+   * How the chat is named in the history list: Claude Code's own `ai-title`
+   * (the same text it shows as the tab title), falling back to the first real
+   * user message for a session it never titled — or opencode's own session
+   * title. One line, truncated.
    */
   preview: string
   /** Creation time in epoch milliseconds (first timestamped event, else file mtime). */
   createdMs: number
+  /** Which CLI recorded this session; lets a resume spawn the right binary. */
+  cli: CliKind
 }
 
-/** Options for spawning a Claude Code session (or a plain shell) in a pseudo-terminal. */
+/** Options for spawning a CLI session (or a plain shell) in a pseudo-terminal. */
 export interface PtyCreateOptions {
   /** Working directory for the child process, if a project is selected. */
   cwd?: string
   /**
+   * Which CLI to drive: 'claude' (the default, for backwards compatibility) or
+   * 'opencode'. Ignored when `shell` is set.
+   */
+  cli?: CliKind
+  /**
    * Spawns the user's own shell (`$SHELL`, or its platform equivalent) instead
-   * of `claude` — a plain terminal for the project directory. Every other
-   * Claude-specific option below is ignored when this is set.
+   * of a coding CLI — a plain terminal for the project directory. Every other
+   * CLI-specific option below is ignored when this is set.
    */
   shell?: boolean
-  /** Session id to `--resume`; when omitted a fresh `--session-id` is generated. */
+  /** Session id to resume; when omitted a fresh session is started. */
   resumeSessionId?: string
-  /** Model alias passed via `--model`, if any. */
+  /** Model alias passed via `--model`, if any (a project-pinned model for either CLI). */
   model?: string
-  /** Effort level passed via `--effort`, if any. */
+  /** Effort level passed via `--effort`, if any. Claude only. */
   effort?: string
-  /** Overrides `CLAUDE_CONFIG_DIR` for this session (default `~/.claude`). */
+  /** Overrides `CLAUDE_CONFIG_DIR` for this session (default `~/.claude`). Claude only. */
   claudeConfigDir?: string
   cols: number
   rows: number
@@ -299,4 +330,13 @@ export interface SessionContext {
    * launched with a different `--model` than that history was recorded under.
    */
   timestampMs: number | null
+  /**
+   * The context window of the model that recorded this turn, when the backend
+   * knows it authoritatively — opencode reads it from its cached model
+   * catalog (`~/.cache/opencode/models.json`, `limit.context`). Absent for
+   * claude, whose denominator stays config-derived
+   * (`ModelConfig.contextWindow`), and for an opencode model missing from
+   * the catalog (renderer falls back to the config match, then 200k).
+   */
+  contextWindow?: number
 }

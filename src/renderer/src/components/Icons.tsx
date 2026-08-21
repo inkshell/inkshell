@@ -208,6 +208,18 @@ export const ClaudeIcon = ({ size = 14 }: IconProps) =>
     </>
   )
 
+/** Opencode's mark: a rounded square with a prompt-arrow core the sidebar
+ *  fills (in a pane) or hollows out (open but off-screen) via the `.core`
+ *  class — same states as the Claude spark it sits beside. */
+export const OpencodeIcon = ({ size = 14 }: IconProps) =>
+  svg(
+    size,
+    <>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+      <path className="core" d="M10 8l6 4-6 4Z" fill="currentColor" stroke="none" />
+    </>
+  )
+
 export const CommitIcon = ({ size = 14 }: IconProps) =>
   svg(
     size,

@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { IpcChannel } from '@shared/ipc'
-import type { AppConfig, AppInfo, PtyCreateOptions } from '@shared/types'
-import { resolveClaudeBinary } from './claude-binary'
+import type { AppConfig, AppInfo, CliKind, PtyCreateOptions } from '@shared/types'
+import { resolveClaudeBinary, resolveOpencodeBinary } from './cli-binary'
 import { loadConfig, saveConfig } from './config'
 import {
   deleteSession,
@@ -9,6 +9,12 @@ import {
   listSessions,
   sessionContext
 } from './claude-history'
+import {
+  deleteOpencodeSession,
+  discoverOpencodeProjects,
+  listOpencodeSessions,
+  opencodeSessionContext
+} from './opencode-history'
 import {
   gitCommit,
   gitCommitFileDiff,
@@ -44,7 +50,8 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
     electron: process.versions.electron,
     chrome: process.versions.chrome,
     node: process.versions.node,
-    claudePath: await resolveClaudeBinary()
+    claudePath: await resolveClaudeBinary(),
+    opencodePath: await resolveOpencodeBinary()
   }))
 
   // --- Config -------------------------------------------------------------
@@ -65,21 +72,32 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
     return result.filePaths[0]
   })
 
+  // History reads route to the CLI that recorded them: `cli` selects the
+  // backend (claude's JSONL transcripts vs. opencode's SQLite store) and the
+  // claude-only config-dir override is simply not passed for opencode.
   ipcMain.handle(
     IpcChannel.HistoryListSessions,
-    (_e, projectPath: string, claudeConfigDir?: string) =>
-      listSessions(projectPath, claudeConfigDir)
+    (_e, projectPath: string, claudeConfigDir?: string, cli?: CliKind) =>
+      cli === 'opencode'
+        ? listOpencodeSessions(projectPath)
+        : listSessions(projectPath, claudeConfigDir)
   )
-  ipcMain.handle(IpcChannel.HistoryDiscoverProjects, () => discoverKnownProjects())
+  ipcMain.handle(IpcChannel.HistoryDiscoverProjects, () => [
+    ...new Set([...discoverKnownProjects(), ...discoverOpencodeProjects()])
+  ])
   ipcMain.handle(
     IpcChannel.HistorySessionContext,
-    (_e, projectPath: string, sessionId: string, claudeConfigDir?: string) =>
-      sessionContext(projectPath, sessionId, claudeConfigDir)
+    (_e, projectPath: string, sessionId: string, claudeConfigDir?: string, cli?: CliKind) =>
+      cli === 'opencode'
+        ? opencodeSessionContext(sessionId)
+        : sessionContext(projectPath, sessionId, claudeConfigDir)
   )
   ipcMain.handle(
     IpcChannel.HistoryDeleteSession,
-    (_e, projectPath: string, sessionId: string, claudeConfigDir?: string) =>
-      deleteSession(projectPath, sessionId, claudeConfigDir)
+    (_e, projectPath: string, sessionId: string, claudeConfigDir?: string, cli?: CliKind) =>
+      cli === 'opencode'
+        ? deleteOpencodeSession(sessionId)
+        : deleteSession(projectPath, sessionId, claudeConfigDir)
   )
 
   // --- Pseudo-terminal ----------------------------------------------------

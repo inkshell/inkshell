@@ -14,6 +14,12 @@ interface Props {
    * — which says what it is in the middle of its own tile.
    */
   subject: { glyph: ReactNode; label: string } | null
+  /**
+   * Whether the right side shows the context meter: any chat with a live
+   * session (claude or opencode), not just one with switchers. The analytics
+   * button stays claude-only — `/stats` is its command.
+   */
+  meter: boolean
   models: ModelConfig[]
   /** Alias of the model actually backing the session, read off its transcript. */
   currentModel: string | null
@@ -59,6 +65,7 @@ export function StatusBar({
   project,
   active,
   subject,
+  meter,
   models,
   currentModel,
   currentEffort,
@@ -147,12 +154,14 @@ export function StatusBar({
 
       <span className="status-spacer" />
 
-      {active && (
+      {meter && (
         <div className="status-right">
           <ContextMeter tokens={contextTokens} contextWindow={contextWindow} />
-          <button className="icon-btn" title="Analytics (/stats)" onClick={onAnalytics}>
-            <BarsIcon size={14} />
-          </button>
+          {active && (
+            <button className="icon-btn" title="Analytics (/stats)" onClick={onAnalytics}>
+              <BarsIcon size={14} />
+            </button>
+          )}
         </div>
       )}
     </div>

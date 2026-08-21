@@ -36,6 +36,8 @@ export function ProjectModal({ mode, entry, existingPaths, onSubmit, onCancel }:
   const [name, setName] = useState(entry.name)
   const [color, setColor] = useState(entry.color ?? PROJECT_PALETTE[0])
   const [configDir, setConfigDir] = useState(entry.claudeConfigDir ?? '')
+  const [claudeModel, setClaudeModel] = useState(entry.claudeModel ?? '')
+  const [opencodeModel, setOpencodeModel] = useState(entry.opencodeModel ?? '')
   // Whether the name is still tracking the folder. Once the user types a name
   // of their own, re-picking the folder must not overwrite it.
   const [nameTouched, setNameTouched] = useState(mode === 'edit')
@@ -66,14 +68,18 @@ export function ProjectModal({ mode, entry, existingPaths, onSubmit, onCancel }:
   const submit = () => {
     if (!valid) return
     const trimmed = configDir.trim()
+    const trimmedClaudeModel = claudeModel.trim()
+    const trimmedOpencodeModel = opencodeModel.trim()
     onSubmit({
       ...entry,
       name: name.trim(),
       path,
       color,
-      // An empty field means "use Claude Code's default" — drop the key rather
+      // An empty field means "use the CLI's own default" — drop the key rather
       // than persisting an empty string the main process would have to guard.
-      claudeConfigDir: trimmed === '' ? undefined : trimmed
+      claudeConfigDir: trimmed === '' ? undefined : trimmed,
+      claudeModel: trimmedClaudeModel === '' ? undefined : trimmedClaudeModel,
+      opencodeModel: trimmedOpencodeModel === '' ? undefined : trimmedOpencodeModel
     })
   }
 
@@ -174,6 +180,36 @@ export function ProjectModal({ mode, entry, existingPaths, onSubmit, onCancel }:
             <span className="form-hint">
               Point to a separate directory to run this project on{' '}
               <strong>another Claude account</strong> — the login and history live there.
+            </span>
+          </label>
+
+          <label className="form-field">
+            <span className="form-label">Default model — Claude Code</span>
+            <input
+              className="field"
+              placeholder="Global default (Settings)"
+              value={claudeModel}
+              onChange={(e) => setClaudeModel(e.target.value)}
+            />
+            <span className="form-hint">
+              Passed as <strong>--model</strong> to this project's Claude Code chats — an alias from
+              the model list (e.g. <em>sonnet</em>) or a full model id. Empty uses the global
+              default.
+            </span>
+          </label>
+
+          <label className="form-field">
+            <span className="form-label">Default model — Opencode</span>
+            <input
+              className="field"
+              placeholder="opencode's own default"
+              value={opencodeModel}
+              onChange={(e) => setOpencodeModel(e.target.value)}
+            />
+            <span className="form-hint">
+              Passed as <strong>--model</strong> to this project's Opencode chats, in{' '}
+              <em>provider/model</em> form (e.g. <em>zai-coding-plan/glm-5.3</em>). Empty uses
+              opencode's own configured default.
             </span>
           </label>
 
