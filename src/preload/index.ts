@@ -140,13 +140,7 @@ const api = {
       filePath: string,
       origPath?: string
     ): Promise<DiffContent> =>
-      ipcRenderer.invoke(IpcChannel.GitCommitFileDiff, projectPath, hash, filePath, origPath),
-    suggestMessage: (
-      projectPath: string,
-      claudeConfigDir?: string,
-      model?: string
-    ): Promise<string> =>
-      ipcRenderer.invoke(IpcChannel.GitSuggestMessage, projectPath, claudeConfigDir, model)
+      ipcRenderer.invoke(IpcChannel.GitCommitFileDiff, projectPath, hash, filePath, origPath)
   },
 
   fs: {

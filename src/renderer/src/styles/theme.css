@@ -1563,24 +1563,6 @@ button {
   gap: 9px;
 }
 
-.model-table {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.model-row {
-  display: grid;
-  grid-template-columns: 1.2fr 0.8fr 1.3fr 0.9fr 30px;
-  gap: 9px;
-  align-items: center;
-}
-.model-row .col-head {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--text-faint);
-  text-transform: uppercase;
-}
 .field {
   height: 34px;
   padding: 0 11px;
@@ -1628,35 +1610,51 @@ button {
   border-color: var(--error);
   color: var(--error);
 }
-.add-model {
-  margin-top: 14px;
-  align-self: flex-start;
+.settings-modal {
+  width: min(520px, 92vw);
 }
-.settings-divider {
-  height: 1px;
-  background: var(--border-soft);
-  margin: 18px 0;
+/* A captioned group of settings. Reads as a step above the per-field
+   `.form-label` — the section names the *group*, the labels name each field. */
+.settings-section {
+  margin: 4px 0 14px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  text-transform: uppercase;
 }
-.setting-row {
+/* The previous field's own bottom margin (18px) already starts the gap;
+   a little extra separates the *groups* from the fields inside them. */
+.settings-section:not(:first-child) {
+  margin-top: 6px;
+}
+/* The font-size stepper plus its px readout, side by side. */
+.setting-inline {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.setting-row + .setting-row {
-  margin-top: 10px;
+/* Two related settings on one row (e.g. Claude Code's model + effort): the
+   first field is the wider, more free-form value; the second the shorter one. */
+.setting-pair {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 12px;
 }
-.select {
-  height: 34px;
-  padding: 0 11px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-extreme);
-  color: var(--text-primary);
-  font-size: 12.5px;
+.setting-pair .form-field {
+  margin-bottom: 0;
 }
-.select:focus {
-  outline: none;
-  border-color: var(--accent);
+.fs-caption {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+/* A settings text field: its value goes verbatim to a CLI flag, so it renders
+   mono — same visual register as the flags named in the hints. */
+.field.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 
 /* -------------------------------------------------------------------------
@@ -2202,35 +2200,6 @@ button {
 .composer textarea:focus {
   outline: none;
   border-color: var(--accent);
-}
-/* "Gerar mensagem com o Claude" — a session-tinted dashed affordance. */
-.gen {
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 1px dashed var(--session-line);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 11.5px;
-  font-weight: 650;
-  transition:
-    background var(--dur) var(--ease),
-    color var(--dur) var(--ease);
-}
-.gen:hover:enabled {
-  background: var(--session-tint);
-  color: var(--text-primary);
-}
-.gen:disabled {
-  opacity: 0.7;
-  cursor: default;
-}
-.gen svg {
-  color: var(--session);
-  flex-shrink: 0;
 }
 .crow-actions {
   display: flex;

@@ -159,8 +159,7 @@ function parseTokens(
  * so zero-usage rows are skipped exactly like absent ones.
  *
  * `model` comes back as opencode's own `provider/model` id (e.g.
- * `"zai-coding-plan/glm-5.3"`), matched against the configured models'
- * `idPrefix` the same way claude's full ids are.
+ * `"zai-coding-plan/glm-5.3"`).
  */
 export function opencodeSessionContext(sessionId: string): SessionContext | null {
   const db = openDb()

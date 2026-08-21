@@ -37,7 +37,6 @@ export const IpcChannel = {
   GitShow: 'git:show',
   GitFileDiff: 'git:fileDiff',
   GitCommitFileDiff: 'git:commitFileDiff',
-  GitSuggestMessage: 'git:suggestMessage',
   FsList: 'fs:list',
   FsRead: 'fs:read',
   FsWrite: 'fs:write',

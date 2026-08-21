@@ -2,8 +2,7 @@ import {
   EFFORT_LEVELS,
   TERMINAL_FONT_SIZE_MAX,
   TERMINAL_FONT_SIZE_MIN,
-  type AppConfig,
-  type ModelConfig
+  type AppConfig
 } from '@shared/types'
 import { CloseIcon, MinimizeIcon, PlusIcon } from './Icons'
 
@@ -13,31 +12,18 @@ interface Props {
   onClose: () => void
 }
 
-function blankModel(): ModelConfig {
-  return { alias: '', display: '', idPrefix: 'claude-', contextWindow: 200_000 }
-}
-
 /**
- * App-wide settings: the model list shown in the toolbar picker (editable so a
- * newly released model is a config edit, not a release) and which model /
- * effort new chats start on. Per-project settings live on their own screen,
- * reached by right-clicking the project in the sidebar. Every change is pushed
- * up immediately and persisted by the caller.
+ * App-wide settings, grouped into captioned sections: the text size and which
+ * model / effort new chats start on (per CLI). The model fields are plain text
+ * — whatever lands here is passed straight to the CLI's `--model`, with no list
+ * to keep in sync. Per-project settings live on their own screen, reached by
+ * right-clicking the project in the sidebar. Every change is pushed up
+ * immediately and persisted by the caller.
  */
 export function SettingsModal({ config, onChange, onClose }: Props) {
-  const updateModel = (i: number, patch: Partial<ModelConfig>) => {
-    const models = config.models.map((m, idx) => (idx === i ? { ...m, ...patch } : m))
-    onChange({ ...config, models })
-  }
-  const removeModel = (i: number) => {
-    onChange({ ...config, models: config.models.filter((_, idx) => idx !== i) })
-  }
-  const addModel = () => {
-    onChange({ ...config, models: [...config.models, blankModel()] })
-  }
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal settings-modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <span className="modal-title">Settings</span>
           <button className="del-btn" onClick={onClose} title="Close">
@@ -46,158 +32,96 @@ export function SettingsModal({ config, onChange, onClose }: Props) {
         </div>
 
         <div className="modal-body">
-          <div className="setting-row">
-            <span style={{ color: 'var(--text-muted)' }}>Terminal &amp; editor text size</span>
-            <div className="font-size-ctl" role="group" aria-label="Text size">
-              <button
-                title="Decrease text size"
-                aria-label="Decrease text size"
-                disabled={config.terminalFontSize <= TERMINAL_FONT_SIZE_MIN}
-                onClick={() =>
-                  onChange({
-                    ...config,
-                    terminalFontSize: Math.max(TERMINAL_FONT_SIZE_MIN, config.terminalFontSize - 1)
-                  })
-                }
-              >
-                <MinimizeIcon size={12} />
-              </button>
-              <span className="fs-value">{config.terminalFontSize}</span>
-              <button
-                title="Increase text size"
-                aria-label="Increase text size"
-                disabled={config.terminalFontSize >= TERMINAL_FONT_SIZE_MAX}
-                onClick={() =>
-                  onChange({
-                    ...config,
-                    terminalFontSize: Math.min(TERMINAL_FONT_SIZE_MAX, config.terminalFontSize + 1)
-                  })
-                }
-              >
-                <PlusIcon size={12} />
-              </button>
-            </div>
-          </div>
-          <span className="form-hint">
-            Sets xterm's font size for every terminal tab and scales the file/diff viewer's text by
-            the same ratio.
-          </span>
+          <p className="settings-section">Appearance</p>
 
-          <div className="settings-divider" />
-
-          <p className="modal-desc">
-            The list that shows up in the model picker. When Anthropic ships or renames a model,
-            edit it here — no rebuild needed.
-          </p>
-
-          <div className="model-table">
-            <div className="model-row">
-              <span className="col-head">Name</span>
-              <span className="col-head">Alias</span>
-              <span className="col-head">ID prefix</span>
-              <span className="col-head">Window</span>
-              <span />
-            </div>
-
-            {config.models.map((m, i) => (
-              <div className="model-row" key={i}>
-                <input
-                  className="field"
-                  placeholder="Opus 4.8"
-                  value={m.display}
-                  onChange={(e) => updateModel(i, { display: e.target.value })}
-                />
-                <input
-                  className="field"
-                  placeholder="opus"
-                  value={m.alias}
-                  onChange={(e) => updateModel(i, { alias: e.target.value })}
-                />
-                <input
-                  className="field"
-                  placeholder="claude-opus-4-8"
-                  value={m.idPrefix}
-                  onChange={(e) => updateModel(i, { idPrefix: e.target.value })}
-                />
-                <input
-                  type="number"
-                  className="field"
-                  title="Context window in tokens (the meter's denominator)"
-                  min={1}
-                  step={1000}
-                  value={m.contextWindow}
-                  onChange={(e) => updateModel(i, { contextWindow: Number(e.target.value) || 0 })}
-                />
-                <button className="del-btn" title="Remove model" onClick={() => removeModel(i)}>
-                  <CloseIcon size={12} />
+          <div className="form-field">
+            <span className="form-label">Terminal &amp; editor text size</span>
+            <div className="setting-inline">
+              <div className="font-size-ctl" role="group" aria-label="Text size">
+                <button
+                  title="Decrease text size"
+                  aria-label="Decrease text size"
+                  disabled={config.terminalFontSize <= TERMINAL_FONT_SIZE_MIN}
+                  onClick={() =>
+                    onChange({
+                      ...config,
+                      terminalFontSize: Math.max(
+                        TERMINAL_FONT_SIZE_MIN,
+                        config.terminalFontSize - 1
+                      )
+                    })
+                  }
+                >
+                  <MinimizeIcon size={12} />
+                </button>
+                <span className="fs-value">{config.terminalFontSize}</span>
+                <button
+                  title="Increase text size"
+                  aria-label="Increase text size"
+                  disabled={config.terminalFontSize >= TERMINAL_FONT_SIZE_MAX}
+                  onClick={() =>
+                    onChange({
+                      ...config,
+                      terminalFontSize: Math.min(
+                        TERMINAL_FONT_SIZE_MAX,
+                        config.terminalFontSize + 1
+                      )
+                    })
+                  }
+                >
+                  <PlusIcon size={12} />
                 </button>
               </div>
-            ))}
+              <span className="fs-caption">{config.terminalFontSize} px</span>
+            </div>
+            <span className="form-hint">
+              Sets xterm's font size for every terminal tab and scales the file/diff viewer's text
+              by the same ratio.
+            </span>
           </div>
 
-          <button className="btn add-model" onClick={addModel}>
-            <PlusIcon size={14} /> Add model
-          </button>
+          <p className="settings-section">New chats</p>
 
-          <div className="settings-divider" />
-
-          <div className="setting-row">
-            <span style={{ color: 'var(--text-muted)' }}>Default model for new chats</span>
-            <select
-              className="select"
-              value={config.defaultModel}
-              onChange={(e) => onChange({ ...config, defaultModel: e.target.value })}
-            >
-              {config.models
-                .filter((m) => m.alias)
-                .map((m) => (
-                  <option key={m.alias} value={m.alias}>
-                    {m.display || m.alias} ({m.alias})
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div className="setting-row">
-            <span style={{ color: 'var(--text-muted)' }}>Default effort for new chats</span>
-            <select
-              className="select"
-              value={config.defaultEffort}
-              onChange={(e) => onChange({ ...config, defaultEffort: e.target.value })}
-            >
-              <option value="">Claude Code default</option>
-              {EFFORT_LEVELS.map((level) => (
-                <option key={level} value={level}>
-                  {level}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="settings-divider" />
-
-          <div className="setting-row">
-            <span style={{ color: 'var(--text-muted)' }}>Commit message model</span>
-            <select
-              className="select"
-              value={config.commitMessageModel}
-              onChange={(e) => onChange({ ...config, commitMessageModel: e.target.value })}
-            >
-              <option value="">Claude Code default</option>
-              {config.models
-                .filter((m) => m.alias)
-                .map((m) => (
-                  <option key={m.alias} value={m.alias}>
-                    {m.display || m.alias} ({m.alias})
-                  </option>
-                ))}
-            </select>
+          <div className="setting-pair">
+            <label className="form-field">
+              <span className="form-label">Model — Claude Code</span>
+              <input
+                className="field mono"
+                placeholder="sonnet"
+                value={config.defaultModel}
+                onChange={(e) => onChange({ ...config, defaultModel: e.target.value })}
+              />
+            </label>
+            <label className="form-field">
+              <span className="form-label">Effort — Claude Code</span>
+              <input
+                className="field mono"
+                placeholder={EFFORT_LEVELS.join(' · ')}
+                value={config.defaultEffort}
+                onChange={(e) => onChange({ ...config, defaultEffort: e.target.value })}
+              />
+            </label>
           </div>
           <span className="form-hint">
-            The <strong>Generate message with Claude</strong> button, in the git panel, runs{' '}
-            <code>claude -p</code> over the staged diff — outside the chat, without spending the
-            tab's context.
+            Passed as <strong>--model</strong> and <strong>--effort</strong> to every new Claude
+            Code chat — a short model alias (e.g. <em>sonnet</em>) or a full id, and an effort
+            level. Empty leaves each to Claude Code's own default.
           </span>
+
+          <label className="form-field">
+            <span className="form-label">Model — Opencode</span>
+            <input
+              className="field mono"
+              placeholder="zai-coding-plan/glm-5.3"
+              value={config.defaultOpencodeModel}
+              onChange={(e) => onChange({ ...config, defaultOpencodeModel: e.target.value })}
+            />
+            <span className="form-hint">
+              Passed as <strong>--model</strong> to every new Opencode chat, in opencode's own{' '}
+              <em>provider/model</em> form. Empty leaves the choice to opencode's configured
+              default.
+            </span>
+          </label>
         </div>
       </div>
     </div>

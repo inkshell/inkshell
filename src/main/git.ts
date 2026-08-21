@@ -8,17 +8,12 @@ import type {
   GitFileChange,
   GitStatus
 } from '@shared/types'
-import { overrideConfigDir } from './claude-history'
 
 /**
  * Drives the locally-installed `git` binary for the project panel. Like the rest
  * of InkShell this never reimplements git — every read (status, diff, log, show)
  * and every write (stage, commit, push) shells out to the real command in the
  * project's own working tree, so results always match what a plain terminal sees.
- *
- * The one AI touch, `suggestCommitMessage`, stays in the same spirit: it runs
- * the real `claude` CLI in headless print mode (`claude -p`) over the staged
- * diff, rather than talking to any API itself.
  */
 
 /** Record- and unit-separator bytes used to frame `git log`/`show` output. */
@@ -410,75 +405,4 @@ export async function gitShow(projectPath: string, hash: string): Promise<GitCom
     files,
     diff: patch.stdout
   }
-}
-
-/** The child env for `claude`, applying the project's config-dir override. */
-function claudeEnv(claudeConfigDir?: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env }
-  delete env.CLAUDE_CONFIG_DIR
-  const dir = overrideConfigDir(claudeConfigDir)
-  if (dir) env.CLAUDE_CONFIG_DIR = dir
-  return env
-}
-
-/**
- * Suggests a Conventional-Commits message for the staged changes by running the
- * real `claude` CLI headless (`claude -p`) over `git diff --staged`. The diff is
- * capped so a huge staging area can't blow up the prompt; the returned text is
- * stripped of any stray code fences the model might wrap it in.
- *
- * `model` is the configured `commitMessageModel` — passed straight through as
- * `--model`, or omitted entirely so the CLI uses its own default.
- */
-export async function suggestCommitMessage(
-  projectPath: string,
-  claudeConfigDir?: string,
-  model?: string
-): Promise<string> {
-  const root = await repoRoot(projectPath)
-  const { stdout: diff } = await git(root, ['diff', '--staged', '--no-color'])
-  if (!diff.trim()) throw new Error('Nothing staged — stage files before generating a message.')
-
-  const MAX = 12_000
-  const clipped = diff.length > MAX ? `${diff.slice(0, MAX)}\n\n[diff truncated]` : diff
-  const prompt =
-    'You write commit messages. Based on the staged diff (git diff --staged) ' +
-    'below, write ONE commit message in the Conventional Commits format ' +
-    '(e.g. "feat: ...", "fix: ...", "refactor: ..."), in English, in the imperative. ' +
-    'Reply with the message ONLY — no backticks, no quotes, no explanation.\n\n' +
-    clipped
-
-  const bin = process.platform === 'win32' ? 'claude.cmd' : 'claude'
-  const args = model?.trim() ? ['--model', model.trim(), '-p', prompt] : ['-p', prompt]
-  const stdout = await new Promise<string>((resolvePromise, reject) => {
-    execFile(
-      bin,
-      args,
-      {
-        cwd: root,
-        env: claudeEnv(claudeConfigDir),
-        timeout: 120_000,
-        maxBuffer: MAX_BUFFER,
-        windowsHide: true
-      },
-      (err, out, stderr) => {
-        if (err) {
-          const e = err as NodeJS.ErrnoException
-          reject(
-            new Error(
-              e.code === 'ENOENT' ? 'claude not found on PATH' : stderr.trim() || err.message
-            )
-          )
-          return
-        }
-        resolvePromise(out)
-      }
-    )
-  })
-
-  return stdout
-    .trim()
-    .replace(/^```[^\n]*\n?/, '')
-    .replace(/\n?```$/, '')
-    .trim()
 }

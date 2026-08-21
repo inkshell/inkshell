@@ -18,8 +18,7 @@ import {
   gitShow,
   gitStage,
   gitStatus,
-  gitUnstage,
-  suggestCommitMessage
+  gitUnstage
 } from './git'
 import {
   listAllFiles,
@@ -130,11 +129,6 @@ export function registerIpcHandlers(window: BrowserWindow): PtyManager {
     IpcChannel.GitCommitFileDiff,
     (_e, projectPath: string, hash: string, filePath: string, origPath?: string) =>
       gitCommitFileDiff(projectPath, hash, filePath, origPath)
-  )
-  ipcMain.handle(
-    IpcChannel.GitSuggestMessage,
-    (_e, projectPath: string, claudeConfigDir?: string, model?: string) =>
-      suggestCommitMessage(projectPath, claudeConfigDir, model)
   )
   ipcMain.handle(IpcChannel.FsList, (_e, projectPath: string, relPath: string) =>
     listDir(projectPath, relPath)

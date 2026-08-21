@@ -127,15 +127,6 @@ export const RefreshIcon = ({ size = 14 }: IconProps) =>
     </>
   )
 
-export const SparklesIcon = ({ size = 14 }: IconProps) =>
-  svg(
-    size,
-    <>
-      <path d="M12 3l1.6 4.9L18.5 9.5l-4.9 1.6L12 16l-1.6-4.9L5.5 9.5l4.9-1.6z" />
-      <path d="M18.5 15l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" />
-    </>
-  )
-
 export const SearchIcon = ({ size = 14 }: IconProps) =>
   svg(
     size,
